@@ -48,7 +48,9 @@ func migrateAll(db *sql.DB) error {
 }
 
 // migrate runs the *.sql files in fsys in name order, each only once.
-// Statements must end with a semicolon at the end of a line.
+// Statements must end with a semicolon at the end of a line. MariaDB cannot roll
+// back schema changes, so a migration that stopped partway runs again in full on
+// the next start: its statements must be safe to repeat (IF NOT EXISTS).
 func migrate(db *sql.DB, prefix string, fsys fs.FS) error {
 	files, err := fs.Glob(fsys, "*.sql")
 	if err != nil {
@@ -67,7 +69,7 @@ func migrate(db *sql.DB, prefix string, fsys fs.FS) error {
 		if err != nil {
 			return err
 		}
-		for _, stmt := range strings.Split(string(b), ";\n") {
+		for _, stmt := range strings.Split(strings.ReplaceAll(string(b), "\r\n", "\n"), ";\n") {
 			if strings.TrimSpace(stmt) == "" {
 				continue
 			}
