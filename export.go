@@ -19,12 +19,16 @@ func (a *App) budgetExport(w http.ResponseWriter, r *http.Request) {
 		http.NotFound(w, r)
 		return
 	}
-	budget, err := defaultBudget(r.Context(), a.db)
+	current, _, ok, err := a.budgetFor(r)
 	if err != nil {
 		a.fail(w, err)
 		return
 	}
-	b, err := a.loadBudget(r.Context(), budget, year)
+	if !ok {
+		http.NotFound(w, r)
+		return
+	}
+	b, err := a.loadBudget(r.Context(), current.ID, year)
 	if err != nil {
 		a.fail(w, err)
 		return

@@ -277,3 +277,11 @@ form.inline input:invalid:placeholder-shown { border-color: var(--border); } /* 
 /* A field with recorded changes: a corner mark whose tooltip lists the earlier values (K shows them too). */
 .budget tr.line td:not(:first-child) { position: relative; }
 .budget tr.line .mark { position: absolute; top: 2px; right: 2px; width: 8px; height: 8px; z-index: 2; cursor: help; background: linear-gradient(225deg, var(--muted) 50%, transparent 50%); }
+.budget-admin { border-top: 1px solid var(--border); padding: .5rem 0; }
+.budget-admin summary { cursor: pointer; }
+.budget-form { display: grid; gap: .6rem; max-width: 32rem; margin: .75rem 0; }
+.budget-form label { display: grid; gap: .25rem; }
+.budget-form label.check { display: flex; gap: .4rem; align-items: center; }
+.budget-form fieldset { border: 1px solid var(--border); border-radius: 4px; display: flex; flex-wrap: wrap; gap: .3rem 1rem; }
+form.new-budget { margin-top: .75rem; }
+form.new-budget input { width: 16rem; }

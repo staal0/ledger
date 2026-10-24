@@ -91,11 +91,16 @@ type change struct {
 func (a *App) managePage(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	L := a.locale(r)
-	budget, err := defaultBudget(ctx, a.db)
+	current, visible, ok, err := a.chosenBudget(r)
 	if err != nil {
 		a.fail(w, err)
 		return
 	}
+	if !ok {
+		http.NotFound(w, r)
+		return
+	}
+	budget := current.ID
 	type yearInfo struct{ Year, Lines int }
 	var years []yearInfo
 	rows, err := a.db.QueryContext(ctx, `SELECT y.year, COUNT(l.id) FROM budget_years y
@@ -141,14 +146,25 @@ func (a *App) managePage(w http.ResponseWriter, r *http.Request) {
 		a.fail(w, err)
 		return
 	}
+	all, users, err := a.budgetsAdmin(ctx)
+	if err != nil {
+		a.fail(w, err)
+		return
+	}
 	a.render(w, r, "manage", map[string]any{
-		"Title":   L.T("nav.manage"),
-		"Years":   years,
-		"Year":    year,
-		"Changes": changes,
-		"Limited": len(changes) == historyShown,
-		"Shown":   historyShown,
-		"Keep":    keep,
+		"Title":      L.T("nav.manage"),
+		"Current":    current,
+		"Budgets":    pickable(visible),
+		"Base":       current.Base(),
+		"AllBudgets": all,
+		"Open":       openBudget(r, current),
+		"Users":      users,
+		"Years":      years,
+		"Year":       year,
+		"Changes":    changes,
+		"Limited":    len(changes) == historyShown,
+		"Shown":      historyShown,
+		"Keep":       keep,
 	})
 }
 
@@ -246,15 +262,19 @@ func (a *App) manageDeleteYear(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, a.locale(r).T("manage.delete_wrong", year), http.StatusBadRequest)
 		return
 	}
-	budget, err := defaultBudget(r.Context(), a.db)
-	if err == nil {
-		_, err = a.db.ExecContext(r.Context(), "DELETE FROM budget_years WHERE budget_id = ? AND year = ?", budget, year)
+	current, _, ok, err := a.budgetFor(r)
+	if err == nil && ok {
+		_, err = a.db.ExecContext(r.Context(), "DELETE FROM budget_years WHERE budget_id = ? AND year = ?", current.ID, year)
 	}
 	if err != nil {
 		a.fail(w, err)
 		return
 	}
-	http.Redirect(w, r, "/manage", http.StatusSeeOther)
+	if !ok {
+		http.NotFound(w, r)
+		return
+	}
+	http.Redirect(w, r, manageURL(current, 0, "#years"), http.StatusSeeOther)
 }
 
 // manageRestore sets a field back to its value before a change. The restore is
@@ -270,9 +290,11 @@ func (a *App) manageRestore(w http.ResponseWriter, r *http.Request) {
 	var line int64
 	var field, year int
 	var old string
-	err = tx.QueryRowContext(ctx, `SELECT h.line_id, h.field, h.old_value, b.year
-		FROM budget_history h JOIN budget_lines l ON l.id = h.line_id JOIN budget_years b ON b.id = l.year_id
-		WHERE h.id = ? FOR UPDATE`, r.PathValue("id")).Scan(&line, &field, &old, &year)
+	var budget budgetRef
+	err = tx.QueryRowContext(ctx, `SELECT h.line_id, h.field, h.old_value, y.year, b.slug, b.is_default
+		FROM budget_history h JOIN budget_lines l ON l.id = h.line_id JOIN budget_years y ON y.id = l.year_id
+		JOIN budgets b ON b.id = y.budget_id
+		WHERE h.id = ? FOR UPDATE`, r.PathValue("id")).Scan(&line, &field, &old, &year, &budget.Slug, &budget.IsDefault)
 	if errors.Is(err, sql.ErrNoRows) {
 		http.NotFound(w, r)
 		return
@@ -309,7 +331,7 @@ func (a *App) manageRestore(w http.ResponseWriter, r *http.Request) {
 		a.fail(w, err)
 		return
 	}
-	http.Redirect(w, r, fmt.Sprintf("/manage?year=%d#history", year), http.StatusSeeOther)
+	http.Redirect(w, r, manageURL(budget, year, "#history"), http.StatusSeeOther)
 }
 
 // manageKeep sets how many changes are kept per field and applies it at once.

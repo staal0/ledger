@@ -1,18 +1,19 @@
 {{define "content"}}{{$L := .L}}
 <form class="yearnav" action="/budget/">
   <h1>{{$L.T "nav.budget"}}</h1>
-  <a href="/budget/{{.Prev}}">‹ {{.Prev}}</a>
+  {{- template "budget-picker" .}}
+  <a href="{{.Base}}/{{.Prev}}">‹ {{.Prev}}</a>
   <select name="year" aria-label="{{$L.T "budget.year"}}" data-autosubmit autocomplete="off">
     {{range .Years}}<option{{if eq . $.Year}} selected{{end}}>{{.}}</option>{{end}}
   </select>
-  <a href="/budget/{{.Next}}">{{.Next}} ›</a>
+  <a href="{{.Base}}/{{.Next}}">{{.Next}} ›</a>
   <noscript><button class="secondary">{{$L.T "budget.go"}}</button></noscript>
 </form>
 
 {{if and (not .Budget) (not .User.CanEdit)}}
 <p class="hint">{{$L.T "budget.none" .Year}}</p>
 {{else if not .Budget}}
-<form method="post" action="/budget/{{.Year}}/create" class="card create">
+<form method="post" action="{{.Base}}/{{.Year}}/create" class="card create">
   <h2>{{$L.T "budget.none" .Year}}</h2>
   {{if .PrevExists}}
   <div class="option">
@@ -35,7 +36,7 @@
   {{with .Conflicts}}<div class="notice" role="alert">{{$L.T "budget.conflicts"}}<ul>{{range .}}<li>{{.}}</li>{{end}}</ul></div>{{end}}
   <div class="toolbar">
     {{if .User.CanEdit}}<button name="action" value="save" data-unsaved="{{$L.T "budget.unsaved"}}">{{$L.T "save"}}</button>{{end}}
-    <a class="button secondary" href="/budget/{{.Year}}/export" download>⤓ {{$L.T "budget.export"}}</a>
+    <a class="button secondary" href="{{.Base}}/{{.Year}}/export" download>⤓ {{$L.T "budget.export"}}</a>
     <button type="button" class="secondary" data-help>⌨ {{$L.T "help.title"}}</button>
   </div>
   <div class="scroll">

@@ -6,6 +6,7 @@ package main
 //	LEDGER_TEST_DSN='ledger:ledger@tcp(127.0.0.1:3306)/ledger_test' go test ./...
 
 import (
+	"context"
 	"database/sql"
 	"fmt"
 	"net/http"
@@ -41,8 +42,7 @@ func testApp(t *testing.T, login bool) *App {
 			return
 		}
 		// Start from nothing so the migrations themselves are tested too.
-		if _, testDBErr = testDB.Exec(`DROP TABLE IF EXISTS budget_history, budget_amounts, budget_lines, budget_members, budget_groups, user_groups, budget_years, budgets,
-			sessions, settings, users, schema_migrations`); testDBErr == nil {
+		if testDBErr = dropAll(context.Background()); testDBErr == nil {
 			testDBErr = migrateAll(testDB)
 		}
 	})
@@ -163,4 +163,23 @@ func loadYear(t *testing.T, a *App, year int) (*BudgetYear, error) {
 		return nil, err
 	}
 	return a.loadBudget(t.Context(), budget, year)
+}
+
+// dropAll drops every table of the test database. users and budgets refer to
+// each other, so foreign keys are not checked while dropping, on a connection
+// of its own.
+func dropAll(ctx context.Context) error {
+	conn, err := testDB.Conn(ctx)
+	if err != nil {
+		return err
+	}
+	defer conn.Close()
+	for _, q := range []string{"SET FOREIGN_KEY_CHECKS = 0", `DROP TABLE IF EXISTS budget_history, budget_amounts, budget_lines,
+		budget_members, budget_groups, user_groups, budget_years, budgets, sessions, settings, users, schema_migrations`,
+		"SET FOREIGN_KEY_CHECKS = 1"} {
+		if _, err := conn.ExecContext(ctx, q); err != nil {
+			return err
+		}
+	}
+	return nil
 }

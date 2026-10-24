@@ -1,17 +1,68 @@
 {{define "content"}}{{$L := .L}}
 <h1>{{.Title}}</h1>
 
-<section class="card wide">
+<section class="card wide" id="budgets">
+  <h2>{{$L.T "manage.budgets"}}</h2>
+  {{range .AllBudgets}}
+  <details class="budget-admin"{{if eq .ID $.Open}} open{{end}}>
+    <summary><strong>{{.Name}}</strong>
+      <span class="hint">· {{if .Everyone}}{{$L.T "manage.everyone"}}{{else if or .Members .Groups}}{{$L.T "manage.shared" (len .Members)}}{{with .Groups}} · {{.}}{{end}}{{else}}{{$L.T "manage.private"}}{{end}} · {{$L.T "manage.budget_years" .Years}}</span>
+    </summary>
+    <form method="post" action="/manage/budgets/{{.ID}}" class="budget-form">
+      <label>{{$L.T "manage.name"}} <input name="name" value="{{.Name}}" required maxlength="100"></label>
+      <label>{{$L.T "manage.slug"}} <input name="slug" value="{{.Slug}}" required pattern="[a-z0-9]+(-[a-z0-9]+)*" maxlength="100"></label>
+      {{if not .IsDefault}}<p class="hint">{{$L.T "manage.slug_hint" .Slug}}</p>{{end}}
+      <label>{{$L.T "manage.owner"}}
+        <select name="owner">
+          <option value="">–</option>
+          {{$owner := .Owner}}{{range $.Users}}<option value="{{.ID}}"{{if eq .ID $owner}} selected{{end}}>{{.Name}}</option>{{end}}
+        </select>
+      </label>
+      <label class="check"><input type="checkbox" name="everyone" value="1"{{if .Everyone}} checked{{end}}> {{$L.T "manage.everyone_label"}}</label>
+      <fieldset>
+        <legend>{{$L.T "manage.members"}}</legend>
+        {{$members := .Members}}{{range $.Users}}<label class="check"><input type="checkbox" name="member" value="{{.ID}}"{{if index $members .ID}} checked{{end}}> {{.Name}}</label>{{end}}
+      </fieldset>
+      <label>{{$L.T "manage.groups"}} <input name="groups" value="{{.Groups}}"></label>
+      <p class="hint">{{$L.T "manage.access_hint"}}</p>
+      <button>{{$L.T "save"}}</button>
+    </form>
+    {{if .IsDefault}}
+    <p class="hint">{{$L.T "manage.default_hint"}}</p>
+    {{else}}
+    <form method="post" action="/manage/budgets/{{.ID}}/delete" class="inline">
+      <input name="confirm" required pattern="{{.NamePattern}}" placeholder="{{.Name}}" title="{{$L.T "manage.delete_budget_confirm" .Name}}" aria-label="{{$L.T "manage.delete_budget_confirm" .Name}}">
+      <button class="secondary">{{$L.T "manage.delete_budget"}}</button>
+    </form>
+    <p class="hint">{{$L.T "manage.delete_budget_hint"}}</p>
+    {{end}}
+  </details>
+  {{end}}
+  <form method="post" action="/manage/budgets" class="inline new-budget">
+    <input name="name" required maxlength="100" placeholder="{{$L.T "manage.new_budget"}}" aria-label="{{$L.T "manage.new_budget"}}">
+    <button>{{$L.T "manage.create_budget"}}</button>
+  </form>
+  <p class="hint">{{$L.T "manage.create_hint"}}</p>
+</section>
+
+<section class="card wide" id="years">
   <h2>{{$L.T "manage.years"}}</h2>
+  {{if .Budgets}}
+  <form action="/manage#years" class="filters">
+    {{- template "budget-picker" .}}
+    <noscript><button class="secondary">{{$L.T "budget.go"}}</button></noscript>
+  </form>
+  {{end}}
   {{if .Years}}
   <table class="manage-table">
     <tr class="head"><th>{{$L.T "budget.year"}}</th><th class="num">{{$L.T "manage.lines"}}</th><th></th></tr>
     {{range .Years}}
     <tr>
-      <th><a href="/budget/{{.Year}}">{{.Year}}</a></th>
+      <th><a href="{{$.Base}}/{{.Year}}">{{.Year}}</a></th>
       <td class="num">{{.Lines}}</td>
       <td>
         <form method="post" action="/manage/years/{{.Year}}/delete" class="inline">
+          <input type="hidden" name="budget" value="{{$.Current.Slug}}">
           <input name="confirm" required pattern="{{.Year}}" inputmode="numeric" size="5" placeholder="{{.Year}}" title="{{$L.T "manage.delete_confirm" .Year}}" aria-label="{{$L.T "manage.delete_confirm" .Year}}">
           <button class="secondary">{{$L.T "manage.delete"}}</button>
         </form>
@@ -29,6 +80,7 @@
 <section class="card wide" id="history">
   <h2>{{$L.T "manage.history"}}</h2>
   <form action="/manage#history" class="filters">
+    {{- template "budget-picker" .}}
     <label>{{$L.T "budget.year"}}
       <select name="year" data-autosubmit autocomplete="off">{{range .Years}}<option{{if eq .Year $.Year}} selected{{end}}>{{.Year}}</option>{{end}}</select>
     </label>

@@ -158,11 +158,17 @@ func (a *App) routes() http.Handler {
 
 	private := http.NewServeMux()
 	private.HandleFunc("GET /{$}", a.budgetIndex)
+	// The default budget's years are at /budget/{year}, other budgets' at /budget/{slug}/{year}.
 	private.HandleFunc("GET /budget/{$}", a.budgetIndex)
 	private.HandleFunc("GET /budget/{year}", a.budgetPage)
 	private.HandleFunc("POST /budget/{year}", a.only(roleEditor, a.budgetSave))
 	private.HandleFunc("POST /budget/{year}/create", a.only(roleEditor, a.budgetCreate))
 	private.HandleFunc("GET /budget/{year}/export", a.budgetExport)
+	private.HandleFunc("GET /budget/{slug}/{$}", a.budgetIndex)
+	private.HandleFunc("GET /budget/{slug}/{year}", a.budgetPage)
+	private.HandleFunc("POST /budget/{slug}/{year}", a.only(roleEditor, a.budgetSave))
+	private.HandleFunc("POST /budget/{slug}/{year}/create", a.only(roleEditor, a.budgetCreate))
+	private.HandleFunc("GET /budget/{slug}/{year}/export", a.budgetExport)
 	private.HandleFunc("GET /stats", a.statsPage)
 	private.HandleFunc("GET /settings", a.settingsPage)
 	private.HandleFunc("POST /settings", a.settingsSave)
@@ -171,6 +177,9 @@ func (a *App) routes() http.Handler {
 	private.HandleFunc("POST /manage/years/{year}/delete", a.only(roleAdmin, a.manageDeleteYear))
 	private.HandleFunc("POST /manage/history/{id}/restore", a.only(roleAdmin, a.manageRestore))
 	private.HandleFunc("POST /manage/history-keep", a.only(roleAdmin, a.manageKeep))
+	private.HandleFunc("POST /manage/budgets", a.only(roleAdmin, a.manageCreateBudget))
+	private.HandleFunc("POST /manage/budgets/{id}", a.only(roleAdmin, a.manageUpdateBudget))
+	private.HandleFunc("POST /manage/budgets/{id}/delete", a.only(roleAdmin, a.manageDeleteBudget))
 	for _, p := range plugins {
 		p.Routes(private, a)
 	}

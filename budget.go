@@ -118,15 +118,6 @@ func loadBudget(ctx context.Context, q querier, budget int64, year int, lock str
 	return b, amounts.Err()
 }
 
-// budgetIndex goes to ?year= (from the year picker), or else the current year.
-func (a *App) budgetIndex(w http.ResponseWriter, r *http.Request) {
-	year := time.Now().Year()
-	if y, err := strconv.Atoi(r.FormValue("year")); err == nil {
-		year = y
-	}
-	http.Redirect(w, r, fmt.Sprintf("/budget/%d", year), http.StatusFound)
-}
-
 // budgetYears lists the years that have a budget, newest first.
 func (a *App) budgetYears(ctx context.Context, budget int64) ([]int, error) {
 	rows, err := a.db.QueryContext(ctx, "SELECT year FROM budget_years WHERE budget_id = ? ORDER BY year DESC", budget)
@@ -157,11 +148,20 @@ func (a *App) budgetPage(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	ctx := r.Context()
-	budget, err := defaultBudget(ctx, a.db)
+	current, visible, ok, err := a.budgetFor(r)
 	if err != nil {
 		a.fail(w, err)
 		return
 	}
+	if !ok && r.PathValue("slug") == "" && len(visible) > 0 { // the default budget is not shared with this user
+		http.Redirect(w, r, visible[0].yearURL(year), http.StatusFound)
+		return
+	}
+	if !ok {
+		http.NotFound(w, r)
+		return
+	}
+	budget := current.ID
 	b, err := a.loadBudget(ctx, budget, year)
 	if err != nil {
 		a.fail(w, err)
@@ -185,6 +185,9 @@ func (a *App) budgetPage(w http.ResponseWriter, r *http.Request) {
 		"Next":    year + 1,
 		"Months":  months,
 		"Pattern": L.InputPattern(),
+		"Base":    current.Base(),
+		"Current": current,
+		"Budgets": pickable(visible),
 	}
 	if b == nil {
 		var n int
@@ -252,13 +255,17 @@ func (a *App) budgetSave(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	defer tx.Rollback()
-	budget, err := defaultBudget(ctx, tx)
+	current, _, ok, err := a.budgetFor(r)
 	if err != nil {
 		a.fail(w, err)
 		return
 	}
+	if !ok {
+		http.NotFound(w, r)
+		return
+	}
 	// The lock makes saves of the same year run one after the other, so each merges with the one before.
-	b, err := loadBudget(ctx, tx, budget, year, "FOR UPDATE")
+	b, err := loadBudget(ctx, tx, current.ID, year, "FOR UPDATE")
 	if err != nil {
 		a.fail(w, err)
 		return
@@ -276,7 +283,7 @@ func (a *App) budgetSave(w http.ResponseWriter, r *http.Request) {
 	// Only fields changed on this page are written. A field that was also changed
 	// elsewhere since the page was loaded keeps that value and is reported.
 	var conflicts []string
-	current := map[string]bool{}
+	existing := map[string]bool{}
 	var changed []int64 // lines with recorded changes, to prune their history
 	set := func(l *Line, field int, old, new string) {
 		if err == nil {
@@ -289,7 +296,7 @@ func (a *App) budgetSave(w http.ResponseWriter, r *http.Request) {
 	for _, s := range sections {
 		for _, l := range b.Lines[s] {
 			key := fmt.Sprintf("n_%d", l.ID)
-			current[key] = true
+			existing[key] = true
 			name, posted := r.PostForm[key]
 			if !posted {
 				continue // line was added elsewhere after this page was loaded
@@ -334,14 +341,14 @@ func (a *App) budgetSave(w http.ResponseWriter, r *http.Request) {
 	var deleted []string
 	for key := range r.PostForm {
 		id, isLine := strings.CutPrefix(key, "n_")
-		if isLine && !current[key] && editedHere(r, original, id, L) {
+		if isLine && !existing[key] && editedHere(r, original, id, L) {
 			deleted = append(deleted, L.T("budget.conflict_deleted", original[key]))
 		}
 	}
 	slices.Sort(deleted)
 	conflicts = append(conflicts, deleted...)
 
-	back := fmt.Sprintf("/budget/%d", year)
+	back := current.yearURL(year)
 	verb, arg, _ := strings.Cut(r.PostFormValue("action"), ":")
 	switch verb {
 	case "add":
@@ -455,7 +462,17 @@ func (a *App) budgetCreate(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	ctx := r.Context()
-	back := fmt.Sprintf("/budget/%d", year)
+	current, _, ok, err := a.budgetFor(r)
+	if err != nil {
+		a.fail(w, err)
+		return
+	}
+	if !ok {
+		http.NotFound(w, r)
+		return
+	}
+	budget := current.ID
+	back := current.yearURL(year)
 	tx, err := a.db.BeginTx(ctx, nil)
 	if err != nil {
 		a.fail(w, err)
@@ -463,11 +480,6 @@ func (a *App) budgetCreate(w http.ResponseWriter, r *http.Request) {
 	}
 	defer tx.Rollback()
 
-	budget, err := defaultBudget(ctx, tx)
-	if err != nil {
-		a.fail(w, err)
-		return
-	}
 	res, err := tx.ExecContext(ctx, "INSERT INTO budget_years (budget_id, year) VALUES (?, ?)", budget, year)
 	var me *mysql.MySQLError
 	if errors.As(err, &me) && me.Number == 1062 { // already exists, e.g. a double submit
