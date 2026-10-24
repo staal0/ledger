@@ -229,7 +229,7 @@ tr.calc.difference > * { border-top: 1.25rem solid var(--bg); }
 .tip-row { display: flex; align-items: center; gap: .4rem; }
 .tip-row .key { width: 12px; height: 3px; border-radius: 2px; }
 
-dialog.help { background: var(--surface); color: var(--text); border: 1px solid var(--border); border-radius: 8px; padding: 1.25rem; max-width: 34rem; }
+dialog.help { background: var(--surface); color: var(--text); border: 1px solid var(--border); border-radius: 8px; padding: 1.25rem; max-width: min(48rem, calc(100vw - 2rem)); }
 dialog.help::backdrop { background: rgb(0 0 0 / .4); }
 dialog.help h2 { font-size: 1.1rem; margin: 0 0 .75rem; }
 dialog.help table { border-collapse: collapse; margin-bottom: .75rem; }

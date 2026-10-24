@@ -132,14 +132,15 @@ document.addEventListener('DOMContentLoaded', () => {
   // always move; in name fields left/right only leave at the edge of the text.
   // Enter saves.
   // More vim keys in amount fields: ^/$ first/last month, gg/G first/last line, { } previous/next
-  // section, i/a cursor at start/end, Esc select again, x clear, u restore saved value, y copy, p paste,
-  // f copy to the following months.
+  // section, i/a edit with the cursor at start/end (h/l and left/right then move within the amount
+  // until Esc), Esc select again, x clear, u restore saved value, y copy, p paste, f copy to the following months.
   const rows = [...form.querySelectorAll('tr.line')]
   const sections = [...form.querySelectorAll('tbody[data-section]')].filter(b => b.querySelector('tr.line'))
   const go = inp => { if (inp) { inp.focus(); inp.select() } }
   const keys = { ArrowUp: 'up', ArrowDown: 'down', ArrowLeft: 'left', ArrowRight: 'right' }
   const vim = { h: 'left', j: 'down', k: 'up', l: 'right' }
-  let pendingG = false, yanked = null
+  let pendingG = false, yanked = null, editing = null // editing: the amount field entered with i/a
+  form.addEventListener('focusout', () => { editing = null })
   for (const inp of form.querySelectorAll('input.num')) inp.dataset.saved = inp.value // for "u"
   form.addEventListener('keydown', e => {
     const inp = e.target
@@ -171,9 +172,9 @@ document.addEventListener('DOMContentLoaded', () => {
       '{': () => go(cellIn(sectionStart(-1))),
       '}': () => go(cellIn(sectionStart(1))),
       '?': showHelp,
-      i: () => inp.setSelectionRange(0, 0), // drop the highlight, cursor at the start
-      a: () => inp.setSelectionRange(inp.value.length, inp.value.length), // … at the end
-      Escape: () => inp.select(), // highlight the value again
+      i: () => { editing = inp; inp.setSelectionRange(0, 0) }, // drop the highlight, cursor at the start
+      a: () => { editing = inp; inp.setSelectionRange(inp.value.length, inp.value.length) }, // … at the end
+      Escape: () => { editing = null; inp.select() }, // highlight the value again
       x: () => set(''),
       f: () => fill(inp),
       u: () => set(inp.dataset.saved),
@@ -185,6 +186,15 @@ document.addEventListener('DOMContentLoaded', () => {
       return edit()
     }
     const dir = keys[e.key] || (num && vim[e.key])
+    if (editing === inp && (dir === 'left' || dir === 'right')) {
+      // Arrows move the cursor natively; h/l do the same by hand. Neither leaves the field.
+      if (vim[e.key]) {
+        e.preventDefault()
+        const p = Math.max(0, Math.min(inp.value.length, inp.selectionStart + (dir === 'left' ? -1 : 1)))
+        inp.setSelectionRange(p, p)
+      }
+      return
+    }
     if (!dir) {
       // Amount fields take only digits, minus and the decimal separator; other
       // printable keys are ignored. Editing keys (Backspace, Tab, ...) pass through.
