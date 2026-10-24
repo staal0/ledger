@@ -250,3 +250,6 @@ kbd { display: inline-block; min-width: 1.6em; text-align: center; padding: .05r
 .delta.bad { color: var(--neg); }
 .filters { display: flex; flex-wrap: wrap; align-items: center; gap: 1rem; margin-top: 1rem; }
 .filters label { display: flex; align-items: center; gap: .4rem; color: var(--muted); }
+/* Changes a save could not make because the same fields were changed elsewhere. */
+.notice { margin: .5rem 0; padding: .5rem .75rem; background: var(--surface); border: 1px solid var(--border); border-left: 4px solid var(--neg); border-radius: 4px; }
+.notice ul { margin: .25rem 0 0; padding-left: 1.25rem; }

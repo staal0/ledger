@@ -29,6 +29,8 @@
 {{else}}
 <div class="budget-layout">
 <form method="post" class="budget">
+  <input type="hidden" name="original" value="{{.Original}}">
+  {{with .Conflicts}}<div class="notice" role="alert">{{$L.T "budget.conflicts"}}<ul>{{range .}}<li>{{.}}</li>{{end}}</ul></div>{{end}}
   <div class="toolbar">
     <button name="action" value="save" data-unsaved="{{$L.T "budget.unsaved"}}">{{$L.T "save"}}</button>
     <a class="button secondary" href="/budget/{{.Year}}/export" download>⤓ {{$L.T "budget.export"}}</a>

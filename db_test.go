@@ -132,14 +132,15 @@ func lineIDs(t *testing.T, year int) map[string]int64 {
 }
 
 // saveForm is the budget form as the browser posts it: every line's name and
-// amounts (line id → month → text), plus the clicked action.
+// amounts (line id → month → text), the values the page was loaded with, plus
+// the clicked action.
 func saveForm(t *testing.T, a *App, year int, action string, amounts map[int64]map[int]string) url.Values {
 	t.Helper()
 	b, err := a.loadBudget(t.Context(), year)
 	if err != nil || b == nil {
 		t.Fatalf("loading %d: %v", year, err)
 	}
-	f := url.Values{"action": {action}}
+	f := url.Values{"action": {action}, "original": {originalValues(b)}}
 	for _, lines := range b.Lines {
 		for _, l := range lines {
 			f.Set(fmt.Sprintf("n_%d", l.ID), l.Name)

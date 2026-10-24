@@ -41,6 +41,11 @@
   "budget.delete": "Delete",
   "budget.confirm_delete": "Delete \"%s\" and all its amounts?",
   "budget.invalid_amount": "Invalid amount in \"%s\", %s.",
+  "budget.conflicts": "Some changes were not saved, because the same fields were changed elsewhere in the meantime:",
+  "budget.conflict_amount": "%s, %s: you entered %s, but it was saved as %s.",
+  "budget.conflict_name": "\"%s\" was renamed to \"%s\"; your name \"%s\" was not saved.",
+  "budget.conflict_deleted": "\"%s\" was deleted; your changes to it were not saved.",
+  "budget.conflict_more": "… and %d more.",
 
   "help.title": "Keyboard shortcuts",
   "help.move": "Move",

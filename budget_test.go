@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"html"
+	"net/http/httptest"
 	"net/url"
 	"strings"
 	"testing"
@@ -123,6 +124,82 @@ func TestBudgetNotFound(t *testing.T) {
 	mustStatus(t, request(a, "POST", "/budget/2030", url.Values{"action": {"save"}}, ""), 404)
 	mustStatus(t, request(a, "GET", "/budget/2030/export", nil, ""), 404)
 	mustStatus(t, request(a, "GET", "/budget/12", nil, ""), 404)
+}
+
+func TestConcurrentEdits(t *testing.T) {
+	a := testApp(t, false)
+	ids := setupYear(t, a, 2030, "income/Salary", "expense/Rent")
+	salary, rent := ids["income/Salary"], ids["expense/Rent"]
+	post := func(f url.Values) *httptest.ResponseRecorder {
+		w := request(a, "POST", "/budget/2030", f, "")
+		mustStatus(t, w, 303)
+		return w
+	}
+	conflicts := func(w *httptest.ResponseRecorder) string {
+		r := httptest.NewRequest("GET", "/budget/2030", nil)
+		r.Header.Set("Accept-Language", "en")
+		for _, c := range w.Result().Cookies() {
+			r.AddCookie(c)
+		}
+		page := httptest.NewRecorder()
+		a.routes().ServeHTTP(page, r)
+		body := page.Body.String()
+		if i := strings.Index(body, `class="notice"`); i >= 0 {
+			return body[i:]
+		}
+		return ""
+	}
+
+	// Two pages loaded at the same time, changing different fields: both are kept.
+	first := saveForm(t, a, 2030, "save", map[int64]map[int]string{salary: {1: "100"}})
+	second := saveForm(t, a, 2030, "save", map[int64]map[int]string{rent: {1: "50"}})
+	post(first)
+	if c := conflicts(post(second)); c != "" {
+		t.Errorf("changes to different fields conflict: %s", c)
+	}
+	if amount(t, salary, 1) != 10000 || amount(t, rent, 1) != 5000 {
+		t.Errorf("salary %d, rent %d after two saves", amount(t, salary, 1), amount(t, rent, 1))
+	}
+
+	// The same field changed on both: the first value stays and the second save reports it,
+	// while its other changes are saved.
+	first = saveForm(t, a, 2030, "save", map[int64]map[int]string{salary: {2: "1"}})
+	second = saveForm(t, a, 2030, "save", map[int64]map[int]string{salary: {2: "2"}, rent: {2: "7"}})
+	post(first)
+	if c := conflicts(post(second)); !strings.Contains(c, "Salary, Feb: you entered 2, but it was saved as 1.") {
+		t.Errorf("conflict notice: %q", c)
+	}
+	if amount(t, salary, 2) != 100 || amount(t, rent, 2) != 700 {
+		t.Errorf("salary %d, rent %d after a conflict", amount(t, salary, 2), amount(t, rent, 2))
+	}
+
+	// The same value entered on both is no conflict.
+	first = saveForm(t, a, 2030, "save", map[int64]map[int]string{salary: {3: "5"}})
+	second = saveForm(t, a, 2030, "save", map[int64]map[int]string{salary: {3: "5"}})
+	post(first)
+	if c := conflicts(post(second)); c != "" {
+		t.Errorf("the same value conflicts: %s", c)
+	}
+
+	// Renamed on both.
+	first, second = saveForm(t, a, 2030, "save", nil), saveForm(t, a, 2030, "save", nil)
+	first.Set(fmt.Sprintf("n_%d", rent), "Housing")
+	second.Set(fmt.Sprintf("n_%d", rent), "Flat")
+	post(first)
+	if c := conflicts(post(second)); !strings.Contains(c, "was renamed to") {
+		t.Errorf("rename conflict notice: %q", c)
+	}
+
+	// A line deleted elsewhere: reported only if this page changed it.
+	edited := saveForm(t, a, 2030, "save", map[int64]map[int]string{rent: {4: "9"}})
+	untouched := saveForm(t, a, 2030, "save", nil)
+	post(saveForm(t, a, 2030, fmt.Sprintf("delete:%d", rent), nil))
+	if c := conflicts(post(untouched)); c != "" {
+		t.Errorf("an untouched deleted line conflicts: %s", c)
+	}
+	if c := conflicts(post(edited)); !strings.Contains(c, "Housing") || !strings.Contains(c, "was deleted") {
+		t.Errorf("deleted line notice: %q", c)
+	}
 }
 
 func TestCopyYear(t *testing.T) {
