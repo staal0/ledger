@@ -10,7 +10,7 @@ import (
 	"testing"
 )
 
-func testBudget() *Budget {
+func testBudget() *BudgetYear {
 	line := func(id int64, section, name string, amounts map[int]Money) *Line {
 		l := &Line{ID: id, Section: section, Name: name}
 		for m, v := range amounts {
@@ -19,7 +19,7 @@ func testBudget() *Budget {
 		}
 		return l
 	}
-	return &Budget{Year: 2030, Lines: map[string][]*Line{
+	return &BudgetYear{Year: 2030, Lines: map[string][]*Line{
 		"income": {
 			line(1, "income", "Salary A", map[int]Money{1: 3000000, 2: 3000000, 5: 3100050}),
 			line(2, "income", "Salary B <&>", map[int]Money{1: 2500000, 5: 2500000}),

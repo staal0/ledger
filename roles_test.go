@@ -53,8 +53,8 @@ func TestClaimStrings(t *testing.T) {
 func TestRoles(t *testing.T) {
 	a := testApp(t, true)
 	a.cfg.ViewerGroups = []string{"viewers"} // any role group switches roles on
-	exec(t, "INSERT INTO budgets (year) VALUES (2030)")
-	exec(t, "INSERT INTO budget_lines (budget_id, section, name) SELECT id, 'income', 'Salary' FROM budgets WHERE year = 2030")
+	exec(t, "INSERT INTO budget_years (budget_id, year) SELECT id, 2030 FROM budgets WHERE is_default")
+	exec(t, "INSERT INTO budget_lines (year_id, section, name) SELECT id, 'income', 'Salary' FROM budget_years WHERE year = 2030")
 	user := func(name, role string) string {
 		cookie := loginAs(t, name, "UTC_TIMESTAMP() + INTERVAL 1 DAY")
 		exec(t, "UPDATE users SET role = ? WHERE subject = ?", role, name)
@@ -87,4 +87,22 @@ func TestRoles(t *testing.T) {
 	// Without role groups, everyone is an admin, as before roles existed.
 	a.cfg.ViewerGroups = nil
 	mustStatus(t, request(a, "GET", "/manage", nil, viewer), 200)
+}
+
+func TestSaveGroups(t *testing.T) {
+	testApp(t, true)
+	loginAs(t, "alice", "UTC_TIMESTAMP() + INTERVAL 1 DAY")
+	id := queryInt(t, "SELECT id FROM users WHERE subject = 'alice'")
+	for _, groups := range [][]string{{"household", "/ledger-admins", "household"}, {"family"}} {
+		if err := saveGroups(t.Context(), testDB, id, groups); err != nil {
+			t.Fatal(err)
+		}
+	}
+	// The last login's groups replace the earlier ones.
+	if n := queryInt(t, "SELECT COUNT(*) FROM user_groups WHERE user_id = ? AND name = 'family'", id); n != 1 {
+		t.Error("the groups of the last login were not saved")
+	}
+	if n := queryInt(t, "SELECT COUNT(*) FROM user_groups WHERE user_id = ?", id); n != 1 {
+		t.Errorf("%d groups saved, want 1", n)
+	}
 }

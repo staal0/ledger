@@ -77,11 +77,11 @@ func TestDeleteYear(t *testing.T) {
 	a := testApp(t, false)
 	setupYear(t, a, 2030, "income/Salary")
 	mustStatus(t, request(a, "POST", "/manage/years/2030/delete", url.Values{"confirm": {"2031"}}, ""), 400)
-	if n := queryInt(t, "SELECT COUNT(*) FROM budgets WHERE year = 2030"); n != 1 {
+	if n := queryInt(t, "SELECT COUNT(*) FROM budget_years WHERE year = 2030"); n != 1 {
 		t.Fatal("a wrong confirmation deleted the year")
 	}
 	mustStatus(t, request(a, "POST", "/manage/years/2030/delete", url.Values{"confirm": {"2030"}}, ""), 303)
-	if n := queryInt(t, "SELECT COUNT(*) FROM budgets WHERE year = 2030"); n != 0 {
+	if n := queryInt(t, "SELECT COUNT(*) FROM budget_years WHERE year = 2030"); n != 0 {
 		t.Error("the year was not deleted")
 	}
 	if n := queryInt(t, "SELECT COUNT(*) FROM budget_history"); n != 0 {

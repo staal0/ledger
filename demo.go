@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"database/sql"
 	"errors"
 	"log"
@@ -68,7 +69,7 @@ func runDemo(dsn, lang string) {
 // ending with the current year. It never touches a database with budgets.
 func seedDemo(db *sql.DB, lang string) error {
 	var n int
-	if err := db.QueryRow("SELECT COUNT(*) FROM budgets").Scan(&n); err != nil {
+	if err := db.QueryRow("SELECT COUNT(*) FROM budget_years").Scan(&n); err != nil {
 		return err
 	}
 	if n > 0 {
@@ -79,21 +80,25 @@ func seedDemo(db *sql.DB, lang string) error {
 		return err
 	}
 	defer tx.Rollback()
+	budget, err := defaultBudget(context.Background(), tx)
+	if err != nil {
+		return err
+	}
 
 	first := time.Now().Year() - 2
 	for i := int64(0); i < 3; i++ {
-		res, err := tx.Exec("INSERT INTO budgets (year) VALUES (?)", first+int(i))
+		res, err := tx.Exec("INSERT INTO budget_years (budget_id, year) VALUES (?, ?)", budget, first+int(i))
 		if err != nil {
 			return err
 		}
-		budgetID, _ := res.LastInsertId()
+		yearID, _ := res.LastInsertId()
 		for sort, l := range demoLines {
 			name := l.en
 			if lang == "da" {
 				name = l.da
 			}
-			res, err := tx.Exec("INSERT INTO budget_lines (budget_id, section, name, sort) VALUES (?, ?, ?, ?)",
-				budgetID, l.section, name, sort)
+			res, err := tx.Exec("INSERT INTO budget_lines (year_id, section, name, sort) VALUES (?, ?, ?, ?)",
+				yearID, l.section, name, sort)
 			if err != nil {
 				return err
 			}

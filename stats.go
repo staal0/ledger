@@ -91,7 +91,12 @@ func (a *App) statsPage(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	L := a.locale(r)
 
-	all, err := a.budgetYears(ctx)
+	budget, err := defaultBudget(ctx, a.db)
+	if err != nil {
+		a.fail(w, err)
+		return
+	}
+	all, err := a.budgetYears(ctx, budget)
 	if err != nil {
 		a.fail(w, err)
 		return
@@ -101,13 +106,13 @@ func (a *App) statsPage(w http.ResponseWriter, r *http.Request) {
 
 	// Totals per year, section and line. The year before the range is read
 	// too, only so the first year in the range gets a change.
-	rows, err := a.db.QueryContext(ctx, `SELECT b.year, l.section, l.name, SUM(a.amount)
-		FROM budgets b
-		JOIN budget_lines l ON l.budget_id = b.id
+	rows, err := a.db.QueryContext(ctx, `SELECT y.year, l.section, l.name, SUM(a.amount)
+		FROM budget_years y
+		JOIN budget_lines l ON l.year_id = y.id
 		JOIN budget_amounts a ON a.line_id = l.id
-		WHERE b.year BETWEEN ? AND ?
-		GROUP BY b.year, l.section, l.name
-		ORDER BY b.year`, from-1, to)
+		WHERE y.budget_id = ? AND y.year BETWEEN ? AND ?
+		GROUP BY y.year, l.section, l.name
+		ORDER BY y.year`, budget, from-1, to)
 	if err != nil {
 		a.fail(w, err)
 		return

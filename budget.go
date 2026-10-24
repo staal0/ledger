@@ -33,13 +33,15 @@ type Line struct {
 	Amounts Totals
 }
 
-type Budget struct {
-	ID    int64
-	Year  int
-	Lines map[string][]*Line // by section, in display order
+// BudgetYear is one year of a budget.
+type BudgetYear struct {
+	ID       int64
+	BudgetID int64
+	Year     int
+	Lines    map[string][]*Line // by section, in display order
 }
 
-func (b *Budget) total(section string) (t Totals) {
+func (b *BudgetYear) total(section string) (t Totals) {
 	for _, l := range b.Lines[section] {
 		for i := range t {
 			t[i] += l.Amounts[i]
@@ -54,15 +56,22 @@ type querier interface {
 	QueryRowContext(ctx context.Context, query string, args ...any) *sql.Row
 }
 
-func (a *App) loadBudget(ctx context.Context, year int) (*Budget, error) {
-	return loadBudget(ctx, a.db, year, "")
+// defaultBudget is the budget that existed before there were several.
+func defaultBudget(ctx context.Context, q querier) (int64, error) {
+	var id int64
+	err := q.QueryRowContext(ctx, "SELECT id FROM budgets WHERE is_default").Scan(&id)
+	return id, err
 }
 
-// loadBudget returns nil when there is no budget for year. lock is appended to
-// the query of the budget row, e.g. "FOR UPDATE".
-func loadBudget(ctx context.Context, q querier, year int, lock string) (*Budget, error) {
-	b := &Budget{Year: year, Lines: map[string][]*Line{}}
-	err := q.QueryRowContext(ctx, "SELECT id FROM budgets WHERE year = ? "+lock, year).Scan(&b.ID)
+func (a *App) loadBudget(ctx context.Context, budget int64, year int) (*BudgetYear, error) {
+	return loadBudget(ctx, a.db, budget, year, "")
+}
+
+// loadBudget returns nil when budget has no such year. lock is appended to
+// the query of the year row, e.g. "FOR UPDATE".
+func loadBudget(ctx context.Context, q querier, budget int64, year int, lock string) (*BudgetYear, error) {
+	b := &BudgetYear{BudgetID: budget, Year: year, Lines: map[string][]*Line{}}
+	err := q.QueryRowContext(ctx, "SELECT id FROM budget_years WHERE budget_id = ? AND year = ? "+lock, budget, year).Scan(&b.ID)
 	if errors.Is(err, sql.ErrNoRows) {
 		return nil, nil
 	}
@@ -70,7 +79,7 @@ func loadBudget(ctx context.Context, q querier, year int, lock string) (*Budget,
 		return nil, err
 	}
 
-	rows, err := q.QueryContext(ctx, "SELECT id, section, name FROM budget_lines WHERE budget_id = ? ORDER BY sort, id", b.ID)
+	rows, err := q.QueryContext(ctx, "SELECT id, section, name FROM budget_lines WHERE year_id = ? ORDER BY sort, id", b.ID)
 	if err != nil {
 		return nil, err
 	}
@@ -89,7 +98,7 @@ func loadBudget(ctx context.Context, q querier, year int, lock string) (*Budget,
 	}
 
 	amounts, err := q.QueryContext(ctx, `SELECT a.line_id, a.month, a.amount
-		FROM budget_amounts a JOIN budget_lines l ON l.id = a.line_id WHERE l.budget_id = ?`, b.ID)
+		FROM budget_amounts a JOIN budget_lines l ON l.id = a.line_id WHERE l.year_id = ?`, b.ID)
 	if err != nil {
 		return nil, err
 	}
@@ -119,8 +128,8 @@ func (a *App) budgetIndex(w http.ResponseWriter, r *http.Request) {
 }
 
 // budgetYears lists the years that have a budget, newest first.
-func (a *App) budgetYears(ctx context.Context) ([]int, error) {
-	rows, err := a.db.QueryContext(ctx, "SELECT year FROM budgets ORDER BY year DESC")
+func (a *App) budgetYears(ctx context.Context, budget int64) ([]int, error) {
+	rows, err := a.db.QueryContext(ctx, "SELECT year FROM budget_years WHERE budget_id = ? ORDER BY year DESC", budget)
 	if err != nil {
 		return nil, err
 	}
@@ -148,12 +157,17 @@ func (a *App) budgetPage(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	ctx := r.Context()
-	b, err := a.loadBudget(ctx, year)
+	budget, err := defaultBudget(ctx, a.db)
 	if err != nil {
 		a.fail(w, err)
 		return
 	}
-	years, err := a.budgetYears(ctx)
+	b, err := a.loadBudget(ctx, budget, year)
+	if err != nil {
+		a.fail(w, err)
+		return
+	}
+	years, err := a.budgetYears(ctx, budget)
 	if err != nil {
 		a.fail(w, err)
 		return
@@ -174,7 +188,7 @@ func (a *App) budgetPage(w http.ResponseWriter, r *http.Request) {
 	}
 	if b == nil {
 		var n int
-		if err := a.db.QueryRowContext(ctx, "SELECT COUNT(*) FROM budgets WHERE year = ?", year-1).Scan(&n); err != nil {
+		if err := a.db.QueryRowContext(ctx, "SELECT COUNT(*) FROM budget_years WHERE budget_id = ? AND year = ?", budget, year-1).Scan(&n); err != nil {
 			a.fail(w, err)
 			return
 		}
@@ -238,8 +252,13 @@ func (a *App) budgetSave(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	defer tx.Rollback()
+	budget, err := defaultBudget(ctx, tx)
+	if err != nil {
+		a.fail(w, err)
+		return
+	}
 	// The lock makes saves of the same year run one after the other, so each merges with the one before.
-	b, err := loadBudget(ctx, tx, year, "FOR UPDATE")
+	b, err := loadBudget(ctx, tx, budget, year, "FOR UPDATE")
 	if err != nil {
 		a.fail(w, err)
 		return
@@ -329,8 +348,8 @@ func (a *App) budgetSave(w http.ResponseWriter, r *http.Request) {
 		// The line gets a placeholder name; the page then selects it so it can be renamed at once.
 		if slices.Contains(sections, arg) && err == nil {
 			var res sql.Result
-			res, err = tx.ExecContext(ctx, `INSERT INTO budget_lines (budget_id, section, name, sort)
-				SELECT ?, ?, ?, COALESCE(MAX(sort), 0) + 1 FROM budget_lines WHERE budget_id = ?`, b.ID, arg, L.T("budget.new_line"), b.ID)
+			res, err = tx.ExecContext(ctx, `INSERT INTO budget_lines (year_id, section, name, sort)
+				SELECT ?, ?, ?, COALESCE(MAX(sort), 0) + 1 FROM budget_lines WHERE year_id = ?`, b.ID, arg, L.T("budget.new_line"), b.ID)
 			if err == nil {
 				var id int64
 				id, err = res.LastInsertId()
@@ -338,7 +357,7 @@ func (a *App) budgetSave(w http.ResponseWriter, r *http.Request) {
 			}
 		}
 	case "delete":
-		exec("DELETE FROM budget_lines WHERE id = ? AND budget_id = ?", arg, b.ID)
+		exec("DELETE FROM budget_lines WHERE id = ? AND year_id = ?", arg, b.ID)
 	case "up", "down":
 		for _, lines := range b.Lines {
 			i := slices.IndexFunc(lines, func(l *Line) bool { return strconv.FormatInt(l.ID, 10) == arg })
@@ -372,7 +391,7 @@ func (a *App) budgetSave(w http.ResponseWriter, r *http.Request) {
 // originalValues is every field of the budget form as the page shows it, sent
 // back with a save so the save can tell which fields were changed on the page.
 // Amounts are in the database format.
-func originalValues(b *Budget) string {
+func originalValues(b *BudgetYear) string {
 	v := map[string]string{}
 	for _, lines := range b.Lines {
 		for _, l := range lines {
@@ -444,7 +463,12 @@ func (a *App) budgetCreate(w http.ResponseWriter, r *http.Request) {
 	}
 	defer tx.Rollback()
 
-	res, err := tx.ExecContext(ctx, "INSERT INTO budgets (year) VALUES (?)", year)
+	budget, err := defaultBudget(ctx, tx)
+	if err != nil {
+		a.fail(w, err)
+		return
+	}
+	res, err := tx.ExecContext(ctx, "INSERT INTO budget_years (budget_id, year) VALUES (?, ?)", budget, year)
 	var me *mysql.MySQLError
 	if errors.As(err, &me) && me.Number == 1062 { // already exists, e.g. a double submit
 		http.Redirect(w, r, back, http.StatusSeeOther)
@@ -456,7 +480,7 @@ func (a *App) budgetCreate(w http.ResponseWriter, r *http.Request) {
 	}
 	id, _ := res.LastInsertId()
 	if from, perr := strconv.Atoi(r.PostFormValue("from")); perr == nil {
-		err = copyLines(ctx, tx, from, id, r.PostFormValue("amounts") != "")
+		err = copyLines(ctx, tx, budget, from, id, r.PostFormValue("amounts") != "")
 	}
 	if err == nil {
 		err = tx.Commit()
@@ -468,9 +492,10 @@ func (a *App) budgetCreate(w http.ResponseWriter, r *http.Request) {
 	http.Redirect(w, r, back, http.StatusSeeOther)
 }
 
-func copyLines(ctx context.Context, tx *sql.Tx, fromYear int, toBudget int64, withAmounts bool) error {
+// copyLines copies the lines of budget's fromYear into the year toYear.
+func copyLines(ctx context.Context, tx *sql.Tx, budget int64, fromYear int, toYear int64, withAmounts bool) error {
 	rows, err := tx.QueryContext(ctx, `SELECT l.id, l.section, l.name, l.sort
-		FROM budget_lines l JOIN budgets b ON b.id = l.budget_id WHERE b.year = ? ORDER BY l.sort, l.id`, fromYear)
+		FROM budget_lines l JOIN budget_years y ON y.id = l.year_id WHERE y.budget_id = ? AND y.year = ? ORDER BY l.sort, l.id`, budget, fromYear)
 	if err != nil {
 		return err
 	}
@@ -494,8 +519,8 @@ func copyLines(ctx context.Context, tx *sql.Tx, fromYear int, toBudget int64, wi
 	}
 
 	for _, s := range lines {
-		res, err := tx.ExecContext(ctx, "INSERT INTO budget_lines (budget_id, section, name, sort) VALUES (?, ?, ?, ?)",
-			toBudget, s.section, s.name, s.sort)
+		res, err := tx.ExecContext(ctx, "INSERT INTO budget_lines (year_id, section, name, sort) VALUES (?, ?, ?, ?)",
+			toYear, s.section, s.name, s.sort)
 		if err != nil {
 			return err
 		}
