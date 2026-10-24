@@ -1,4 +1,4 @@
-CREATE TABLE users (
+CREATE TABLE IF NOT EXISTS users (
   id BIGINT AUTO_INCREMENT PRIMARY KEY,
   subject VARCHAR(255) NOT NULL UNIQUE,
   name VARCHAR(255) NOT NULL DEFAULT '',
@@ -9,24 +9,24 @@ CREATE TABLE users (
   created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
-CREATE TABLE sessions (
+CREATE TABLE IF NOT EXISTS sessions (
   token_hash CHAR(64) PRIMARY KEY,
   user_id BIGINT NOT NULL,
   expires_at DATETIME NOT NULL,
   FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
 );
 
-CREATE TABLE settings (
+CREATE TABLE IF NOT EXISTS settings (
   name VARCHAR(64) PRIMARY KEY,
   value TEXT NOT NULL
 );
 
-CREATE TABLE budgets (
+CREATE TABLE IF NOT EXISTS budgets (
   id BIGINT AUTO_INCREMENT PRIMARY KEY,
   year SMALLINT NOT NULL UNIQUE
 );
 
-CREATE TABLE budget_lines (
+CREATE TABLE IF NOT EXISTS budget_lines (
   id BIGINT AUTO_INCREMENT PRIMARY KEY,
   budget_id BIGINT NOT NULL,
   section ENUM('income', 'expense', 'allocation') NOT NULL,
@@ -35,7 +35,7 @@ CREATE TABLE budget_lines (
   FOREIGN KEY (budget_id) REFERENCES budgets(id) ON DELETE CASCADE
 );
 
-CREATE TABLE budget_amounts (
+CREATE TABLE IF NOT EXISTS budget_amounts (
   line_id BIGINT NOT NULL,
   month TINYINT NOT NULL,
   amount DECIMAL(12,2) NOT NULL,
