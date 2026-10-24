@@ -18,6 +18,7 @@ type Plugin interface {
 type NavItem struct {
 	Path  string
 	Label string
+	Role  string // lowest role that sees it; empty for everyone
 }
 
 var plugins []Plugin

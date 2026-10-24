@@ -148,7 +148,7 @@ document.addEventListener('DOMContentLoaded', () => {
   form.addEventListener('focusout', () => setEditing(null))
   // A click in a name is to type there; amounts take digits without editing.
   form.addEventListener('click', e => {
-    if (e.target.matches('tr.line input:not(.num)')) setEditing(e.target)
+    if (e.target.matches('tr.line input:not(.num):not([readonly])')) setEditing(e.target)
   })
   for (const inp of form.querySelectorAll('tr.line input')) inp.dataset.saved = inp.value // for "u"
   // K: the previous values of the selected field, from its corner mark, until the next key.
@@ -170,7 +170,8 @@ document.addEventListener('DOMContentLoaded', () => {
     if (!tr || e.altKey || e.ctrlKey || e.metaKey) return
     if (e.key === 'Enter') {
       e.preventDefault()
-      form.requestSubmit(form.querySelector('button[value="save"]'))
+      const save = form.querySelector('button[value="save"]') // missing for viewers
+      if (save) form.requestSubmit(save)
       return
     }
     if (e.key === 'Escape') {
@@ -187,6 +188,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const col = cells.indexOf(inp)
     const cellIn = row => row && row.querySelectorAll('input')[col]
     const set = v => {
+      if (inp.readOnly) return
       inp.value = v
       if (editing !== inp) inp.select() // a selected field stays selected
       inp.dispatchEvent(new Event('input', { bubbles: true }))
@@ -207,8 +209,8 @@ document.addEventListener('DOMContentLoaded', () => {
       '{': () => go(cellIn(sectionStart(-1))),
       '}': () => go(cellIn(sectionStart(1))),
       '?': showHelp,
-      i: () => { setEditing(inp); inp.setSelectionRange(0, 0) }, // drop the highlight, cursor at the start
-      a: () => { setEditing(inp); inp.setSelectionRange(inp.value.length, inp.value.length) }, // … at the end
+      i: () => { if (!inp.readOnly) { setEditing(inp); inp.setSelectionRange(0, 0) } }, // drop the highlight, cursor at the start
+      a: () => { if (!inp.readOnly) { setEditing(inp); inp.setSelectionRange(inp.value.length, inp.value.length) } }, // … at the end
       x: () => set(''),
       f: () => { if (num) fill(inp) },
       u: () => set(inp.dataset.saved),
@@ -264,6 +266,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // Fill ("f"): copy an amount to the following months of its line.
   function fill(from) {
+    if (from.readOnly) return
     const cells = [...from.closest('tr').querySelectorAll('input.num')]
     const v = parse(from.value)
     for (const c of cells.slice(cells.indexOf(from) + 1)) c.value = v ? fmt(v) : ''
@@ -284,13 +287,13 @@ document.addEventListener('DOMContentLoaded', () => {
       inp.classList.toggle('changed', c)
       dirty ||= c
     }
-    save.classList.toggle('dirty', dirty)
-    save.title = dirty ? save.dataset.unsaved : ''
+    save?.classList.toggle('dirty', dirty)
+    if (save) save.title = dirty ? save.dataset.unsaved : ''
   })
   form.addEventListener('submit', () => { submitting = true })
   addEventListener('pageshow', () => { submitting = false })
   addEventListener('beforeunload', e => {
-    if (!submitting && save.classList.contains('dirty')) e.preventDefault()
+    if (!submitting && save?.classList.contains('dirty')) e.preventDefault()
   })
 
   // After a save the page reloads: come back to the same field and scroll position.

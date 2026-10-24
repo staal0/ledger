@@ -1,7 +1,7 @@
 {{define "content"}}
 <h1>{{.Title}}</h1>
 <form method="post" class="card">
-  <p class="hint">{{.L.T "settings.user"}} <strong>{{.User.Name}}</strong>{{with .User.Email}} ({{.}}){{end}}</p>
+  <p class="hint">{{.L.T "settings.user"}} <strong>{{.User.Name}}</strong>{{with .User.Email}} ({{.}}){{end}} · {{.L.T (print "role." .User.Role)}}</p>
   <label>{{.L.T "settings.lang"}}
     <select name="lang">
       <option value="">{{.L.T "settings.lang_auto"}}</option>

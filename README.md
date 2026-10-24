@@ -50,6 +50,11 @@ export LEDGER_DB_DSN='ledger:ledger@tcp(127.0.0.1:3306)/ledger'
 | `LEDGER_BASE_URL` | no | Public URL, default `http://localhost:8080` |
 | `LEDGER_ADDR` | no | Listen address, default `:8080` (`127.0.0.1:8080` in local mode) |
 | `LEDGER_LOCALES_DIR` | no | Extra or overriding language files |
+| `LEDGER_ADMIN_GROUPS` | no | Comma-separated groups whose members are admins, see [Roles](#roles) |
+| `LEDGER_EDITOR_GROUPS` | no | Groups whose members are editors |
+| `LEDGER_VIEWER_GROUPS` | no | Groups whose members are viewers |
+| `LEDGER_GROUPS_CLAIM` | no | Claim with the user's groups, default `groups`; nested with dots, e.g. `realm_access.roles` |
+| `LEDGER_GROUPS_SCOPE` | no | Scope requested for the groups claim, default `groups`; set it empty to request none |
 
 ### Database
 
@@ -64,10 +69,29 @@ GRANT ALL PRIVILEGES ON ledger.* TO 'ledger'@'%';
 
 All data is in this database, so back it up like any other MariaDB database, e.g. with `mariadb-dump`.
 
+### Roles
+
+| Role | Can |
+|---|---|
+| Viewer | Read budgets and statistics, and export |
+| Editor | Also change budgets and create years |
+| Admin | Also use the manage page: delete years, change history, history settings |
+
+Roles come from the groups your identity provider sends at login: a user gets the highest role whose group they are in, and a user in none of the groups cannot log in.
+The role is set at each login. Without any `LEDGER_*_GROUPS`, everyone who can log in is an admin.
+
+Ledger reads the groups from the ID token, or from the userinfo endpoint if the ID token has none.
+
 ### Pocket ID
 
 Create an OIDC client with the callback URL `<LEDGER_BASE_URL>/auth/callback`.
-Everyone who can log in to the client has access, so restrict it to your household with *Allowed user groups*.
+Restrict it to your household with *Allowed user groups*, and set the `LEDGER_*_GROUPS` to Pocket ID group names. Pocket ID sends the groups for the `groups` scope, which Ledger requests by default.
+
+### Keycloak
+
+Create a client scope named `groups` with a *Group Membership* mapper (claim name `groups`, *Full group path* off, added to the ID token) and add it to the client as an optional scope.
+Keycloak rejects scopes it does not know, so without that client scope set `LEDGER_GROUPS_SCOPE` to empty.
+To use realm roles instead of groups, set `LEDGER_GROUPS_CLAIM=realm_access.roles` and turn on *Add to ID token* for the *realm roles* mapper of the `roles` client scope.
 
 ## Running
 
