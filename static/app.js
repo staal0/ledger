@@ -140,10 +140,15 @@ document.addEventListener('DOMContentLoaded', () => {
   const keys = { ArrowUp: 'up', ArrowDown: 'down', ArrowLeft: 'left', ArrowRight: 'right' }
   const vim = { h: 'left', j: 'down', k: 'up', l: 'right' }
   let pendingG = false, yanked = null, editing = null // editing: the field entered with i/a or a click in a name
-  form.addEventListener('focusout', () => { editing = null })
+  const setEditing = inp => {
+    editing?.classList.remove('editing')
+    editing = inp
+    inp?.classList.add('editing') // shows the mode
+  }
+  form.addEventListener('focusout', () => setEditing(null))
   // A click in a name is to type there; amounts take digits without editing.
   form.addEventListener('click', e => {
-    if (e.target.matches('tr.line input:not(.num)')) editing = e.target
+    if (e.target.matches('tr.line input:not(.num)')) setEditing(e.target)
   })
   for (const inp of form.querySelectorAll('tr.line input')) inp.dataset.saved = inp.value // for "u"
   form.addEventListener('keydown', e => {
@@ -158,7 +163,7 @@ document.addEventListener('DOMContentLoaded', () => {
     if (e.key === 'Escape') {
       e.preventDefault()
       if (editing === inp) {
-        editing = null
+        setEditing(null)
         inp.select()
       } else inp.blur()
       return
@@ -189,8 +194,8 @@ document.addEventListener('DOMContentLoaded', () => {
       '{': () => go(cellIn(sectionStart(-1))),
       '}': () => go(cellIn(sectionStart(1))),
       '?': showHelp,
-      i: () => { editing = inp; inp.setSelectionRange(0, 0) }, // drop the highlight, cursor at the start
-      a: () => { editing = inp; inp.setSelectionRange(inp.value.length, inp.value.length) }, // … at the end
+      i: () => { setEditing(inp); inp.setSelectionRange(0, 0) }, // drop the highlight, cursor at the start
+      a: () => { setEditing(inp); inp.setSelectionRange(inp.value.length, inp.value.length) }, // … at the end
       x: () => set(''),
       f: () => { if (num) fill(inp) },
       u: () => set(inp.dataset.saved),
@@ -251,7 +256,7 @@ document.addEventListener('DOMContentLoaded', () => {
     from.dispatchEvent(new Event('input', { bubbles: true }))
   }
 
-  // Unsaved changes: a dot on Save, and the browser asks before leaving the page.
+  // Unsaved changes: changed fields in bold, a dot on Save, and the browser asks before leaving the page.
   // Amounts compare as numbers, so reformatting a field is not a change.
   const save = form.querySelector('button[value="save"]')
   const changed = inp => inp.classList.contains('num')
@@ -259,7 +264,12 @@ document.addEventListener('DOMContentLoaded', () => {
     : inp.value.trim() !== inp.defaultValue
   let submitting = false
   form.addEventListener('input', () => {
-    const dirty = [...form.querySelectorAll('tr.line input')].some(changed)
+    let dirty = false
+    for (const inp of form.querySelectorAll('tr.line input')) {
+      const c = changed(inp)
+      inp.classList.toggle('changed', c)
+      dirty ||= c
+    }
     save.classList.toggle('dirty', dirty)
     save.title = dirty ? save.dataset.unsaved : ''
   })
@@ -302,7 +312,7 @@ document.addEventListener('DOMContentLoaded', () => {
     if (added) {
       added.focus({ preventScroll: true })
       added.select()
-      editing = added
+      setEditing(added)
       added.scrollIntoView({ block: 'nearest' })
     }
   }
