@@ -162,7 +162,17 @@ func (a *App) routes() http.Handler {
 	}
 	public.Handle("/", a.requireUser(private))
 
-	return http.NewCrossOriginProtection().Handler(public)
+	return securityHeaders(http.NewCrossOriginProtection().Handler(public))
+}
+
+// securityHeaders allow only the app's own scripts, styles and images, and no framing.
+func securityHeaders(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		h := w.Header()
+		h.Set("Content-Security-Policy", "default-src 'self'; frame-ancestors 'none'")
+		h.Set("X-Content-Type-Options", "nosniff")
+		next.ServeHTTP(w, r)
+	})
 }
 
 func env(key, def string) string {
