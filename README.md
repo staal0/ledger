@@ -62,6 +62,8 @@ CREATE USER 'ledger'@'%' IDENTIFIED BY 'secret';
 GRANT ALL PRIVILEGES ON ledger.* TO 'ledger'@'%';
 ```
 
+All data is in this database, so back it up like any other MariaDB database, e.g. with `mariadb-dump`.
+
 ### Pocket ID
 
 Create an OIDC client with the callback URL `<LEDGER_BASE_URL>/auth/callback`.
