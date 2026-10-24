@@ -13,7 +13,7 @@ jobs:
     # A throwaway MySQL for the database tests (db_test.go).
     services:
       mysql:
-        image: mysql:8.4
+        image: mysql:26.10
         env:
           MYSQL_DATABASE: ledger_test
           MYSQL_USER: ledger
