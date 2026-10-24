@@ -21,8 +21,6 @@ Ledger is one Go binary with three dependencies (MySQL driver, go-oidc, x/oauth2
 - Per-user settings for language, money format (`1.234,56` or `1,234.56`) and light/dark theme
 - Room for plugins (pension, investments, …), see `plugin.go`
 
-Planned: bank CSV import and budget vs. actual.
-
 ## Try it
 
 Start a throwaway MariaDB, fill it with a fictional demo household and run Ledger in local mode (no login, only reachable from your own machine):
