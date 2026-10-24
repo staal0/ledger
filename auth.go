@@ -143,13 +143,13 @@ func (a *App) callback(w http.ResponseWriter, r *http.Request) {
 		a.fail(w, err)
 		return
 	}
-	role, err := a.loginRole(ctx, idt, tok)
+	role, groups, err := a.loginRole(ctx, idt, tok)
 	if err != nil {
 		a.fail(w, err)
 		return
 	}
 	if role == "" {
-		log.Printf("login refused: %s (%s) is in none of the role groups", claims.Name, claims.Email)
+		log.Printf("login refused: %s (%s) is in none of the role groups; claim %q had %q", claims.Name, claims.Email, a.cfg.GroupsClaim, groups)
 		http.Error(w, a.locale(r).T("auth.no_access"), http.StatusForbidden)
 		return
 	}
@@ -177,28 +177,29 @@ func (a *App) callback(w http.ResponseWriter, r *http.Request) {
 }
 
 // loginRole is the role for the user's groups, taken from the ID token or, as
-// some providers only send groups there, from the userinfo endpoint.
-func (a *App) loginRole(ctx context.Context, idt *oidc.IDToken, tok *oauth2.Token) (string, error) {
+// some providers only send groups there, from the userinfo endpoint. The groups
+// are returned for the log of a refused login.
+func (a *App) loginRole(ctx context.Context, idt *oidc.IDToken, tok *oauth2.Token) (string, []string, error) {
 	if !a.cfg.rolesConfigured() {
-		return roleAdmin, nil
+		return roleAdmin, nil, nil
 	}
 	var claims map[string]any
 	if err := idt.Claims(&claims); err != nil {
-		return "", err
+		return "", nil, err
 	}
 	groups := claimStrings(claims, a.cfg.GroupsClaim)
 	if groups == nil {
 		info, err := a.auth.provider.UserInfo(ctx, oauth2.StaticTokenSource(tok))
 		if err != nil {
-			return "", err
+			return "", nil, err
 		}
 		claims = nil
 		if err := info.Claims(&claims); err != nil {
-			return "", err
+			return "", nil, err
 		}
 		groups = claimStrings(claims, a.cfg.GroupsClaim)
 	}
-	return a.cfg.roleFor(groups), nil
+	return a.cfg.roleFor(groups), groups, nil
 }
 
 func (a *App) logout(w http.ResponseWriter, r *http.Request) {
