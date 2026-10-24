@@ -158,11 +158,17 @@ func (a *App) routes() http.Handler {
 
 	private := http.NewServeMux()
 	private.HandleFunc("GET /{$}", a.budgetIndex)
+	// The default budget's years are at /budget/{year}, other budgets' at /budget/{slug}/{year}.
 	private.HandleFunc("GET /budget/{$}", a.budgetIndex)
 	private.HandleFunc("GET /budget/{year}", a.budgetPage)
 	private.HandleFunc("POST /budget/{year}", a.only(roleEditor, a.budgetSave))
 	private.HandleFunc("POST /budget/{year}/create", a.only(roleEditor, a.budgetCreate))
 	private.HandleFunc("GET /budget/{year}/export", a.budgetExport)
+	private.HandleFunc("GET /budget/{slug}/{$}", a.budgetIndex)
+	private.HandleFunc("GET /budget/{slug}/{year}", a.budgetPage)
+	private.HandleFunc("POST /budget/{slug}/{year}", a.only(roleEditor, a.budgetSave))
+	private.HandleFunc("POST /budget/{slug}/{year}/create", a.only(roleEditor, a.budgetCreate))
+	private.HandleFunc("GET /budget/{slug}/{year}/export", a.budgetExport)
 	private.HandleFunc("GET /stats", a.statsPage)
 	private.HandleFunc("GET /settings", a.settingsPage)
 	private.HandleFunc("POST /settings", a.settingsSave)

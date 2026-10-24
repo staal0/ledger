@@ -3,6 +3,7 @@
 
 {{if .AllYears}}
 <form class="filters" action="/stats">
+  {{- template "budget-picker" .}}
   <label>{{$L.T "stats.from"}}
     <select name="from" data-autosubmit autocomplete="off">{{range .AllYears}}<option{{if eq . $.From}} selected{{end}}>{{.}}</option>{{end}}</select>
   </label>
@@ -40,7 +41,7 @@
       </tr>
       {{range .Years}}
       <tr>
-        <th><a href="/budget/{{.Year}}">{{.Year}}</a></th>
+        <th><a href="{{$.Base}}/{{.Year}}">{{.Year}}</a></th>
         <td class="num">{{$L.Money .Income}}</td><td class="delta {{.IncomeDelta.Class}}">{{.IncomeDelta.Text}}</td>
         <td class="num">{{$L.Money .Expense}}</td><td class="delta {{.ExpenseDelta.Class}}">{{.ExpenseDelta.Text}}</td>
         <td class="num">{{$L.Money .Net}}</td><td class="delta {{.NetDelta.Class}}">{{.NetDelta.Text}}</td>

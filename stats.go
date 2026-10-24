@@ -91,11 +91,19 @@ func (a *App) statsPage(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	L := a.locale(r)
 
-	budget, err := defaultBudget(ctx, a.db)
+	current, visible, ok, err := a.budgetFor(r)
 	if err != nil {
 		a.fail(w, err)
 		return
 	}
+	if !ok && r.FormValue("budget") == "" && len(visible) > 0 { // the default budget is not shared with this user
+		current, ok = visible[0], true
+	}
+	if !ok {
+		http.NotFound(w, r)
+		return
+	}
+	budget := current.ID
 	all, err := a.budgetYears(ctx, budget)
 	if err != nil {
 		a.fail(w, err)
@@ -212,6 +220,9 @@ func (a *App) statsPage(w http.ResponseWriter, r *http.Request) {
 	a.render(w, r, "stats", map[string]any{
 		"Title":    L.T("nav.stats"),
 		"AllYears": all,
+		"Base":     current.Base(),
+		"Current":  current,
+		"Budgets":  pickable(visible),
 		"From":     from,
 		"To":       to,
 		"Years":    years,

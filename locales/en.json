@@ -37,6 +37,7 @@
   "budget.copy_hint": "Starts with the same lines as %d. Amounts are only copied when ticked.",
   "budget.empty_hint": "Starts from scratch with no lines.",
   "budget.year": "Year",
+  "budget.picker": "Budget",
   "budget.go": "Go",
   "budget.export": "Export (.ods)",
   "budget.new_line": "New line",

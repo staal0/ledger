@@ -33,3 +33,11 @@
 <main>{{template "content" .}}</main>
 </body>
 </html>{{end}}
+
+{{/* The budget picker, shown when there is more than one budget to choose from. Otherwise a budget
+     other than the default goes along as a hidden field, so the year pickers stay in it. */}}
+{{define "budget-picker"}}{{if .Budgets}}
+  <select name="budget" data-autosubmit autocomplete="off" aria-label="{{.L.T "budget.picker"}}">
+    {{range .Budgets}}<option value="{{.Slug}}"{{if eq .ID $.Current.ID}} selected{{end}}>{{.Name}}</option>{{end}}
+  </select>
+{{else if not .Current.IsDefault}}<input type="hidden" name="budget" value="{{.Current.Slug}}">{{end}}{{end}}

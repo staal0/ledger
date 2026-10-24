@@ -37,6 +37,7 @@
   "budget.copy_hint": "Starter med de samme linjer som %d. Beløb kopieres kun, hvis der er sat flueben.",
   "budget.empty_hint": "Starter helt forfra uden linjer.",
   "budget.year": "År",
+  "budget.picker": "Budget",
   "budget.go": "Vis",
   "budget.export": "Eksportér (.ods)",
   "budget.new_line": "Ny linje",
