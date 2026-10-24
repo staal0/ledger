@@ -14,8 +14,15 @@ func setupYear(t *testing.T, a *App, year int, lines ...string) map[string]int64
 	mustStatus(t, request(a, "POST", fmt.Sprintf("/budget/%d/create", year), url.Values{}, ""), 303)
 	for _, l := range lines {
 		section, name, _ := strings.Cut(l, "/")
-		form := saveForm(t, a, year, "add:"+section, nil)
-		form.Set("new_"+section, name)
+		// Adding gives a placeholder name and points at the new line; rename it like the browser does.
+		w := request(a, "POST", fmt.Sprintf("/budget/%d", year), saveForm(t, a, year, "add:"+section, nil), "")
+		mustStatus(t, w, 303)
+		_, id, ok := strings.Cut(w.Header().Get("Location"), "?added=")
+		if !ok {
+			t.Fatalf("adding a line redirected to %q", w.Header().Get("Location"))
+		}
+		form := saveForm(t, a, year, "save", nil)
+		form.Set("n_"+id, name)
 		mustStatus(t, request(a, "POST", fmt.Sprintf("/budget/%d", year), form, ""), 303)
 	}
 	return lineIDs(t, year)

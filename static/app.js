@@ -130,11 +130,11 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // Spreadsheet-like keys in the grid. In amount fields the arrows and h/j/k/l
   // always move; in name fields left/right only leave at the edge of the text.
-  // Enter saves (or adds the line, in a "new line" field).
+  // Enter saves.
   // More vim keys in amount fields: ^/$ first/last month, gg/G first/last line, { } previous/next
-  // section, i/a cursor at start/end, Esc select again, x clear, u restore saved value, y copy, p paste.
-  const rows = [...form.querySelectorAll('tr.line, tr.new')]
-  const lineRows = rows.filter(r => r.classList.contains('line'))
+  // section, i/a cursor at start/end, Esc select again, x clear, u restore saved value, y copy, p paste,
+  // f copy to the following months.
+  const rows = [...form.querySelectorAll('tr.line')]
   const sections = [...form.querySelectorAll('tbody[data-section]')].filter(b => b.querySelector('tr.line'))
   const go = inp => { if (inp) { inp.focus(); inp.select() } }
   const keys = { ArrowUp: 'up', ArrowDown: 'down', ArrowLeft: 'left', ArrowRight: 'right' }
@@ -147,9 +147,7 @@ document.addEventListener('DOMContentLoaded', () => {
     if (!tr || e.altKey || e.ctrlKey || e.metaKey) return
     if (e.key === 'Enter') {
       e.preventDefault()
-      const add = tr.classList.contains('new') && tr.querySelector('button')
-      if (add) add.click()
-      else form.requestSubmit(form.querySelector('button[value="save"]'))
+      form.requestSubmit(form.querySelector('button[value="save"]'))
       return
     }
     const num = inp.classList.contains('num')
@@ -164,8 +162,8 @@ document.addEventListener('DOMContentLoaded', () => {
     const g = pendingG
     pendingG = false
     const edit = num && {
-      g: () => { if (g) go(cellIn(lineRows[0])); else pendingG = true },
-      G: () => go(cellIn(lineRows.at(-1))),
+      g: () => { if (g) go(cellIn(rows[0])); else pendingG = true },
+      G: () => go(cellIn(rows.at(-1))),
       '^': () => go(cells[1]), // January; cells[0] is the name
       $: () => go(cells.at(-1)), // December
       Home: () => go(cells[1]),
@@ -177,6 +175,7 @@ document.addEventListener('DOMContentLoaded', () => {
       a: () => inp.setSelectionRange(inp.value.length, inp.value.length), // … at the end
       Escape: () => inp.select(), // highlight the value again
       x: () => set(''),
+      f: () => fill(inp),
       u: () => set(inp.dataset.saved),
       y: () => { yanked = inp.value },
       p: () => { if (yanked !== null) set(yanked) },
@@ -209,6 +208,32 @@ document.addEventListener('DOMContentLoaded', () => {
     go(cells[col + (dir === 'left' ? -1 : 1)])
   })
 
+  // Fill ("f"): copy an amount to the following months of its line.
+  function fill(from) {
+    const cells = [...from.closest('tr').querySelectorAll('input.num')]
+    const v = parse(from.value)
+    for (const c of cells.slice(cells.indexOf(from) + 1)) c.value = v ? fmt(v) : ''
+    from.dispatchEvent(new Event('input', { bubbles: true }))
+  }
+
+  // Unsaved changes: a dot on Save, and the browser asks before leaving the page.
+  // Amounts compare as numbers, so reformatting a field is not a change.
+  const save = form.querySelector('button[value="save"]')
+  const changed = inp => inp.classList.contains('num')
+    ? parse(inp.value) !== parse(inp.defaultValue)
+    : inp.value.trim() !== inp.defaultValue
+  let submitting = false
+  form.addEventListener('input', () => {
+    const dirty = [...form.querySelectorAll('tr.line input')].some(changed)
+    save.classList.toggle('dirty', dirty)
+    save.title = dirty ? save.dataset.unsaved : ''
+  })
+  form.addEventListener('submit', () => { submitting = true })
+  addEventListener('pageshow', () => { submitting = false })
+  addEventListener('beforeunload', e => {
+    if (!submitting && save.classList.contains('dirty')) e.preventDefault()
+  })
+
   // After a save the page reloads: come back to the same field and scroll position.
   const restoreKey = 'ledger-restore'
   form.addEventListener('submit', () => {
@@ -232,6 +257,19 @@ document.addEventListener('DOMContentLoaded', () => {
       if (f) { f.focus({ preventScroll: true }); f.select() }
     }
   } catch {}
+
+  // A line was just added: select its placeholder name, so typing replaces it.
+  // The page stays where it was and only scrolls if the new line is out of view.
+  const addedID = new URLSearchParams(location.search).get('added')
+  if (addedID) {
+    history.replaceState(null, '', location.pathname)
+    const added = form.querySelector(`#line-${CSS.escape(addedID)} input`)
+    if (added) {
+      added.focus({ preventScroll: true })
+      added.select()
+      added.scrollIntoView({ block: 'nearest' })
+    }
+  }
 
   // Amounts show thousands separators, except while a field is being edited.
   form.addEventListener('focusin', e => {

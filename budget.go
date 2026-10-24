@@ -255,13 +255,20 @@ func (a *App) budgetSave(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
+	back := fmt.Sprintf("/budget/%d", year)
 	verb, arg, _ := strings.Cut(r.PostFormValue("action"), ":")
 	switch verb {
 	case "add":
-		name := strings.TrimSpace(r.PostFormValue("new_" + arg))
-		if name != "" && slices.Contains(sections, arg) {
-			exec(`INSERT INTO budget_lines (budget_id, section, name, sort)
-				SELECT ?, ?, ?, COALESCE(MAX(sort), 0) + 1 FROM budget_lines WHERE budget_id = ?`, b.ID, arg, name, b.ID)
+		// The line gets a placeholder name; the page then selects it so it can be renamed at once.
+		if slices.Contains(sections, arg) && err == nil {
+			var res sql.Result
+			res, err = tx.ExecContext(ctx, `INSERT INTO budget_lines (budget_id, section, name, sort)
+				SELECT ?, ?, ?, COALESCE(MAX(sort), 0) + 1 FROM budget_lines WHERE budget_id = ?`, b.ID, arg, L.T("budget.new_line"), b.ID)
+			if err == nil {
+				var id int64
+				id, err = res.LastInsertId()
+				back += fmt.Sprintf("?added=%d", id) // a query, not a #fragment, so the browser does not jump to it
+			}
 		}
 	case "delete":
 		exec("DELETE FROM budget_lines WHERE id = ? AND budget_id = ?", arg, b.ID)
@@ -289,7 +296,7 @@ func (a *App) budgetSave(w http.ResponseWriter, r *http.Request) {
 		a.fail(w, err)
 		return
 	}
-	http.Redirect(w, r, fmt.Sprintf("/budget/%d", year), http.StatusSeeOther)
+	http.Redirect(w, r, back, http.StatusSeeOther)
 }
 
 // budgetCreate creates an empty budget, or a copy of another year's lines

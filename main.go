@@ -111,6 +111,16 @@ func (a *App) routes() http.Handler {
 	static, _ := fs.Sub(embedded, "static")
 	public := http.NewServeMux()
 	public.Handle("GET /static/", http.StripPrefix("/static/", http.FileServerFS(static)))
+	// Versioned URLs from asset(): the content never changes for a given URL.
+	public.HandleFunc("GET /static/v/{hash}/{name}", func(w http.ResponseWriter, r *http.Request) {
+		// Any other hash would cache the current file for a year under an outdated URL.
+		if h, ok := assetHashes[r.PathValue("name")]; !ok || h != r.PathValue("hash") {
+			http.NotFound(w, r)
+			return
+		}
+		w.Header().Set("Cache-Control", "public, max-age=31536000, immutable")
+		http.ServeFileFS(w, r, static, r.PathValue("name"))
+	})
 	public.HandleFunc("GET /healthz", a.healthz)
 	public.HandleFunc("GET /login", a.login)
 	public.HandleFunc("GET /auth/callback", a.callback)

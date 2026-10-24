@@ -30,7 +30,7 @@
 <div class="budget-layout">
 <form method="post" class="budget">
   <div class="toolbar">
-    <button name="action" value="save">{{$L.T "save"}}</button>
+    <button name="action" value="save" data-unsaved="{{$L.T "budget.unsaved"}}">{{$L.T "save"}}</button>
     <a class="button secondary" href="/budget/{{.Year}}/export" download>⤓ {{$L.T "budget.export"}}</a>
     <button type="button" class="secondary" data-help>⌨ {{$L.T "help.title"}}</button>
   </div>
@@ -39,12 +39,12 @@
     {{range .Sections}}
     <tbody data-section="{{.Key}}">
       <tr class="head">
-        <th>{{$L.T (print "section." .Key)}}</th>
+        <th>{{$L.T (print "section." .Key)}} <button class="icon add" name="action" value="add:{{.Key}}" title="{{$L.T "budget.add"}}" aria-label="{{$L.T "budget.add"}}">+</button></th>
         {{range $.Months}}<th>{{$L.T (print "month." .)}}</th>{{end}}
         <th>{{$L.T "budget.year"}}</th><th></th>
       </tr>
       {{range .Lines}}{{$line := .}}
-      <tr class="line">
+      <tr class="line" id="line-{{.ID}}">
         <td><input name="n_{{.ID}}" value="{{.Name}}" required></td>
         {{range $.Months}}<td><input class="num" name="a_{{$line.ID}}_{{.}}" value="{{$L.Input (index $line.Amounts .)}}" inputmode="decimal" pattern="{{$.Pattern}}"></td>{{end}}
         <td class="num total">{{$L.Money (index .Amounts 0)}}</td>
@@ -55,10 +55,6 @@
         </td>
       </tr>
       {{end}}
-      <tr class="new">
-        <td><input name="new_{{.Key}}" placeholder="{{$L.T "budget.new_line"}}"></td>
-        <td colspan="14"><button class="secondary" name="action" value="add:{{.Key}}">+ {{$L.T "budget.add"}}</button></td>
-      </tr>
       <tr class="calc" data-calc="{{.Key}}">
         <th>{{$L.T (print "calc." .Key)}}</th>
         {{range .Total.Months}}<td class="num">{{$L.Money .}}</td>{{end}}
@@ -106,6 +102,7 @@
     <tr><td><kbd>i</kbd> <kbd>a</kbd></td><td>{{$L.T "help.ia"}}</td></tr>
     <tr><td><kbd>Esc</kbd></td><td>{{$L.T "help.esc"}}</td></tr>
     <tr><td><kbd>x</kbd></td><td>{{$L.T "help.x"}}</td></tr>
+    <tr><td><kbd>f</kbd></td><td>{{$L.T "help.f"}}</td></tr>
     <tr><td><kbd>u</kbd></td><td>{{$L.T "help.u"}}</td></tr>
     <tr><td><kbd>y</kbd> <kbd>p</kbd></td><td>{{$L.T "help.yp"}}</td></tr>
     <tr><td><kbd>Enter</kbd></td><td>{{$L.T "help.enter"}}</td></tr>
