@@ -363,4 +363,11 @@ document.addEventListener('DOMContentLoaded', () => {
 
   form.addEventListener('input', recalc)
   recalc()
+
+  // Amount fields are as wide as the longest amount, so no value is cut off.
+  const fit = () => form.style.setProperty('--num-chars',
+    Math.max(0, ...[...form.querySelectorAll('input.num')].map(i => i.value.length)))
+  form.addEventListener('input', fit)
+  form.addEventListener('focusout', fit) // leaving a field adds thousands separators
+  fit()
 })
