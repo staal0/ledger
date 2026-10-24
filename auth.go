@@ -114,7 +114,10 @@ func (a *App) callback(w http.ResponseWriter, r *http.Request) {
 	}
 	raw, _ := tok.Extra("id_token").(string)
 	idt, err := verifier.Verify(ctx, raw)
-	if err != nil || idt.Nonce != parts[1] {
+	if err == nil && idt.Nonce != parts[1] {
+		err = errors.New("nonce does not match")
+	}
+	if err != nil {
 		log.Printf("oidc verify: %v", err)
 		http.Error(w, "login failed", http.StatusUnauthorized)
 		return

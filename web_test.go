@@ -31,3 +31,14 @@ func TestVersionedAssets(t *testing.T) {
 		}
 	}
 }
+
+func TestSecurityHeaders(t *testing.T) {
+	w := httptest.NewRecorder()
+	(&App{}).routes().ServeHTTP(w, httptest.NewRequest("GET", asset("style.css"), nil))
+	if csp := w.Header().Get("Content-Security-Policy"); !strings.Contains(csp, "default-src 'self'") || !strings.Contains(csp, "frame-ancestors 'none'") {
+		t.Errorf("Content-Security-Policy %q", csp)
+	}
+	if w.Header().Get("X-Content-Type-Options") != "nosniff" {
+		t.Error("X-Content-Type-Options is not nosniff")
+	}
+}

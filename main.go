@@ -2,15 +2,19 @@
 package main
 
 import (
+	"context"
 	"database/sql"
 	"embed"
+	"errors"
 	"html/template"
 	"io/fs"
 	"log"
 	"net"
 	"net/http"
 	"os"
+	"os/signal"
 	"strings"
+	"syscall"
 	"time"
 )
 
@@ -103,8 +107,23 @@ func main() {
 
 	app := &App{cfg: cfg, db: db, locales: locales, pages: pages}
 	srv := &http.Server{Addr: cfg.Addr, Handler: app.routes(), ReadHeaderTimeout: 10 * time.Second}
+	go func() {
+		if err := srv.ListenAndServe(); !errors.Is(err, http.ErrServerClosed) {
+			log.Fatal(err)
+		}
+	}()
 	log.Printf("ledger listening on %s", cfg.Addr)
-	log.Fatal(srv.ListenAndServe())
+
+	// On docker stop, finish running requests (a save) instead of cutting them off.
+	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	defer stop()
+	<-ctx.Done()
+	log.Print("shutting down")
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	if err := srv.Shutdown(ctx); err != nil {
+		log.Print(err)
+	}
 }
 
 func (a *App) routes() http.Handler {
@@ -143,7 +162,17 @@ func (a *App) routes() http.Handler {
 	}
 	public.Handle("/", a.requireUser(private))
 
-	return http.NewCrossOriginProtection().Handler(public)
+	return securityHeaders(http.NewCrossOriginProtection().Handler(public))
+}
+
+// securityHeaders allow only the app's own scripts, styles and images, and no framing.
+func securityHeaders(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		h := w.Header()
+		h.Set("Content-Security-Policy", "default-src 'self'; frame-ancestors 'none'")
+		h.Set("X-Content-Type-Options", "nosniff")
+		next.ServeHTTP(w, r)
+	})
 }
 
 func env(key, def string) string {
