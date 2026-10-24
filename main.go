@@ -157,6 +157,10 @@ func (a *App) routes() http.Handler {
 	private.HandleFunc("GET /settings", a.settingsPage)
 	private.HandleFunc("POST /settings", a.settingsSave)
 	private.HandleFunc("POST /theme", a.themeSave)
+	private.HandleFunc("GET /manage", a.managePage)
+	private.HandleFunc("POST /manage/years/{year}/delete", a.manageDeleteYear)
+	private.HandleFunc("POST /manage/history/{id}/restore", a.manageRestore)
+	private.HandleFunc("POST /manage/history-keep", a.manageKeep)
 	for _, p := range plugins {
 		p.Routes(private, a)
 	}

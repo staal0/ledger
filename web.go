@@ -15,6 +15,7 @@ import (
 var coreNav = []NavItem{
 	{Path: "/budget/", Label: "nav.budget"},
 	{Path: "/stats", Label: "nav.stats"},
+	{Path: "/manage", Label: "nav.manage"},
 }
 
 // parsePages pairs every template with layout.html, keyed by file name without extension.

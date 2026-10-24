@@ -14,7 +14,7 @@ func TestMigrationResumesAfterPartialRun(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	exec(t, `DROP TABLE IF EXISTS budget_amounts, budget_lines, budgets, sessions, settings, users, schema_migrations`)
+	exec(t, `DROP TABLE IF EXISTS budget_history, budget_amounts, budget_lines, budgets, sessions, settings, users, schema_migrations`)
 	first, _, _ := strings.Cut(string(schema), ";\n")
 	exec(t, first)
 	if err := migrateAll(testDB); err != nil {

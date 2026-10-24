@@ -263,3 +263,14 @@ kbd { display: inline-block; min-width: 1.6em; text-align: center; padding: .05r
 .budget tr.line input.changed { font-weight: 700; background: color-mix(in srgb, var(--text) 9%, transparent); }
 /* A field being edited (i, a or a click in a name), as against one that is only selected. */
 .budget tr.line input.editing { border-color: var(--edit); outline-color: var(--edit); background: var(--edit-bg); }
+/* Manage page */
+.card.wide { max-width: 60rem; }
+.card + .card { margin-top: 1rem; }
+.card h2 { font-size: 1.05rem; margin: 0; }
+.manage-table th, .manage-table td { padding: .3rem .6rem; text-align: left; }
+.manage-table tr.head th:not(:first-child) { text-align: left; }
+.manage-table td.num, .manage-table tr.head th.num { text-align: right; }
+.manage-table tr + tr > * { border-top: 1px solid color-mix(in srgb, var(--border) 60%, transparent); }
+form.inline { display: flex; gap: .4rem; align-items: center; }
+form.inline input { width: 5.5rem; }
+form.inline input:invalid:placeholder-shown { border-color: var(--border); } /* not an error before anything is typed */

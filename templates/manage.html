@@ -1,0 +1,71 @@
+{{define "content"}}{{$L := .L}}
+<h1>{{.Title}}</h1>
+
+<section class="card wide">
+  <h2>{{$L.T "manage.years"}}</h2>
+  {{if .Years}}
+  <table class="manage-table">
+    <tr class="head"><th>{{$L.T "budget.year"}}</th><th class="num">{{$L.T "manage.lines"}}</th><th></th></tr>
+    {{range .Years}}
+    <tr>
+      <th><a href="/budget/{{.Year}}">{{.Year}}</a></th>
+      <td class="num">{{.Lines}}</td>
+      <td>
+        <form method="post" action="/manage/years/{{.Year}}/delete" class="inline">
+          <input name="confirm" required pattern="{{.Year}}" inputmode="numeric" size="5" placeholder="{{.Year}}" title="{{$L.T "manage.delete_confirm" .Year}}" aria-label="{{$L.T "manage.delete_confirm" .Year}}">
+          <button class="secondary">{{$L.T "manage.delete"}}</button>
+        </form>
+      </td>
+    </tr>
+    {{end}}
+  </table>
+  <p class="hint">{{$L.T "manage.delete_hint"}}</p>
+  {{else}}
+  <p class="hint">{{$L.T "manage.no_years"}}</p>
+  {{end}}
+</section>
+
+{{if .Years}}
+<section class="card wide" id="history">
+  <h2>{{$L.T "manage.history"}}</h2>
+  <form action="/manage#history" class="filters">
+    <label>{{$L.T "budget.year"}}
+      <select name="year" data-autosubmit>{{range .Years}}<option{{if eq .Year $.Year}} selected{{end}}>{{.Year}}</option>{{end}}</select>
+    </label>
+    <noscript><button class="secondary">{{$L.T "budget.go"}}</button></noscript>
+  </form>
+  {{if .Changes}}
+  <div class="scroll">
+  <table class="manage-table">
+    <tr class="head">
+      <th>{{$L.T "manage.when"}}</th><th>{{$L.T "manage.who"}}</th><th>{{$L.T "manage.line"}}</th><th>{{$L.T "manage.field"}}</th>
+      <th class="num">{{$L.T "manage.old"}}</th><th class="num">{{$L.T "manage.new"}}</th><th></th>
+    </tr>
+    {{range .Changes}}
+    <tr>
+      <td>{{.When.Format "2006-01-02 15:04"}}</td>
+      <td>{{or .Who "–"}}</td>
+      <td>{{.Line}}</td>
+      <td>{{.Field}}</td>
+      <td class="num">{{.Old}}</td>
+      <td class="num">{{.New}}</td>
+      <td><form method="post" action="/manage/history/{{.ID}}/restore"><button class="secondary">{{$L.T "manage.restore"}}</button></form></td>
+    </tr>
+    {{end}}
+  </table>
+  </div>
+  <p class="hint">{{$L.T "manage.restore_hint"}}{{if .Limited}} {{$L.T "manage.history_limit" .Shown}}{{end}}</p>
+  {{else}}
+  <p class="hint">{{$L.T "manage.history_empty" .Year}}</p>
+  {{end}}
+</section>
+{{end}}
+
+<form method="post" action="/manage/history-keep" class="card">
+  <label>{{$L.T "manage.keep"}}
+    <input type="number" name="keep" min="0" max="1000" value="{{.Keep}}" required>
+  </label>
+  <p class="hint">{{$L.T "manage.keep_hint"}}</p>
+  <button>{{$L.T "save"}}</button>
+</form>
+{{end}}

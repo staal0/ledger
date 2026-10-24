@@ -41,7 +41,7 @@ func testApp(t *testing.T, login bool) *App {
 			return
 		}
 		// Start from nothing so the migrations themselves are tested too.
-		if _, testDBErr = testDB.Exec(`DROP TABLE IF EXISTS budget_amounts, budget_lines, budgets,
+		if _, testDBErr = testDB.Exec(`DROP TABLE IF EXISTS budget_history, budget_amounts, budget_lines, budgets,
 			sessions, settings, users, schema_migrations`); testDBErr == nil {
 			testDBErr = migrateAll(testDB)
 		}
