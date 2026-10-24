@@ -162,6 +162,10 @@ func (a *App) callback(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	userID, _ := res.LastInsertId()
+	if err := saveGroups(ctx, a.db, userID, groups); err != nil {
+		a.fail(w, err)
+		return
+	}
 	token := rand.Text()
 	_, err = a.db.ExecContext(ctx, `INSERT INTO sessions (token_hash, user_id, expires_at)
 		VALUES (?, ?, UTC_TIMESTAMP() + INTERVAL 30 DAY)`, hashToken(token), userID)
@@ -174,6 +178,25 @@ func (a *App) callback(w http.ResponseWriter, r *http.Request) {
 	}
 	a.setCookie(w, sessionCookie, token, "/", sessionTTL)
 	http.Redirect(w, r, "/", http.StatusFound)
+}
+
+// saveGroups replaces the user's groups with those from this login, for
+// budgets shared with a group.
+func saveGroups(ctx context.Context, db *sql.DB, user int64, groups []string) error {
+	tx, err := db.BeginTx(ctx, nil)
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+	if _, err := tx.ExecContext(ctx, "DELETE FROM user_groups WHERE user_id = ?", user); err != nil {
+		return err
+	}
+	for _, g := range groups {
+		if _, err := tx.ExecContext(ctx, "INSERT IGNORE INTO user_groups (user_id, name) VALUES (?, ?)", user, strings.TrimPrefix(g, "/")); err != nil {
+			return err
+		}
+	}
+	return tx.Commit()
 }
 
 // loginRole is the role for the user's groups, taken from the ID token or, as

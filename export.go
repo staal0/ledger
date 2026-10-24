@@ -19,7 +19,12 @@ func (a *App) budgetExport(w http.ResponseWriter, r *http.Request) {
 		http.NotFound(w, r)
 		return
 	}
-	b, err := a.loadBudget(r.Context(), year)
+	budget, err := defaultBudget(r.Context(), a.db)
+	if err != nil {
+		a.fail(w, err)
+		return
+	}
+	b, err := a.loadBudget(r.Context(), budget, year)
 	if err != nil {
 		a.fail(w, err)
 		return
@@ -121,7 +126,7 @@ func (s *sheet) calc(label string, expr func(c string) string, values Totals) in
 	return s.add(append(cells, formula(expr("O"), values[0]))...)
 }
 
-func writeODS(w io.Writer, b *Budget, L *Locale) error {
+func writeODS(w io.Writer, b *BudgetYear, L *Locale) error {
 	income, expense, allocation := b.total("income"), b.total("expense"), b.total("allocation")
 	var net, diff Totals
 	for i := range net {

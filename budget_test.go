@@ -58,7 +58,7 @@ func TestBudgetLifecycle(t *testing.T) {
 		t.Errorf("salary January = %d, want 3000050", got)
 	}
 
-	b, _ := a.loadBudget(t.Context(), 2030)
+	b, _ := loadYear(t, a, 2030)
 	in, ex, al := b.total("income"), b.total("expense"), b.total("allocation")
 	if diff := in[1] - ex[1] - al[1]; diff != 376600 { // 30000.50 − 11234.50 − 15000
 		t.Errorf("January difference = %d, want 376600", diff)
@@ -101,7 +101,7 @@ func TestBudgetLifecycle(t *testing.T) {
 
 	// Moving Power above Housing, then deleting it.
 	mustStatus(t, request(a, "POST", "/budget/2030", saveForm(t, a, 2030, fmt.Sprintf("up:%d", ids["expense/Power"]), nil), ""), 303)
-	b, _ = a.loadBudget(t.Context(), 2030)
+	b, _ = loadYear(t, a, 2030)
 	if b.Lines["expense"][0].ID != ids["expense/Power"] {
 		t.Errorf("Power was not moved up: first expense is %q", b.Lines["expense"][0].Name)
 	}
@@ -221,7 +221,7 @@ func TestCopyYear(t *testing.T) {
 	}
 	// Creating an existing year again changes nothing.
 	mustStatus(t, request(a, "POST", "/budget/2032/create", url.Values{}, ""), 303)
-	if n := queryInt(t, "SELECT COUNT(*) FROM budgets WHERE year = 2032"); n != 1 {
+	if n := queryInt(t, "SELECT COUNT(*) FROM budget_years WHERE year = 2032"); n != 1 {
 		t.Errorf("%d budgets for 2032", n)
 	}
 }
@@ -261,7 +261,7 @@ func TestDemo(t *testing.T) {
 	if err := seedDemo(testDB, "da"); err != nil {
 		t.Fatal(err)
 	}
-	if n := queryInt(t, "SELECT COUNT(*) FROM budgets"); n != 3 {
+	if n := queryInt(t, "SELECT COUNT(*) FROM budget_years"); n != 3 {
 		t.Errorf("demo created %d budgets, want 3", n)
 	}
 	if n := queryInt(t, "SELECT COUNT(*) FROM budget_lines WHERE name = 'Madkonto'"); n != 3 {

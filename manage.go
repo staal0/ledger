@@ -91,10 +91,15 @@ type change struct {
 func (a *App) managePage(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	L := a.locale(r)
+	budget, err := defaultBudget(ctx, a.db)
+	if err != nil {
+		a.fail(w, err)
+		return
+	}
 	type yearInfo struct{ Year, Lines int }
 	var years []yearInfo
-	rows, err := a.db.QueryContext(ctx, `SELECT b.year, COUNT(l.id) FROM budgets b
-		LEFT JOIN budget_lines l ON l.budget_id = b.id GROUP BY b.year ORDER BY b.year DESC`)
+	rows, err := a.db.QueryContext(ctx, `SELECT y.year, COUNT(l.id) FROM budget_years y
+		LEFT JOIN budget_lines l ON l.year_id = y.id WHERE y.budget_id = ? GROUP BY y.year ORDER BY y.year DESC`, budget)
 	if err != nil {
 		a.fail(w, err)
 		return
@@ -126,7 +131,7 @@ func (a *App) managePage(w http.ResponseWriter, r *http.Request) {
 	if y, err := strconv.Atoi(r.FormValue("year")); err == nil {
 		year = y
 	}
-	changes, err := a.changes(ctx, year, L)
+	changes, err := a.changes(ctx, budget, year, L)
 	if err != nil {
 		a.fail(w, err)
 		return
@@ -147,15 +152,15 @@ func (a *App) managePage(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
-// changes lists the newest recorded changes of year, formatted for display.
-func (a *App) changes(ctx context.Context, year int, L *Locale) ([]change, error) {
+// changes lists the newest recorded changes of budget's year, formatted for display.
+func (a *App) changes(ctx context.Context, budget int64, year int, L *Locale) ([]change, error) {
 	rows, err := a.db.QueryContext(ctx, `SELECT h.id, h.changed_at, COALESCE(NULLIF(u.name, ''), u.email, ''),
 			l.name, h.field, h.old_value, h.new_value
 		FROM budget_history h
 		JOIN budget_lines l ON l.id = h.line_id
-		JOIN budgets b ON b.id = l.budget_id
+		JOIN budget_years y ON y.id = l.year_id
 		LEFT JOIN users u ON u.id = h.user_id
-		WHERE b.year = ? ORDER BY h.id DESC LIMIT ?`, year, historyShown)
+		WHERE y.budget_id = ? AND y.year = ? ORDER BY h.id DESC LIMIT ?`, budget, year, historyShown)
 	if err != nil {
 		return nil, err
 	}
@@ -190,16 +195,16 @@ func (l *Locale) historyValue(field int, v string) string {
 	return l.Money(m)
 }
 
-// previousValues is, per form field of a budget ("n_<line>" or "a_<line>_<month>"),
+// previousValues is, per form field of a budget year ("n_<line>" or "a_<line>_<month>"),
 // the tooltip listing its recorded changes, newest first.
-func (a *App) previousValues(ctx context.Context, budget int64, L *Locale) (map[string]string, error) {
+func (a *App) previousValues(ctx context.Context, year int64, L *Locale) (map[string]string, error) {
 	const most = 5
 	rows, err := a.db.QueryContext(ctx, `SELECT h.line_id, h.field, h.old_value, h.new_value,
 			COALESCE(NULLIF(u.name, ''), u.email, ''), h.changed_at
 		FROM budget_history h
 		JOIN budget_lines l ON l.id = h.line_id
 		LEFT JOIN users u ON u.id = h.user_id
-		WHERE l.budget_id = ? ORDER BY h.id DESC`, budget)
+		WHERE l.year_id = ? ORDER BY h.id DESC`, year)
 	if err != nil {
 		return nil, err
 	}
@@ -241,7 +246,11 @@ func (a *App) manageDeleteYear(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, a.locale(r).T("manage.delete_wrong", year), http.StatusBadRequest)
 		return
 	}
-	if _, err := a.db.ExecContext(r.Context(), "DELETE FROM budgets WHERE year = ?", year); err != nil {
+	budget, err := defaultBudget(r.Context(), a.db)
+	if err == nil {
+		_, err = a.db.ExecContext(r.Context(), "DELETE FROM budget_years WHERE budget_id = ? AND year = ?", budget, year)
+	}
+	if err != nil {
 		a.fail(w, err)
 		return
 	}
@@ -262,7 +271,7 @@ func (a *App) manageRestore(w http.ResponseWriter, r *http.Request) {
 	var field, year int
 	var old string
 	err = tx.QueryRowContext(ctx, `SELECT h.line_id, h.field, h.old_value, b.year
-		FROM budget_history h JOIN budget_lines l ON l.id = h.line_id JOIN budgets b ON b.id = l.budget_id
+		FROM budget_history h JOIN budget_lines l ON l.id = h.line_id JOIN budget_years b ON b.id = l.year_id
 		WHERE h.id = ? FOR UPDATE`, r.PathValue("id")).Scan(&line, &field, &old, &year)
 	if errors.Is(err, sql.ErrNoRows) {
 		http.NotFound(w, r)

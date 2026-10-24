@@ -41,7 +41,7 @@ func testApp(t *testing.T, login bool) *App {
 			return
 		}
 		// Start from nothing so the migrations themselves are tested too.
-		if _, testDBErr = testDB.Exec(`DROP TABLE IF EXISTS budget_history, budget_amounts, budget_lines, budgets,
+		if _, testDBErr = testDB.Exec(`DROP TABLE IF EXISTS budget_history, budget_amounts, budget_lines, budget_members, budget_groups, user_groups, budget_years, budgets,
 			sessions, settings, users, schema_migrations`); testDBErr == nil {
 			testDBErr = migrateAll(testDB)
 		}
@@ -49,7 +49,7 @@ func testApp(t *testing.T, login bool) *App {
 	if testDBErr != nil {
 		t.Fatal(testDBErr)
 	}
-	for _, q := range []string{"DELETE FROM budgets", "DELETE FROM sessions", "DELETE FROM settings", "DELETE FROM users"} {
+	for _, q := range []string{"DELETE FROM budget_years", "DELETE FROM budgets WHERE NOT is_default", "DELETE FROM sessions", "DELETE FROM settings", "DELETE FROM users"} {
 		exec(t, q)
 	}
 
@@ -114,7 +114,7 @@ func mustStatus(t *testing.T, w *httptest.ResponseRecorder, want int) {
 func lineIDs(t *testing.T, year int) map[string]int64 {
 	t.Helper()
 	rows, err := testDB.Query(`SELECT l.id, l.section, l.name FROM budget_lines l
-		JOIN budgets b ON b.id = l.budget_id WHERE b.year = ?`, year)
+		JOIN budget_years y ON y.id = l.year_id WHERE y.year = ?`, year)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -136,7 +136,7 @@ func lineIDs(t *testing.T, year int) map[string]int64 {
 // the clicked action.
 func saveForm(t *testing.T, a *App, year int, action string, amounts map[int64]map[int]string) url.Values {
 	t.Helper()
-	b, err := a.loadBudget(t.Context(), year)
+	b, err := loadYear(t, a, year)
 	if err != nil || b == nil {
 		t.Fatalf("loading %d: %v", year, err)
 	}
@@ -153,4 +153,14 @@ func saveForm(t *testing.T, a *App, year int, action string, amounts map[int64]m
 		}
 	}
 	return f
+}
+
+// loadYear loads a year of the default budget.
+func loadYear(t *testing.T, a *App, year int) (*BudgetYear, error) {
+	t.Helper()
+	budget, err := defaultBudget(t.Context(), testDB)
+	if err != nil {
+		return nil, err
+	}
+	return a.loadBudget(t.Context(), budget, year)
 }
