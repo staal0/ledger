@@ -128,20 +128,24 @@ document.addEventListener('DOMContentLoaded', () => {
     if (e.key === '?' && !e.target.closest('input, select, textarea') && !help.open) showHelp()
   })
 
-  // Spreadsheet-like keys in the grid. In amount fields the arrows and h/j/k/l
-  // always move; in name fields left/right only leave at the edge of the text.
-  // Enter saves.
-  // More vim keys in amount fields: ^/$ first/last month, gg/G first/last line, { } previous/next
-  // section, i/a edit with the cursor at start/end (h/l and left/right then move within the amount
-  // until Esc), Esc select again, x clear, u restore saved value, y copy, p paste, f copy to the following months.
+  // Spreadsheet-like keys in the grid, as in vim: a selected field takes the arrows, h/j/k/l and
+  // the commands below. i/a (or a click in a name) edit it with the cursor at the start/end; the
+  // arrows and h/l then move within the text. Esc stops editing, and pressed again leaves the field.
+  // Enter saves. Amount fields take only digits, minus and the decimal separator, even unselected.
+  // Commands: ^/$ first/last month, gg/G first/last line, { } previous/next section, x clear,
+  // u restore saved value, y copy, p paste, f copy an amount to the following months.
   const rows = [...form.querySelectorAll('tr.line')]
   const sections = [...form.querySelectorAll('tbody[data-section]')].filter(b => b.querySelector('tr.line'))
   const go = inp => { if (inp) { inp.focus(); inp.select() } }
   const keys = { ArrowUp: 'up', ArrowDown: 'down', ArrowLeft: 'left', ArrowRight: 'right' }
   const vim = { h: 'left', j: 'down', k: 'up', l: 'right' }
-  let pendingG = false, yanked = null, editing = null // editing: the amount field entered with i/a
+  let pendingG = false, yanked = null, editing = null // editing: the field entered with i/a or a click in a name
   form.addEventListener('focusout', () => { editing = null })
-  for (const inp of form.querySelectorAll('input.num')) inp.dataset.saved = inp.value // for "u"
+  // A click in a name is to type there; amounts take digits without editing.
+  form.addEventListener('click', e => {
+    if (e.target.matches('tr.line input:not(.num)')) editing = e.target
+  })
+  for (const inp of form.querySelectorAll('tr.line input')) inp.dataset.saved = inp.value // for "u"
   form.addEventListener('keydown', e => {
     const inp = e.target
     const tr = inp.tagName === 'INPUT' && inp.closest('tr')
@@ -151,18 +155,31 @@ document.addEventListener('DOMContentLoaded', () => {
       form.requestSubmit(form.querySelector('button[value="save"]'))
       return
     }
+    if (e.key === 'Escape') {
+      e.preventDefault()
+      if (editing === inp) {
+        editing = null
+        inp.select()
+      } else inp.blur()
+      return
+    }
     const num = inp.classList.contains('num')
+    const commands = num || editing !== inp // a name being edited takes letters as text
     const cells = [...tr.querySelectorAll('input')]
     const col = cells.indexOf(inp)
     const cellIn = row => row && row.querySelectorAll('input')[col]
-    const set = v => { inp.value = v; inp.dispatchEvent(new Event('input', { bubbles: true })) }
+    const set = v => {
+      inp.value = v
+      if (editing !== inp) inp.select() // a selected field stays selected
+      inp.dispatchEvent(new Event('input', { bubbles: true }))
+    }
     const sectionStart = step => {
       const s = sections[sections.indexOf(tr.closest('tbody')) + step]
       return s && s.querySelector('tr.line')
     }
     const g = pendingG
     pendingG = false
-    const edit = num && {
+    const edit = commands && {
       g: () => { if (g) go(cellIn(rows[0])); else pendingG = true },
       G: () => go(cellIn(rows.at(-1))),
       '^': () => go(cells[1]), // January; cells[0] is the name
@@ -174,9 +191,8 @@ document.addEventListener('DOMContentLoaded', () => {
       '?': showHelp,
       i: () => { editing = inp; inp.setSelectionRange(0, 0) }, // drop the highlight, cursor at the start
       a: () => { editing = inp; inp.setSelectionRange(inp.value.length, inp.value.length) }, // … at the end
-      Escape: () => { editing = null; inp.select() }, // highlight the value again
       x: () => set(''),
-      f: () => fill(inp),
+      f: () => { if (num) fill(inp) },
       u: () => set(inp.dataset.saved),
       y: () => { yanked = inp.value },
       p: () => { if (yanked !== null) set(yanked) },
@@ -185,7 +201,7 @@ document.addEventListener('DOMContentLoaded', () => {
       e.preventDefault()
       return edit()
     }
-    const dir = keys[e.key] || (num && vim[e.key])
+    const dir = keys[e.key] || (commands && vim[e.key])
     if (editing === inp && (dir === 'left' || dir === 'right')) {
       // Arrows move the cursor natively; h/l do the same by hand. Neither leaves the field.
       if (vim[e.key]) {
@@ -196,9 +212,9 @@ document.addEventListener('DOMContentLoaded', () => {
       return
     }
     if (!dir) {
-      // Amount fields take only digits, minus and the decimal separator; other
-      // printable keys are ignored. Editing keys (Backspace, Tab, ...) pass through.
-      if (num && e.key.length === 1 && !/[0-9-]/.test(e.key) && e.key !== dec) e.preventDefault()
+      // Other printable keys are ignored, except digits in amounts and anything in a name
+      // being edited. Editing keys (Backspace, Tab, ...) pass through.
+      if (e.key.length === 1 && (num ? !/[0-9-]/.test(e.key) && e.key !== dec : commands)) e.preventDefault()
       return
     }
     if (dir === 'up' || dir === 'down') {
@@ -210,12 +226,21 @@ document.addEventListener('DOMContentLoaded', () => {
       }
       return
     }
-    const edge = dir === 'left'
-      ? inp.selectionStart === 0 && inp.selectionEnd === 0
-      : inp.selectionStart === inp.value.length
-    if (!num && !edge) return
     e.preventDefault()
     go(cells[col + (dir === 'left' ? -1 : 1)])
+  })
+
+  // Outside the grid, gg/G and { } jump into it: the first/last line, the first/last section.
+  let outsideG = false
+  document.addEventListener('keydown', e => {
+    if (e.target.closest('input, select, textarea') || help.open || e.altKey || e.ctrlKey || e.metaKey) return
+    const g = outsideG
+    outsideG = e.key === 'g' && !g
+    const row = { g: g && rows[0], G: rows.at(-1), '{': sections.at(-1)?.querySelector('tr.line'), '}': sections[0]?.querySelector('tr.line') }[e.key]
+    if (row) {
+      e.preventDefault()
+      go(row.querySelectorAll('input')[1]) // January
+    }
   })
 
   // Fill ("f"): copy an amount to the following months of its line.
@@ -268,7 +293,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   } catch {}
 
-  // A line was just added: select its placeholder name, so typing replaces it.
+  // A line was just added: select its placeholder name to edit, so typing replaces it.
   // The page stays where it was and only scrolls if the new line is out of view.
   const addedID = new URLSearchParams(location.search).get('added')
   if (addedID) {
@@ -277,6 +302,7 @@ document.addEventListener('DOMContentLoaded', () => {
     if (added) {
       added.focus({ preventScroll: true })
       added.select()
+      editing = added
       added.scrollIntoView({ block: 'nearest' })
     }
   }
