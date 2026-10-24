@@ -2,7 +2,7 @@
 <form class="yearnav" action="/budget/">
   <h1>{{$L.T "nav.budget"}}</h1>
   <a href="/budget/{{.Prev}}">‹ {{.Prev}}</a>
-  <select name="year" aria-label="{{$L.T "budget.year"}}" data-autosubmit>
+  <select name="year" aria-label="{{$L.T "budget.year"}}" data-autosubmit autocomplete="off">
     {{range .Years}}<option{{if eq . $.Year}} selected{{end}}>{{.}}</option>{{end}}
   </select>
   <a href="/budget/{{.Next}}">{{.Next}} ›</a>
@@ -28,7 +28,7 @@
 </form>
 {{else}}
 <div class="budget-layout">
-<form method="post" class="budget">
+<form method="post" class="budget" data-no-history="{{$L.T "budget.no_history"}}">
   <input type="hidden" name="original" value="{{.Original}}">
   {{with .Conflicts}}<div class="notice" role="alert">{{$L.T "budget.conflicts"}}<ul>{{range .}}<li>{{.}}</li>{{end}}</ul></div>{{end}}
   <div class="toolbar">
@@ -47,8 +47,8 @@
       </tr>
       {{range .Lines}}{{$line := .}}
       <tr class="line" id="line-{{.ID}}">
-        <td><input name="n_{{.ID}}" value="{{.Name}}" required></td>
-        {{range $.Months}}<td><input class="num" name="a_{{$line.ID}}_{{.}}" value="{{$L.Input (index $line.Amounts .)}}" inputmode="decimal" pattern="{{$.Pattern}}"></td>{{end}}
+        <td>{{with index $.Previous (printf "n_%d" .ID)}}<span class="mark" title="{{.}}"></span>{{end}}<input name="n_{{.ID}}" value="{{.Name}}" required></td>
+        {{range $.Months}}<td>{{with index $.Previous (printf "a_%d_%d" $line.ID .)}}<span class="mark" title="{{.}}"></span>{{end}}<input class="num" name="a_{{$line.ID}}_{{.}}" value="{{$L.Input (index $line.Amounts .)}}" inputmode="decimal" pattern="{{$.Pattern}}"></td>{{end}}
         <td class="num total">{{$L.Money (index .Amounts 0)}}</td>
         <td class="actions">
           <button class="icon" name="action" value="up:{{.ID}}" title="{{$L.T "budget.move_up"}}">↑</button>
@@ -107,6 +107,7 @@
     <tr><td><kbd>f</kbd></td><td>{{$L.T "help.f"}}</td></tr>
     <tr><td><kbd>u</kbd></td><td>{{$L.T "help.u"}}</td></tr>
     <tr><td><kbd>y</kbd> <kbd>p</kbd></td><td>{{$L.T "help.yp"}}</td></tr>
+    <tr><td><kbd>K</kbd></td><td>{{$L.T "help.K"}}</td></tr>
     <tr><td><kbd>Enter</kbd></td><td>{{$L.T "help.enter"}}</td></tr>
     <tr><td><kbd>?</kbd></td><td>{{$L.T "help.help"}}</td></tr>
   </table>

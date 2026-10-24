@@ -4,10 +4,10 @@
 {{if .AllYears}}
 <form class="filters" action="/stats">
   <label>{{$L.T "stats.from"}}
-    <select name="from" data-autosubmit>{{range .AllYears}}<option{{if eq . $.From}} selected{{end}}>{{.}}</option>{{end}}</select>
+    <select name="from" data-autosubmit autocomplete="off">{{range .AllYears}}<option{{if eq . $.From}} selected{{end}}>{{.}}</option>{{end}}</select>
   </label>
   <label>{{$L.T "stats.to"}}
-    <select name="to" data-autosubmit>{{range .AllYears}}<option{{if eq . $.To}} selected{{end}}>{{.}}</option>{{end}}</select>
+    <select name="to" data-autosubmit autocomplete="off">{{range .AllYears}}<option{{if eq . $.To}} selected{{end}}>{{.}}</option>{{end}}</select>
   </label>
   <noscript><button class="secondary">{{$L.T "budget.go"}}</button></noscript>
 </form>

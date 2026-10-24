@@ -204,6 +204,10 @@ func (a *App) budgetPage(w http.ResponseWriter, r *http.Request) {
 	}
 	data["Budget"] = b
 	data["Original"] = originalValues(b)
+	if data["Previous"], err = a.previousValues(ctx, b.ID, L); err != nil {
+		a.fail(w, err)
+		return
+	}
 	data["Conflicts"] = a.takeConflicts(w, r)
 	data["Sections"] = secs
 	data["Summary"] = []calc{{"income", income}, {"expense", expense}, {"net", net}}
@@ -254,6 +258,15 @@ func (a *App) budgetSave(w http.ResponseWriter, r *http.Request) {
 	// elsewhere since the page was loaded keeps that value and is reported.
 	var conflicts []string
 	current := map[string]bool{}
+	var changed []int64 // lines with recorded changes, to prune their history
+	set := func(l *Line, field int, old, new string) {
+		if err == nil {
+			err = setField(ctx, tx, l.ID, field, old, new, currentUser(r).ID)
+		}
+		if len(changed) == 0 || changed[len(changed)-1] != l.ID {
+			changed = append(changed, l.ID)
+		}
+	}
 	for _, s := range sections {
 		for _, l := range b.Lines[s] {
 			key := fmt.Sprintf("n_%d", l.ID)
@@ -269,7 +282,7 @@ func (a *App) budgetSave(w http.ResponseWriter, r *http.Request) {
 				case known && l.Name != o && l.Name != n:
 					conflicts = append(conflicts, L.T("budget.conflict_name", o, l.Name, n))
 				case n != l.Name:
-					exec("UPDATE budget_lines SET name = ? WHERE id = ?", n, l.ID)
+					set(l, 0, l.Name, n)
 				}
 			}
 			for _, m := range months {
@@ -286,14 +299,16 @@ func (a *App) budgetSave(w http.ResponseWriter, r *http.Request) {
 				case known && v == ov: // not changed here
 				case known && cur != ov && cur != v:
 					conflicts = append(conflicts, L.T("budget.conflict_amount", l.Name, L.T(fmt.Sprintf("month.%d", m)), L.Money(v), L.Money(cur)))
-				case v == cur:
-				case v == 0:
-					exec("DELETE FROM budget_amounts WHERE line_id = ? AND month = ?", l.ID, m)
-				default:
-					exec(`INSERT INTO budget_amounts (line_id, month, amount) VALUES (?, ?, ?)
-						ON DUPLICATE KEY UPDATE amount = VALUES(amount)`, l.ID, m, v)
+				case v != cur:
+					set(l, m, dbValue(cur), dbValue(v))
 				}
 			}
+		}
+	}
+	if len(changed) > 0 && err == nil {
+		var keep int
+		if keep, err = historyKeep(ctx, tx); err == nil {
+			err = pruneHistory(ctx, tx, changed, keep)
 		}
 	}
 	// Lines deleted elsewhere: only worth mentioning if they were edited here.
@@ -363,11 +378,7 @@ func originalValues(b *Budget) string {
 		for _, l := range lines {
 			v[fmt.Sprintf("n_%d", l.ID)] = l.Name
 			for _, m := range months {
-				s := ""
-				if l.Amounts[m] != 0 {
-					s = l.Amounts[m].format(".", "")
-				}
-				v[fmt.Sprintf("a_%d_%d", l.ID, m)] = s
+				v[fmt.Sprintf("a_%d_%d", l.ID, m)] = dbValue(l.Amounts[m])
 			}
 		}
 	}
