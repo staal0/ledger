@@ -90,6 +90,22 @@ func TestSeveralBudgets(t *testing.T) {
 	if loc := request(a, "GET", "/budget/?budget=alice&year=2031", nil, alice).Header().Get("Location"); loc != "/budget/alice/2031" {
 		t.Errorf("picker went to %q", loc)
 	}
+	// A start budget opens from the menu and on the statistics page; explicit addresses keep their budget.
+	aliceBudget := queryInt(t, "SELECT id FROM budgets WHERE slug = 'alice'")
+	mustStatus(t, request(a, "POST", "/settings", url.Values{"theme": {""}, "start_budget": {fmt.Sprint(aliceBudget)}}, alice), 303)
+	if loc := request(a, "GET", "/budget/", nil, alice).Header().Get("Location"); !strings.HasPrefix(loc, "/budget/alice/") {
+		t.Errorf("the menu went to %q, want alice's budget", loc)
+	}
+	if page := request(a, "GET", "/stats", nil, alice).Body.String(); !strings.Contains(page, `<option value="alice" selected>`) {
+		t.Error("statistics did not open on the start budget")
+	}
+	mustStatus(t, request(a, "GET", "/budget/2030", nil, alice), 200)
+	// A budget the user may not see cannot become their start budget.
+	mustStatus(t, request(a, "POST", "/settings", url.Values{"theme": {""}, "start_budget": {fmt.Sprint(aliceBudget)}}, bob), 303)
+	if n := queryInt(t, "SELECT COUNT(*) FROM users WHERE subject = 'bob' AND start_budget IS NOT NULL"); n != 0 {
+		t.Error("bob got alice's budget as start budget")
+	}
+
 	// Without access to the default budget, its addresses lead to the first budget the user can see.
 	exec(t, "UPDATE budgets SET everyone = FALSE WHERE is_default")
 	if loc := request(a, "GET", "/budget/2030", nil, alice).Header().Get("Location"); loc != "/budget/alice/2030" {

@@ -91,13 +91,10 @@ func (a *App) statsPage(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	L := a.locale(r)
 
-	current, visible, ok, err := a.budgetFor(r)
+	current, visible, ok, err := a.chosenBudget(r)
 	if err != nil {
 		a.fail(w, err)
 		return
-	}
-	if !ok && r.FormValue("budget") == "" && len(visible) > 0 { // the default budget is not shared with this user
-		current, ok = visible[0], true
 	}
 	if !ok {
 		http.NotFound(w, r)

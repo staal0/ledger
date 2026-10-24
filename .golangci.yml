@@ -10,6 +10,7 @@ linters:
       exclude-functions:
         - (*database/sql.Rows).Close
         - (*database/sql.DB).Close
+        - (*database/sql.Conn).Close
         - (io.ReadCloser).Close
         - (*database/sql.Tx).Rollback
         - (*bytes.Buffer).WriteTo

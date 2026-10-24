@@ -80,16 +80,41 @@ func (a *App) budgetFor(r *http.Request) (b budgetRef, visible []budgetRef, ok b
 	return b, visible, false, nil
 }
 
-// budgetIndex goes to a year of a budget: the path's or ?budget= budget (the
-// default one, or else the first the user may see) and ?year=, or this year.
-func (a *App) budgetIndex(w http.ResponseWriter, r *http.Request) {
+// startBudget is the budget opened when none is chosen: the user's start
+// budget, else the default budget, else the first the user may see.
+func startBudget(u *User, visible []budgetRef) (budgetRef, bool) {
+	for _, v := range visible {
+		if v.ID == u.StartBudget {
+			return v, true
+		}
+	}
+	for _, v := range visible {
+		if v.IsDefault {
+			return v, true
+		}
+	}
+	if len(visible) > 0 {
+		return visible[0], true
+	}
+	return budgetRef{}, false
+}
+
+// chosenBudget is the budget a request names, by the path's {slug} or ?budget=,
+// or else the user's start budget.
+func (a *App) chosenBudget(r *http.Request) (budgetRef, []budgetRef, bool, error) {
 	b, visible, ok, err := a.budgetFor(r)
+	if err == nil && r.PathValue("slug") == "" && r.FormValue("budget") == "" {
+		b, ok = startBudget(currentUser(r), visible)
+	}
+	return b, visible, ok, err
+}
+
+// budgetIndex goes to ?year=, or this year, of the chosen budget.
+func (a *App) budgetIndex(w http.ResponseWriter, r *http.Request) {
+	b, _, ok, err := a.chosenBudget(r)
 	if err != nil {
 		a.fail(w, err)
 		return
-	}
-	if !ok && r.PathValue("slug") == "" && len(visible) > 0 {
-		b, ok = visible[0], true
 	}
 	if !ok {
 		http.NotFound(w, r)

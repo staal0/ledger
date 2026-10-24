@@ -14,7 +14,9 @@ func TestMigrationResumesAfterPartialRun(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	exec(t, `DROP TABLE IF EXISTS budget_history, budget_amounts, budget_lines, budget_members, budget_groups, user_groups, budget_years, budgets, sessions, settings, users, schema_migrations`)
+	if err := dropAll(t.Context()); err != nil {
+		t.Fatal(err)
+	}
 	first, _, _ := strings.Cut(string(schema), ";\n")
 	exec(t, first)
 	if err := migrateAll(testDB); err != nil {
@@ -44,7 +46,9 @@ func TestMigrationWithCRLF(t *testing.T) {
 // data, and checks that every year ends up in the default budget unchanged.
 func TestMigrationToBudgets(t *testing.T) {
 	testApp(t, false)
-	exec(t, `DROP TABLE IF EXISTS budget_history, budget_amounts, budget_lines, budget_members, budget_groups, user_groups, budget_years, budgets, sessions, settings, users, schema_migrations`)
+	if err := dropAll(t.Context()); err != nil {
+		t.Fatal(err)
+	}
 	old, _ := fs.Sub(embedded, "migrations")
 	before := fstest.MapFS{}
 	for _, f := range []string{"001_init.sql", "002_history.sql", "003_roles.sql"} {

@@ -4,6 +4,7 @@ import (
 	"net/http"
 	"net/url"
 	"slices"
+	"strconv"
 	"strings"
 )
 
@@ -19,7 +20,15 @@ func (a *App) settingsPage(w http.ResponseWriter, r *http.Request) {
 		f := numberFormats[id]
 		formats = append(formats, numberFormat{id, example.format(f[0], f[1])})
 	}
+	visible, err := a.visibleBudgets(r.Context(), currentUser(r))
+	if err != nil {
+		a.fail(w, err)
+		return
+	}
+	start, _ := startBudget(currentUser(r), visible)
 	a.render(w, r, "settings", map[string]any{
+		"Budgets":       pickable(visible),
+		"Start":         start.ID,
 		"Title":         a.locale(r).T("settings.title"),
 		"Langs":         a.sortedLocales(),
 		"Themes":        themes,
@@ -38,6 +47,19 @@ func (a *App) settingsSave(w http.ResponseWriter, r *http.Request) {
 		if err != nil {
 			a.fail(w, err)
 			return
+		}
+	}
+	if start, err := strconv.ParseInt(r.PostFormValue("start_budget"), 10, 64); err == nil {
+		visible, err := a.visibleBudgets(r.Context(), currentUser(r))
+		if err != nil {
+			a.fail(w, err)
+			return
+		}
+		if slices.ContainsFunc(visible, func(b budgetRef) bool { return b.ID == start }) {
+			if _, err := a.db.ExecContext(r.Context(), "UPDATE users SET start_budget = ? WHERE id = ?", start, currentUser(r).ID); err != nil {
+				a.fail(w, err)
+				return
+			}
 		}
 	}
 	http.Redirect(w, r, "/settings", http.StatusSeeOther)

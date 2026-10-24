@@ -14,6 +14,14 @@
       {{range .NumberFormats}}<option value="{{.ID}}"{{if eq .ID $.User.NumberFormat}} selected{{end}}>{{if .ID}}{{.Example}}{{else}}{{$.L.T "settings.numbers_auto" .Example}}{{end}}</option>{{end}}
     </select>
   </label>
+  {{with .Budgets}}
+  <label>{{$.L.T "settings.start_budget"}}
+    <select name="start_budget">
+      {{range .}}<option value="{{.ID}}"{{if eq .ID $.Start}} selected{{end}}>{{.Name}}</option>{{end}}
+    </select>
+  </label>
+  <p class="hint">{{$.L.T "settings.start_budget_hint"}}</p>
+  {{end}}
   <label>{{.L.T "settings.theme"}}
     <select name="theme">
       {{range .Themes}}<option value="{{.}}"{{if eq . $.User.Theme}} selected{{end}}>{{$.L.T (print "settings.theme_" (or . "auto"))}}</option>{{end}}
