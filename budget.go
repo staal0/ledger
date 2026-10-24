@@ -8,6 +8,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"net/url"
 	"slices"
 	"strconv"
 	"strings"
@@ -31,6 +32,7 @@ type Line struct {
 	Section string
 	Name    string
 	Amounts Totals
+	Link    *lineLink // nil for a line with its own amounts
 }
 
 // BudgetYear is one year of a budget.
@@ -79,7 +81,12 @@ func loadBudget(ctx context.Context, q querier, budget int64, year int, lock str
 		return nil, err
 	}
 
-	rows, err := q.QueryContext(ctx, "SELECT id, section, name FROM budget_lines WHERE year_id = ? ORDER BY sort, id", b.ID)
+	rows, err := q.QueryContext(ctx, `SELECT l.id, l.section, l.name, l.link_budget_id, COALESCE(lb.name, ''),
+			COALESCE(l.link_section, ''), COALESCE(l.link_name, ''),
+			EXISTS (SELECT 1 FROM budget_years sy JOIN budget_lines s ON s.year_id = sy.id
+				WHERE sy.budget_id = l.link_budget_id AND sy.year = ? AND s.section = l.link_section AND s.name = l.link_name)
+		FROM budget_lines l LEFT JOIN budgets lb ON lb.id = l.link_budget_id
+		WHERE l.year_id = ? ORDER BY l.sort, l.id`, year, b.ID)
 	if err != nil {
 		return nil, err
 	}
@@ -87,8 +94,15 @@ func loadBudget(ctx context.Context, q querier, budget int64, year int, lock str
 	byID := map[int64]*Line{}
 	for rows.Next() {
 		l := &Line{}
-		if err := rows.Scan(&l.ID, &l.Section, &l.Name); err != nil {
+		var link lineLink
+		var linkBudget sql.NullInt64
+		var found bool
+		if err := rows.Scan(&l.ID, &l.Section, &l.Name, &linkBudget, &link.BudgetName, &link.Section, &link.Name, &found); err != nil {
 			return nil, err
+		}
+		if linkBudget.Valid {
+			link.BudgetID, link.Broken = linkBudget.Int64, !found
+			l.Link = &link
 		}
 		b.Lines[l.Section] = append(b.Lines[l.Section], l)
 		byID[l.ID] = l
@@ -226,6 +240,19 @@ func (a *App) budgetPage(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	data["Conflicts"] = a.takeConflicts(w, r)
+	if id := lineID(r.FormValue("link")); id != 0 && currentUser(r).CanEdit() {
+		for _, lines := range b.Lines {
+			for _, l := range lines {
+				if l.ID == id {
+					data["LinkLine"] = l
+				}
+			}
+		}
+		if data["LinkOptions"], err = a.linkOptions(ctx, current.ID, visible, year); err != nil {
+			a.fail(w, err)
+			return
+		}
+	}
 	data["Sections"] = secs
 	data["Summary"] = []calc{{"income", income}, {"expense", expense}, {"net", net}}
 	data["Difference"] = diff
@@ -255,7 +282,7 @@ func (a *App) budgetSave(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	defer tx.Rollback()
-	current, _, ok, err := a.budgetFor(r)
+	current, visible, ok, err := a.budgetFor(r)
 	if err != nil {
 		a.fail(w, err)
 		return
@@ -312,6 +339,9 @@ func (a *App) budgetSave(w http.ResponseWriter, r *http.Request) {
 				}
 			}
 			for _, m := range months {
+				if l.Link != nil {
+					break // the amounts come from the linked line
+				}
 				key := fmt.Sprintf("a_%d_%d", l.ID, m)
 				v, perr := L.ParseMoney(r.PostFormValue(key))
 				if perr != nil {
@@ -335,6 +365,9 @@ func (a *App) budgetSave(w http.ResponseWriter, r *http.Request) {
 		var keep int
 		if keep, err = historyKeep(ctx, tx); err == nil {
 			err = pruneHistory(ctx, tx, changed, keep)
+		}
+		if err == nil {
+			err = syncFromSource(ctx, tx, current.ID, year)
 		}
 	}
 	// Lines deleted elsewhere: only worth mentioning if they were edited here.
@@ -365,6 +398,21 @@ func (a *App) budgetSave(w http.ResponseWriter, r *http.Request) {
 		}
 	case "delete":
 		exec("DELETE FROM budget_lines WHERE id = ? AND year_id = ?", arg, b.ID)
+	case "link": // show the link chooser for the line
+		back += "?link=" + url.QueryEscape(arg)
+	case "setlink":
+		if err == nil {
+			var options []linkOption
+			if options, err = a.linkOptions(ctx, current.ID, visible, year); err == nil {
+				err = setLink(ctx, tx, b, lineID(arg), r.PostFormValue("source"), options)
+			}
+			if errors.Is(err, errBadLink) {
+				http.Error(w, L.T("budget.link_invalid"), http.StatusBadRequest)
+				return
+			}
+		}
+	case "unlink":
+		exec("UPDATE budget_lines SET link_budget_id = NULL, link_section = NULL, link_name = NULL WHERE id = ? AND year_id = ?", arg, b.ID)
 	case "up", "down":
 		for _, lines := range b.Lines {
 			i := slices.IndexFunc(lines, func(l *Line) bool { return strconv.FormatInt(l.ID, 10) == arg })
@@ -495,6 +543,12 @@ func (a *App) budgetCreate(w http.ResponseWriter, r *http.Request) {
 		err = copyLines(ctx, tx, budget, from, id, r.PostFormValue("amounts") != "")
 	}
 	if err == nil {
+		err = syncYear(ctx, tx, id) // the new year's links, from their budgets' same year
+	}
+	if err == nil {
+		err = syncFromSource(ctx, tx, budget, year) // lines elsewhere that link to the new year
+	}
+	if err == nil {
 		err = tx.Commit()
 	}
 	if err != nil {
@@ -506,20 +560,22 @@ func (a *App) budgetCreate(w http.ResponseWriter, r *http.Request) {
 
 // copyLines copies the lines of budget's fromYear into the year toYear.
 func copyLines(ctx context.Context, tx *sql.Tx, budget int64, fromYear int, toYear int64, withAmounts bool) error {
-	rows, err := tx.QueryContext(ctx, `SELECT l.id, l.section, l.name, l.sort
+	rows, err := tx.QueryContext(ctx, `SELECT l.id, l.section, l.name, l.sort, l.link_budget_id, l.link_section, l.link_name
 		FROM budget_lines l JOIN budget_years y ON y.id = l.year_id WHERE y.budget_id = ? AND y.year = ? ORDER BY l.sort, l.id`, budget, fromYear)
 	if err != nil {
 		return err
 	}
 	type src struct {
-		id            int64
-		section, name string
-		sort          int
+		id                    int64
+		section, name         string
+		sort                  int
+		linkBudget            sql.NullInt64
+		linkSection, linkName sql.NullString
 	}
 	var lines []src
 	for rows.Next() {
 		var s src
-		if err := rows.Scan(&s.id, &s.section, &s.name, &s.sort); err != nil {
+		if err := rows.Scan(&s.id, &s.section, &s.name, &s.sort, &s.linkBudget, &s.linkSection, &s.linkName); err != nil {
 			rows.Close()
 			return err
 		}
@@ -531,8 +587,8 @@ func copyLines(ctx context.Context, tx *sql.Tx, budget int64, fromYear int, toYe
 	}
 
 	for _, s := range lines {
-		res, err := tx.ExecContext(ctx, "INSERT INTO budget_lines (year_id, section, name, sort) VALUES (?, ?, ?, ?)",
-			toYear, s.section, s.name, s.sort)
+		res, err := tx.ExecContext(ctx, `INSERT INTO budget_lines (year_id, section, name, sort, link_budget_id, link_section, link_name)
+			VALUES (?, ?, ?, ?, ?, ?, ?)`, toYear, s.section, s.name, s.sort, s.linkBudget, s.linkSection, s.linkName)
 		if err != nil {
 			return err
 		}
@@ -547,4 +603,10 @@ func copyLines(ctx context.Context, tx *sql.Tx, budget int64, fromYear int, toYe
 		}
 	}
 	return nil
+}
+
+// lineID is a line id from a form action, 0 if it is not one.
+func lineID(s string) int64 {
+	id, _ := strconv.ParseInt(s, 10, 64)
+	return id
 }
