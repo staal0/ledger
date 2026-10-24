@@ -12,6 +12,8 @@
   --c-income: #2a78d6;
   --c-expense: #eb6834;
   --c-allocation: #1baf7a;
+  --edit: #ca8a04; /* a field being edited */
+  --edit-bg: #fef9c3;
   --c-other: #a3a29c;
   color-scheme: light;
 }
@@ -30,6 +32,8 @@
   --c-income: #3987e5;
   --c-expense: #d95926;
   --c-allocation: #199e70;
+  --edit: #facc15;
+  --edit-bg: #3d3714;
   --c-other: #6b6a65;
   color-scheme: dark;
 }
@@ -48,6 +52,8 @@
     --c-income: #3987e5;
     --c-expense: #d95926;
     --c-allocation: #199e70;
+    --edit: #facc15;
+    --edit-bg: #3d3714;
     --c-other: #6b6a65;
     color-scheme: dark;
   }
@@ -253,3 +259,7 @@ kbd { display: inline-block; min-width: 1.6em; text-align: center; padding: .05r
 /* Changes a save could not make because the same fields were changed elsewhere. */
 .notice { margin: .5rem 0; padding: .5rem .75rem; background: var(--surface); border: 1px solid var(--border); border-left: 4px solid var(--neg); border-radius: 4px; }
 .notice ul { margin: .25rem 0 0; padding-left: 1.25rem; }
+/* Changed since the last save; the tint also shows a cleared value. */
+.budget tr.line input.changed { font-weight: 700; background: color-mix(in srgb, var(--text) 9%, transparent); }
+/* A field being edited (i, a or a click in a name), as against one that is only selected. */
+.budget tr.line input.editing { border-color: var(--edit); outline-color: var(--edit); background: var(--edit-bg); }
