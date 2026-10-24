@@ -1,6 +1,9 @@
 name: Go format
 on: [push, pull_request]
 
+permissions:
+  contents: read
+
 jobs:
   gofmt:
     name: format
