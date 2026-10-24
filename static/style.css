@@ -293,3 +293,4 @@ button.icon.link { opacity: .45; }
 button.icon.link.on { opacity: 1; }
 button.icon.link.broken { opacity: 1; filter: grayscale(1); text-decoration: line-through; }
 .link-chooser { margin-bottom: 1rem; }
+.manage-table td.row { display: flex; gap: .4rem; }

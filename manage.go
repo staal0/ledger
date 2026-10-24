@@ -151,12 +151,18 @@ func (a *App) managePage(w http.ResponseWriter, r *http.Request) {
 		a.fail(w, err)
 		return
 	}
+	links, err := a.allLinks(ctx)
+	if err != nil {
+		a.fail(w, err)
+		return
+	}
 	a.render(w, r, "manage", map[string]any{
 		"Title":      L.T("nav.manage"),
 		"Current":    current,
 		"Budgets":    pickable(visible),
 		"Base":       current.Base(),
 		"AllBudgets": all,
+		"Links":      links,
 		"Open":       openBudget(r, current),
 		"Users":      users,
 		"Years":      years,

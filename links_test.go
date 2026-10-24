@@ -82,11 +82,22 @@ func TestLinkedLines(t *testing.T) {
 		t.Error("the broken link is not shown")
 	}
 
+	// The manage page lists the link, broken.
+	if page := request(a, "GET", "/manage", nil, "").Body.String(); !strings.Contains(page, "Dennis › Allocation › Joint account") || !strings.Contains(page, ">Broken<") {
+		t.Error("the manage page does not list the broken link")
+	}
+
 	// Unlinking makes the line editable again, with the amounts it had.
-	mustStatus(t, request(a, "POST", "/budget/2030", url.Values{"action": {fmt.Sprintf("unlink:%d", household)}}, ""), 303)
+	mustStatus(t, request(a, "POST", fmt.Sprintf("/manage/links/%d/unlink", household), url.Values{}, ""), 303)
 	mustStatus(t, request(a, "POST", "/budget/2030", saveForm(t, a, 2030, "save", map[int64]map[int]string{household: {1: "1"}}), ""), 303)
 	if amount(t, household, 1) != 100 {
 		t.Error("an unlinked line is not editable")
+	}
+
+	// Unlinking on the budget page too.
+	mustStatus(t, request(a, "POST", "/budget/2031", url.Values{"action": {fmt.Sprintf("unlink:%d", household31)}}, ""), 303)
+	if n := queryInt(t, "SELECT COUNT(*) FROM budget_lines WHERE id = ? AND link_budget_id IS NULL", household31); n != 1 {
+		t.Error("unlinking on the budget page did not remove the link")
 	}
 
 	// Not allowed: a line of the same budget, a line that is linked itself, an unknown line.

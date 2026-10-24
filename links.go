@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"errors"
+	"net/http"
 	"strconv"
 	"strings"
 )
@@ -115,4 +116,50 @@ func setLink(ctx context.Context, tx *sql.Tx, b *BudgetYear, line int64, value s
 		return errBadLink
 	}
 	return syncYear(ctx, tx, b.ID)
+}
+
+// linkRow is a linked line as the manage page lists it.
+type linkRow struct {
+	ID            int64
+	Year          int
+	Budget        budgetRef
+	Section, Name string
+	Link          lineLink
+}
+
+// allLinks lists every linked line, newest year first.
+func (a *App) allLinks(ctx context.Context) ([]linkRow, error) {
+	rows, err := a.db.QueryContext(ctx, `SELECT t.id, ty.year, tb.id, tb.name, tb.slug, tb.is_default, t.section, t.name,
+			lb.id, lb.name, t.link_section, t.link_name,
+			NOT EXISTS (SELECT 1 FROM budget_years sy JOIN budget_lines s ON s.year_id = sy.id
+				WHERE sy.budget_id = t.link_budget_id AND sy.year = ty.year AND s.section = t.link_section AND s.name = t.link_name)
+		FROM budget_lines t
+		JOIN budget_years ty ON ty.id = t.year_id
+		JOIN budgets tb ON tb.id = ty.budget_id
+		JOIN budgets lb ON lb.id = t.link_budget_id
+		ORDER BY ty.year DESC, tb.is_default DESC, tb.name, FIELD(t.section, 'income', 'expense', 'allocation'), t.sort, t.id`)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var out []linkRow
+	for rows.Next() {
+		var r linkRow
+		if err := rows.Scan(&r.ID, &r.Year, &r.Budget.ID, &r.Budget.Name, &r.Budget.Slug, &r.Budget.IsDefault, &r.Section, &r.Name,
+			&r.Link.BudgetID, &r.Link.BudgetName, &r.Link.Section, &r.Link.Name, &r.Link.Broken); err != nil {
+			return nil, err
+		}
+		out = append(out, r)
+	}
+	return out, rows.Err()
+}
+
+// manageUnlink removes a link; the line keeps its amounts and becomes editable.
+func (a *App) manageUnlink(w http.ResponseWriter, r *http.Request) {
+	if _, err := a.db.ExecContext(r.Context(), `UPDATE budget_lines SET link_budget_id = NULL, link_section = NULL, link_name = NULL
+		WHERE id = ?`, r.PathValue("id")); err != nil {
+		a.fail(w, err)
+		return
+	}
+	http.Redirect(w, r, "/manage#links", http.StatusSeeOther)
 }
