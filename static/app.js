@@ -151,7 +151,20 @@ document.addEventListener('DOMContentLoaded', () => {
     if (e.target.matches('tr.line input:not(.num)')) setEditing(e.target)
   })
   for (const inp of form.querySelectorAll('tr.line input')) inp.dataset.saved = inp.value // for "u"
+  // K: the previous values of the selected field, from its corner mark, until the next key.
+  function showHistory(inp) {
+    const mark = inp.parentElement.querySelector('.mark')
+    const [title, ...changes] = mark ? mark.title.split('\n') : [form.dataset.noHistory]
+    tip.replaceChildren(el('div', 'tip-title', title), ...changes.map(c => el('div', null, c)))
+    tip.hidden = false
+    const r = inp.getBoundingClientRect()
+    const maxLeft = document.documentElement.clientWidth - tip.offsetWidth - 8
+    tip.style.left = scrollX + Math.max(8, Math.min(r.left, maxLeft)) + 'px'
+    tip.style.top = scrollY + r.bottom + 6 + 'px'
+  }
+  form.addEventListener('focusout', hideTip)
   form.addEventListener('keydown', e => {
+    hideTip()
     const inp = e.target
     const tr = inp.tagName === 'INPUT' && inp.closest('tr')
     if (!tr || e.altKey || e.ctrlKey || e.metaKey) return
@@ -201,6 +214,7 @@ document.addEventListener('DOMContentLoaded', () => {
       u: () => set(inp.dataset.saved),
       y: () => { yanked = inp.value },
       p: () => { if (yanked !== null) set(yanked) },
+      K: () => showHistory(inp),
     }[e.key]
     if (edit) {
       e.preventDefault()

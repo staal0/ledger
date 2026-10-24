@@ -1,6 +1,7 @@
 package main
 
 import (
+	"cmp"
 	"context"
 	"database/sql"
 	"errors"
@@ -153,16 +154,6 @@ func (a *App) changes(ctx context.Context, year int, L *Locale) ([]change, error
 		return nil, err
 	}
 	defer rows.Close()
-	show := func(field int, v string) string {
-		if field == 0 {
-			return v
-		}
-		m, err := parseMoney(v, ".", "")
-		if err != nil || m == 0 {
-			return "–"
-		}
-		return L.Money(m)
-	}
 	var out []change
 	for rows.Next() {
 		var c change
@@ -175,10 +166,61 @@ func (a *App) changes(ctx context.Context, year int, L *Locale) ([]change, error
 		if field > 0 {
 			c.Field = L.T(fmt.Sprintf("month.%d", field))
 		}
-		c.Old, c.New = show(field, c.Old), show(field, c.New)
+		c.Old, c.New = L.historyValue(field, c.Old), L.historyValue(field, c.New)
 		out = append(out, c)
 	}
 	return out, rows.Err()
+}
+
+// historyValue formats a recorded value: a name as is, an amount in the user's format.
+func (l *Locale) historyValue(field int, v string) string {
+	if field == 0 {
+		return v
+	}
+	m, err := parseMoney(v, ".", "")
+	if err != nil || m == 0 {
+		return "–"
+	}
+	return l.Money(m)
+}
+
+// previousValues is, per form field of a budget ("n_<line>" or "a_<line>_<month>"),
+// the tooltip listing its recorded changes, newest first.
+func (a *App) previousValues(ctx context.Context, budget int64, L *Locale) (map[string]string, error) {
+	const most = 5
+	rows, err := a.db.QueryContext(ctx, `SELECT h.line_id, h.field, h.old_value, h.new_value,
+			COALESCE(NULLIF(u.name, ''), u.email, ''), h.changed_at
+		FROM budget_history h
+		JOIN budget_lines l ON l.id = h.line_id
+		LEFT JOIN users u ON u.id = h.user_id
+		WHERE l.budget_id = ? ORDER BY h.id DESC`, budget)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	lists := map[string][]string{}
+	for rows.Next() {
+		var line int64
+		var field int
+		var old, new, who string
+		var when time.Time
+		if err := rows.Scan(&line, &field, &old, &new, &who, &when); err != nil {
+			return nil, err
+		}
+		key := fmt.Sprintf("a_%d_%d", line, field)
+		if field == 0 {
+			key = fmt.Sprintf("n_%d", line)
+		}
+		if len(lists[key]) < most {
+			lists[key] = append(lists[key], fmt.Sprintf("%s → %s · %s · %s",
+				L.historyValue(field, old), L.historyValue(field, new), cmp.Or(who, "–"), when.In(time.Local).Format("2006-01-02 15:04")))
+		}
+	}
+	tips := map[string]string{}
+	for key, list := range lists {
+		tips[key] = L.T("budget.previous") + "\n" + strings.Join(list, "\n")
+	}
+	return tips, rows.Err()
 }
 
 // manageDeleteYear deletes a year with its lines, amounts and history, once

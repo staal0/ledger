@@ -274,3 +274,6 @@ kbd { display: inline-block; min-width: 1.6em; text-align: center; padding: .05r
 form.inline { display: flex; gap: .4rem; align-items: center; }
 form.inline input { width: 5.5rem; }
 form.inline input:invalid:placeholder-shown { border-color: var(--border); } /* not an error before anything is typed */
+/* A field with recorded changes: a corner mark whose tooltip lists the earlier values (K shows them too). */
+.budget tr.line td:not(:first-child) { position: relative; }
+.budget tr.line .mark { position: absolute; top: 2px; right: 2px; width: 8px; height: 8px; z-index: 2; cursor: help; background: linear-gradient(225deg, var(--muted) 50%, transparent 50%); }

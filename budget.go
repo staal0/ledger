@@ -204,6 +204,10 @@ func (a *App) budgetPage(w http.ResponseWriter, r *http.Request) {
 	}
 	data["Budget"] = b
 	data["Original"] = originalValues(b)
+	if data["Previous"], err = a.previousValues(ctx, b.ID, L); err != nil {
+		a.fail(w, err)
+		return
+	}
 	data["Conflicts"] = a.takeConflicts(w, r)
 	data["Sections"] = secs
 	data["Summary"] = []calc{{"income", income}, {"expense", expense}, {"net", net}}

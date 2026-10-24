@@ -24,6 +24,12 @@ func TestHistoryAndRestore(t *testing.T) {
 		t.Errorf("%d name changes recorded, want 1", n)
 	}
 
+	// The budget page shows the earlier values in the field's tooltip, newest first.
+	grid := request(a, "GET", "/budget/2030", nil, "").Body.String()
+	if !strings.Contains(grid, `class="mark"`) || !strings.Contains(grid, "Previous values:\n100 → 200 · Local") {
+		t.Error("the budget page does not show the previous values")
+	}
+
 	page := request(a, "GET", "/manage?year=2030", nil, "").Body.String()
 	if !strings.Contains(page, "Salary") || !strings.Contains(page, "Restore") {
 		t.Error("the manage page does not list the changes")
