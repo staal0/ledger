@@ -151,12 +151,18 @@ func (a *App) managePage(w http.ResponseWriter, r *http.Request) {
 		a.fail(w, err)
 		return
 	}
+	links, err := a.allLinks(ctx)
+	if err != nil {
+		a.fail(w, err)
+		return
+	}
 	a.render(w, r, "manage", map[string]any{
 		"Title":      L.T("nav.manage"),
 		"Current":    current,
 		"Budgets":    pickable(visible),
 		"Base":       current.Base(),
 		"AllBudgets": all,
+		"Links":      links,
 		"Open":       openBudget(r, current),
 		"Users":      users,
 		"Years":      years,
@@ -291,10 +297,10 @@ func (a *App) manageRestore(w http.ResponseWriter, r *http.Request) {
 	var field, year int
 	var old string
 	var budget budgetRef
-	err = tx.QueryRowContext(ctx, `SELECT h.line_id, h.field, h.old_value, y.year, b.slug, b.is_default
+	err = tx.QueryRowContext(ctx, `SELECT h.line_id, h.field, h.old_value, y.year, b.id, b.slug, b.is_default
 		FROM budget_history h JOIN budget_lines l ON l.id = h.line_id JOIN budget_years y ON y.id = l.year_id
 		JOIN budgets b ON b.id = y.budget_id
-		WHERE h.id = ? FOR UPDATE`, r.PathValue("id")).Scan(&line, &field, &old, &year, &budget.Slug, &budget.IsDefault)
+		WHERE h.id = ? FOR UPDATE`, r.PathValue("id")).Scan(&line, &field, &old, &year, &budget.ID, &budget.Slug, &budget.IsDefault)
 	if errors.Is(err, sql.ErrNoRows) {
 		http.NotFound(w, r)
 		return
@@ -316,6 +322,9 @@ func (a *App) manageRestore(w http.ResponseWriter, r *http.Request) {
 	}
 	if err == nil && current != old {
 		err = setField(ctx, tx, line, field, current, old, currentUser(r).ID)
+	}
+	if err == nil && field > 0 {
+		err = syncFromSource(ctx, tx, budget.ID, year)
 	}
 	var keep int
 	if err == nil {

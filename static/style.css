@@ -285,3 +285,12 @@ form.inline input:invalid:placeholder-shown { border-color: var(--border); } /* 
 .budget-form fieldset { border: 1px solid var(--border); border-radius: 4px; display: flex; flex-wrap: wrap; gap: .3rem 1rem; }
 form.new-budget { margin-top: .75rem; }
 form.new-budget input { width: 16rem; }
+/* Linked lines: amounts from another budget, read-only here. */
+.budget tr.line.linked input.num { color: var(--muted); }
+.budget tr.line .linkmark { position: absolute; right: .5rem; top: 50%; transform: translateY(-50%); font-size: .75rem; cursor: help; z-index: 2; }
+.budget tr.line .linkmark.broken { filter: grayscale(1); text-decoration: line-through; }
+button.icon.link { opacity: .45; }
+button.icon.link.on { opacity: 1; }
+button.icon.link.broken { opacity: 1; filter: grayscale(1); text-decoration: line-through; }
+.link-chooser { margin-bottom: 1rem; }
+.manage-table td.row { display: flex; gap: .4rem; }

@@ -45,6 +45,31 @@
   <p class="hint">{{$L.T "manage.create_hint"}}</p>
 </section>
 
+<section class="card wide" id="links">
+  <h2>{{$L.T "manage.links"}}</h2>
+  {{if .Links}}
+  <div class="scroll">
+  <table class="manage-table">
+    <tr class="head"><th>{{$L.T "budget.year"}}</th><th>{{$L.T "manage.line"}}</th><th>{{$L.T "manage.link_source"}}</th><th></th><th></th></tr>
+    {{range .Links}}
+    <tr>
+      <td>{{.Year}}</td>
+      <td><a href="{{.Budget.Base}}/{{.Year}}">{{.Budget.Name}}</a> › {{$L.T (print "section." .Section)}} › {{.Name}}</td>
+      <td>{{.Link.BudgetName}} › {{$L.T (print "section." .Link.Section)}} › {{.Link.Name}}</td>
+      <td>{{if .Link.Broken}}<span class="neg">{{$L.T "manage.link_broken"}}</span>{{end}}</td>
+      <td class="row">
+        <a class="button secondary" href="{{.Budget.Base}}/{{.Year}}?link={{.ID}}">{{$L.T "manage.link_edit"}}</a>
+        <form method="post" action="/manage/links/{{.ID}}/unlink"><button class="secondary">{{$L.T "budget.unlink"}}</button></form>
+      </td>
+    </tr>
+    {{end}}
+  </table>
+  </div>
+  {{else}}
+  <p class="hint">{{$L.T "manage.no_links"}}</p>
+  {{end}}
+</section>
+
 <section class="card wide" id="years">
   <h2>{{$L.T "manage.years"}}</h2>
   {{if .Budgets}}

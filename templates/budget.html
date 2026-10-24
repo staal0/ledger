@@ -31,6 +31,26 @@
 </form>
 {{else}}
 <div class="budget-layout">
+{{with .LinkLine}}
+<form method="post" class="card link-chooser">
+  <h2>{{$L.T "budget.link_title" .Name}}</h2>
+  {{if $.LinkOptions}}
+  <label>{{$L.T "budget.link_source"}}
+    <select name="source">
+      {{$link := .Link}}{{range $.LinkOptions}}<option value="{{.Value}}"{{if and $link (eq .BudgetID $link.BudgetID) (eq .Section $link.Section) (eq .Name $link.Name)}} selected{{end}}>{{.BudgetName}} › {{$L.T (print "section." .Section)}} › {{.Name}}</option>{{end}}
+    </select>
+  </label>
+  <p class="hint">{{$L.T "budget.link_hint"}}</p>
+  {{else}}
+  <p class="hint">{{$L.T "budget.link_none" $.Year}}</p>
+  {{end}}
+  <div class="row">
+    {{if $.LinkOptions}}<button name="action" value="setlink:{{.ID}}">{{$L.T "budget.link_save"}}</button>{{end}}
+    {{if .Link}}<button class="secondary" name="action" value="unlink:{{.ID}}">{{$L.T "budget.unlink"}}</button>{{end}}
+    <a class="button secondary" href="{{$.Base}}/{{$.Year}}">{{$L.T "help.close"}}</a>
+  </div>
+</form>
+{{end}}
 <form method="post" class="budget" data-no-history="{{$L.T "budget.no_history"}}">
   <input type="hidden" name="original" value="{{.Original}}">
   {{with .Conflicts}}<div class="notice" role="alert">{{$L.T "budget.conflicts"}}<ul>{{range .}}<li>{{.}}</li>{{end}}</ul></div>{{end}}
@@ -49,11 +69,12 @@
         <th>{{$L.T "budget.year"}}</th><th></th>
       </tr>
       {{range .Lines}}{{$line := .}}
-      <tr class="line" id="line-{{.ID}}">
-        <td>{{with index $.Previous (printf "n_%d" .ID)}}<span class="mark" title="{{.}}"></span>{{end}}<input name="n_{{.ID}}" value="{{.Name}}" required{{if not $.User.CanEdit}} readonly{{end}}></td>
-        {{range $.Months}}<td>{{with index $.Previous (printf "a_%d_%d" $line.ID .)}}<span class="mark" title="{{.}}"></span>{{end}}<input class="num" name="a_{{$line.ID}}_{{.}}" value="{{$L.Input (index $line.Amounts .)}}" inputmode="decimal" pattern="{{$.Pattern}}"{{if not $.User.CanEdit}} readonly{{end}}></td>{{end}}
+      <tr class="line{{if .Link}} linked{{end}}" id="line-{{.ID}}">
+        <td>{{with index $.Previous (printf "n_%d" .ID)}}<span class="mark" title="{{.}}"></span>{{end}}<input name="n_{{.ID}}" value="{{.Name}}" required{{if not $.User.CanEdit}} readonly{{end}}>{{with .Link}}<span class="linkmark{{if .Broken}} broken{{end}}" title="{{$L.T (print "budget." (or (and .Broken "link_broken") "linked_from")) .BudgetName ($L.T (print "section." .Section)) .Name}}">🔗</span>{{end}}</td>
+        {{range $.Months}}<td>{{with index $.Previous (printf "a_%d_%d" $line.ID .)}}<span class="mark" title="{{.}}"></span>{{end}}<input class="num" name="a_{{$line.ID}}_{{.}}" value="{{$L.Input (index $line.Amounts .)}}" inputmode="decimal" pattern="{{$.Pattern}}"{{if or (not $.User.CanEdit) $line.Link}} readonly{{end}}></td>{{end}}
         <td class="num total">{{$L.Money (index .Amounts 0)}}</td>
         <td class="actions">{{if $.User.CanEdit}}
+          <button class="icon link{{with .Link}} on{{if .Broken}} broken{{end}}{{end}}" name="action" value="link:{{.ID}}" title="{{with .Link}}{{$L.T (print "budget." (or (and .Broken "link_broken") "linked_from")) .BudgetName ($L.T (print "section." .Section)) .Name}}{{else}}{{$L.T "budget.link"}}{{end}}">🔗</button>
           <button class="icon" name="action" value="up:{{.ID}}" title="{{$L.T "budget.move_up"}}">↑</button>
           <button class="icon" name="action" value="down:{{.ID}}" title="{{$L.T "budget.move_down"}}">↓</button>
           <button class="icon" name="action" value="delete:{{.ID}}" title="{{$L.T "budget.delete"}}" data-confirm="{{$L.T "budget.confirm_delete" .Name}}">×</button>

@@ -180,6 +180,7 @@ func (a *App) routes() http.Handler {
 	private.HandleFunc("POST /manage/budgets", a.only(roleAdmin, a.manageCreateBudget))
 	private.HandleFunc("POST /manage/budgets/{id}", a.only(roleAdmin, a.manageUpdateBudget))
 	private.HandleFunc("POST /manage/budgets/{id}/delete", a.only(roleAdmin, a.manageDeleteBudget))
+	private.HandleFunc("POST /manage/links/{id}/unlink", a.only(roleAdmin, a.manageUnlink))
 	for _, p := range plugins {
 		p.Routes(private, a)
 	}
