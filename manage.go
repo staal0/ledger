@@ -113,9 +113,15 @@ func (a *App) managePage(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// The current year if it has a budget, else the newest one.
 	year := 0
 	if len(years) > 0 {
 		year = years[0].Year
+	}
+	for _, y := range years {
+		if y.Year == time.Now().Year() {
+			year = y.Year
+		}
 	}
 	if y, err := strconv.Atoi(r.FormValue("year")); err == nil {
 		year = y

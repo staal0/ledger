@@ -2,7 +2,7 @@
 <form class="yearnav" action="/budget/">
   <h1>{{$L.T "nav.budget"}}</h1>
   <a href="/budget/{{.Prev}}">‹ {{.Prev}}</a>
-  <select name="year" aria-label="{{$L.T "budget.year"}}" data-autosubmit>
+  <select name="year" aria-label="{{$L.T "budget.year"}}" data-autosubmit autocomplete="off">
     {{range .Years}}<option{{if eq . $.Year}} selected{{end}}>{{.}}</option>{{end}}
   </select>
   <a href="/budget/{{.Next}}">{{.Next}} ›</a>

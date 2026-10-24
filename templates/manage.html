@@ -30,7 +30,7 @@
   <h2>{{$L.T "manage.history"}}</h2>
   <form action="/manage#history" class="filters">
     <label>{{$L.T "budget.year"}}
-      <select name="year" data-autosubmit>{{range .Years}}<option{{if eq .Year $.Year}} selected{{end}}>{{.Year}}</option>{{end}}</select>
+      <select name="year" data-autosubmit autocomplete="off">{{range .Years}}<option{{if eq .Year $.Year}} selected{{end}}>{{.Year}}</option>{{end}}</select>
     </label>
     <noscript><button class="secondary">{{$L.T "budget.go"}}</button></noscript>
   </form>
