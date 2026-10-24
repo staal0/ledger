@@ -15,7 +15,7 @@ import (
 var coreNav = []NavItem{
 	{Path: "/budget/", Label: "nav.budget"},
 	{Path: "/stats", Label: "nav.stats"},
-	{Path: "/manage", Label: "nav.manage"},
+	{Path: "/manage", Label: "nav.manage", Role: roleAdmin},
 }
 
 // parsePages pairs every template with layout.html, keyed by file name without extension.
@@ -69,7 +69,7 @@ func (a *App) render(w http.ResponseWriter, r *http.Request, page string, data m
 	data["L"] = a.locale(r)
 	data["User"] = currentUser(r)
 	data["Path"] = r.URL.Path
-	data["Nav"] = a.nav()
+	data["Nav"] = a.nav(currentUser(r))
 	data["LoginEnabled"] = a.loginEnabled()
 	var buf bytes.Buffer
 	if err := a.pages[page].ExecuteTemplate(&buf, "layout", data); err != nil {
@@ -80,10 +80,16 @@ func (a *App) render(w http.ResponseWriter, r *http.Request, page string, data m
 	buf.WriteTo(w)
 }
 
-func (a *App) nav() []NavItem {
-	nav := append([]NavItem{}, coreNav...)
+func (a *App) nav(u *User) []NavItem {
+	all := append([]NavItem{}, coreNav...)
 	for _, p := range plugins {
-		nav = append(nav, p.Nav()...)
+		all = append(all, p.Nav()...)
+	}
+	var nav []NavItem
+	for _, item := range all {
+		if item.Role == "" || u.can(item.Role) {
+			nav = append(nav, item)
+		}
 	}
 	return nav
 }

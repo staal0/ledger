@@ -21,8 +21,6 @@ Ledger is one Go binary with three dependencies (MySQL driver, go-oidc, x/oauth2
 - Per-user settings for language, money format (`1.234,56` or `1,234.56`) and light/dark theme
 - Room for plugins (pension, investments, …), see `plugin.go`
 
-Planned: bank CSV import and budget vs. actual.
-
 ## Try it
 
 Start a throwaway MariaDB, fill it with a fictional demo household and run Ledger in local mode (no login, only reachable from your own machine):
@@ -50,6 +48,11 @@ export LEDGER_DB_DSN='ledger:ledger@tcp(127.0.0.1:3306)/ledger'
 | `LEDGER_BASE_URL` | no | Public URL, default `http://localhost:8080` |
 | `LEDGER_ADDR` | no | Listen address, default `:8080` (`127.0.0.1:8080` in local mode) |
 | `LEDGER_LOCALES_DIR` | no | Extra or overriding language files |
+| `LEDGER_ADMIN_GROUPS` | no | Comma-separated groups whose members are admins, see [Roles](#roles) |
+| `LEDGER_EDITOR_GROUPS` | no | Groups whose members are editors |
+| `LEDGER_VIEWER_GROUPS` | no | Groups whose members are viewers |
+| `LEDGER_GROUPS_CLAIM` | no | Claim with the user's groups, default `groups`; nested with dots, e.g. `realm_access.roles` |
+| `LEDGER_GROUPS_SCOPE` | no | Scope requested for the groups claim, default `groups`; set it empty to request none |
 
 ### Database
 
@@ -64,10 +67,28 @@ GRANT ALL PRIVILEGES ON ledger.* TO 'ledger'@'%';
 
 All data is in this database, so back it up like any other MariaDB database, e.g. with `mariadb-dump`.
 
-### Pocket ID
+### Roles
 
-Create an OIDC client with the callback URL `<LEDGER_BASE_URL>/auth/callback`.
-Everyone who can log in to the client has access, so restrict it to your household with *Allowed user groups*.
+| Role | Can |
+|---|---|
+| Viewer | Read budgets and statistics, and export |
+| Editor | Also change budgets and create years |
+| Admin | Also use the manage page: delete years, change history, history settings |
+
+Roles come from the groups your identity provider sends at login: a user gets the highest role whose group they are in, and a user in none of the groups cannot log in.
+The role is set at each login. Without any `LEDGER_*_GROUPS`, everyone who can log in is an admin.
+
+### Identity provider
+
+Ledger works with any OpenID Connect provider, e.g. Pocket ID, Keycloak, Authentik or Authelia.
+Create a client with the callback URL `<LEDGER_BASE_URL>/auth/callback`. PKCE is always used, so a public client without a secret works.
+
+For [roles](#roles) the provider has to send the user's groups in a claim (`LEDGER_GROUPS_CLAIM`, default `groups`), in the ID token or from the userinfo endpoint.
+Ledger requests the `groups` scope for it. A provider that rejects scopes it does not know needs a scope with that name, or `LEDGER_GROUPS_SCOPE` set to empty.
+
+- **Pocket ID** sends the groups for the `groups` scope. Also restrict the client to your household with *Allowed user groups*.
+- **Keycloak**: create a client scope `groups` with a *Group Membership* mapper (claim name `groups`, *Full group path* off, *Add to ID token* on) and add it to the client.
+  For realm roles instead of groups, set `LEDGER_GROUPS_CLAIM=realm_access.roles` and turn on *Add to ID token* for the *realm roles* mapper of the `roles` client scope.
 
 ## Running
 

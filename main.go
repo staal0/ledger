@@ -32,6 +32,11 @@ type Config struct {
 	OIDCIssuer   string
 	OIDCClientID string
 	OIDCSecret   string
+	GroupsClaim  string // see roles.go
+	GroupsScope  string
+	AdminGroups  []string
+	EditorGroups []string
+	ViewerGroups []string
 }
 
 type App struct {
@@ -50,6 +55,11 @@ func main() {
 		OIDCIssuer:   os.Getenv("OIDC_ISSUER"),
 		OIDCClientID: os.Getenv("OIDC_CLIENT_ID"),
 		OIDCSecret:   os.Getenv("OIDC_CLIENT_SECRET"),
+		GroupsClaim:  env("LEDGER_GROUPS_CLAIM", "groups"),
+		GroupsScope:  groupsScope(),
+		AdminGroups:  splitList(os.Getenv("LEDGER_ADMIN_GROUPS")),
+		EditorGroups: splitList(os.Getenv("LEDGER_EDITOR_GROUPS")),
+		ViewerGroups: splitList(os.Getenv("LEDGER_VIEWER_GROUPS")),
 	}
 	if len(os.Args) > 1 && os.Args[1] == "healthcheck" {
 		os.Exit(healthcheck(env("LEDGER_ADDR", ":8080")))
@@ -150,17 +160,17 @@ func (a *App) routes() http.Handler {
 	private.HandleFunc("GET /{$}", a.budgetIndex)
 	private.HandleFunc("GET /budget/{$}", a.budgetIndex)
 	private.HandleFunc("GET /budget/{year}", a.budgetPage)
-	private.HandleFunc("POST /budget/{year}", a.budgetSave)
-	private.HandleFunc("POST /budget/{year}/create", a.budgetCreate)
+	private.HandleFunc("POST /budget/{year}", a.only(roleEditor, a.budgetSave))
+	private.HandleFunc("POST /budget/{year}/create", a.only(roleEditor, a.budgetCreate))
 	private.HandleFunc("GET /budget/{year}/export", a.budgetExport)
 	private.HandleFunc("GET /stats", a.statsPage)
 	private.HandleFunc("GET /settings", a.settingsPage)
 	private.HandleFunc("POST /settings", a.settingsSave)
 	private.HandleFunc("POST /theme", a.themeSave)
-	private.HandleFunc("GET /manage", a.managePage)
-	private.HandleFunc("POST /manage/years/{year}/delete", a.manageDeleteYear)
-	private.HandleFunc("POST /manage/history/{id}/restore", a.manageRestore)
-	private.HandleFunc("POST /manage/history-keep", a.manageKeep)
+	private.HandleFunc("GET /manage", a.only(roleAdmin, a.managePage))
+	private.HandleFunc("POST /manage/years/{year}/delete", a.only(roleAdmin, a.manageDeleteYear))
+	private.HandleFunc("POST /manage/history/{id}/restore", a.only(roleAdmin, a.manageRestore))
+	private.HandleFunc("POST /manage/history-keep", a.only(roleAdmin, a.manageKeep))
 	for _, p := range plugins {
 		p.Routes(private, a)
 	}
@@ -177,6 +187,15 @@ func securityHeaders(next http.Handler) http.Handler {
 		h.Set("X-Content-Type-Options", "nosniff")
 		next.ServeHTTP(w, r)
 	})
+}
+
+// groupsScope is LEDGER_GROUPS_SCOPE, "groups" when unset. Set to empty, no
+// scope is requested, for providers that reject unknown scopes (Keycloak).
+func groupsScope() string {
+	if v, ok := os.LookupEnv("LEDGER_GROUPS_SCOPE"); ok {
+		return v
+	}
+	return "groups"
 }
 
 func env(key, def string) string {

@@ -1,6 +1,7 @@
 package main
 
 import (
+	"cmp"
 	"context"
 	"crypto/rand"
 	"crypto/sha256"
@@ -31,6 +32,7 @@ type User struct {
 	Theme string // "", "light" or "dark"; empty follows the system
 	// NumberFormat is a key of numberFormats; empty follows the language.
 	NumberFormat string
+	Role         string // set at login, see roles.go
 }
 
 type ctxKey struct{}
@@ -42,6 +44,7 @@ func currentUser(r *http.Request) *User {
 
 type oidcClient struct {
 	mu       sync.Mutex
+	provider *oidc.Provider
 	oauth    *oauth2.Config
 	verifier *oidc.IDTokenVerifier
 }
@@ -57,12 +60,17 @@ func (a *App) oidc(ctx context.Context) (*oauth2.Config, *oidc.IDTokenVerifier, 
 		if err != nil {
 			return nil, nil, err
 		}
+		scopes := []string{oidc.ScopeOpenID, "profile", "email"}
+		if a.cfg.rolesConfigured() && a.cfg.GroupsScope != "" {
+			scopes = append(scopes, a.cfg.GroupsScope)
+		}
+		c.provider = p
 		c.oauth = &oauth2.Config{
 			ClientID:     a.cfg.OIDCClientID,
 			ClientSecret: a.cfg.OIDCSecret,
 			Endpoint:     p.Endpoint(),
 			RedirectURL:  a.cfg.BaseURL + "/auth/callback",
-			Scopes:       []string{oidc.ScopeOpenID, "profile", "email"},
+			Scopes:       scopes,
 		}
 		c.verifier = p.Verifier(&oidc.Config{ClientID: a.cfg.OIDCClientID})
 	}
@@ -96,6 +104,11 @@ func (a *App) callback(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	a.setCookie(w, authCookie, "", "/auth", -time.Second)
+	if e := r.FormValue("error"); e != "" {
+		log.Printf("oidc: the provider refused the login: %s: %s", e, r.FormValue("error_description"))
+		http.Error(w, "login failed: "+cmp.Or(r.FormValue("error_description"), e), http.StatusUnauthorized)
+		return
+	}
 	parts := strings.SplitN(c.Value, "|", 3)
 	if len(parts) != 3 || r.FormValue("state") != parts[0] {
 		http.Error(w, "invalid login state", http.StatusBadRequest)
@@ -130,10 +143,20 @@ func (a *App) callback(w http.ResponseWriter, r *http.Request) {
 		a.fail(w, err)
 		return
 	}
+	role, err := a.loginRole(ctx, idt, tok)
+	if err != nil {
+		a.fail(w, err)
+		return
+	}
+	if role == "" {
+		log.Printf("login refused: %s (%s) is in none of the role groups", claims.Name, claims.Email)
+		http.Error(w, a.locale(r).T("auth.no_access"), http.StatusForbidden)
+		return
+	}
 
-	res, err := a.db.ExecContext(ctx, `INSERT INTO users (subject, name, email) VALUES (?, ?, ?)
-		ON DUPLICATE KEY UPDATE id = LAST_INSERT_ID(id), name = ?, email = ?`,
-		idt.Subject, claims.Name, claims.Email, claims.Name, claims.Email)
+	res, err := a.db.ExecContext(ctx, `INSERT INTO users (subject, name, email, role) VALUES (?, ?, ?, ?)
+		ON DUPLICATE KEY UPDATE id = LAST_INSERT_ID(id), name = ?, email = ?, role = ?`,
+		idt.Subject, claims.Name, claims.Email, role, claims.Name, claims.Email, role)
 	if err != nil {
 		a.fail(w, err)
 		return
@@ -151,6 +174,31 @@ func (a *App) callback(w http.ResponseWriter, r *http.Request) {
 	}
 	a.setCookie(w, sessionCookie, token, "/", sessionTTL)
 	http.Redirect(w, r, "/", http.StatusFound)
+}
+
+// loginRole is the role for the user's groups, taken from the ID token or, as
+// some providers only send groups there, from the userinfo endpoint.
+func (a *App) loginRole(ctx context.Context, idt *oidc.IDToken, tok *oauth2.Token) (string, error) {
+	if !a.cfg.rolesConfigured() {
+		return roleAdmin, nil
+	}
+	var claims map[string]any
+	if err := idt.Claims(&claims); err != nil {
+		return "", err
+	}
+	groups := claimStrings(claims, a.cfg.GroupsClaim)
+	if groups == nil {
+		info, err := a.auth.provider.UserInfo(ctx, oauth2.StaticTokenSource(tok))
+		if err != nil {
+			return "", err
+		}
+		claims = nil
+		if err := info.Claims(&claims); err != nil {
+			return "", err
+		}
+		groups = claimStrings(claims, a.cfg.GroupsClaim)
+	}
+	return a.cfg.roleFor(groups), nil
 }
 
 func (a *App) logout(w http.ResponseWriter, r *http.Request) {
@@ -178,20 +226,27 @@ func (a *App) requireUser(next http.Handler) http.Handler {
 				http.Redirect(w, r, "/login", http.StatusFound)
 				return
 			}
-			row = a.db.QueryRowContext(r.Context(), `SELECT u.id, u.name, u.email, u.lang, u.theme, u.number_format
+			row = a.db.QueryRowContext(r.Context(), `SELECT u.id, u.name, u.email, u.lang, u.theme, u.number_format, u.role
 				FROM sessions s JOIN users u ON u.id = s.user_id
 				WHERE s.token_hash = ? AND s.expires_at > UTC_TIMESTAMP()`, hashToken(c.Value))
 		} else {
-			row = a.db.QueryRowContext(r.Context(), "SELECT id, name, email, lang, theme, number_format FROM users WHERE subject = 'local'")
+			row = a.db.QueryRowContext(r.Context(), "SELECT id, name, email, lang, theme, number_format, role FROM users WHERE subject = 'local'")
 		}
 		u := &User{}
-		err := row.Scan(&u.ID, &u.Name, &u.Email, &u.Lang, &u.Theme, &u.NumberFormat)
+		err := row.Scan(&u.ID, &u.Name, &u.Email, &u.Lang, &u.Theme, &u.NumberFormat, &u.Role)
 		if errors.Is(err, sql.ErrNoRows) {
 			http.Redirect(w, r, "/login", http.StatusFound)
 			return
 		}
 		if err != nil {
 			a.fail(w, err)
+			return
+		}
+		switch {
+		case !a.loginEnabled() || !a.cfg.rolesConfigured():
+			u.Role = roleAdmin
+		case u.Role == "": // a session from before roles were set up
+			http.Redirect(w, r, "/login", http.StatusFound)
 			return
 		}
 		next.ServeHTTP(w, r.WithContext(context.WithValue(r.Context(), ctxKey{}, u)))
