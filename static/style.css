@@ -109,7 +109,8 @@ th:first-child, td:first-child { position: sticky; left: 0; background: var(--su
 tr.head th:first-child { background: var(--head); }
 /* The name column follows the window, so a whole year fits on a laptop and a phone shows more than one month. */
 td:first-child input { width: clamp(7rem, 13vw, 15rem); }
-input.num { width: 4.5rem; text-align: right; }
+/* --num-chars is the longest amount in the grid, set by app.js. */
+input.num { width: max(4.5rem, calc(var(--num-chars, 0) * 1ch + .8rem + 2px)); text-align: right; }
 /* The grid fills the width it gets; the extra space goes between the amounts. */
 .budget table { width: 100%; }
 .budget td:has(> input.num) { text-align: right; }
@@ -163,7 +164,7 @@ tr.calc.difference > * { border-top: 1.25rem solid var(--bg); }
   main { padding: .75rem .5rem; }
   .scroll table { font-size: 14px; }
   .scroll th, .scroll td { padding: .15rem .2rem; }
-  input.num { width: 4.25rem; padding: .2rem .3rem; }
+  input.num { width: max(4.25rem, calc(var(--num-chars, 0) * 1ch + .6rem + 2px)); padding: .2rem .3rem; }
   .budget { --num-inset: calc(.3rem + 1px); }
   .budget tr.head th:not(:first-child), .budget td.num { padding-right: calc(.2rem + var(--num-inset)); }
   .budget tr:not(.line) > th:first-child { padding-left: calc(.2rem + var(--num-inset)); }
@@ -228,7 +229,7 @@ tr.calc.difference > * { border-top: 1.25rem solid var(--bg); }
 .tip-row { display: flex; align-items: center; gap: .4rem; }
 .tip-row .key { width: 12px; height: 3px; border-radius: 2px; }
 
-dialog.help { background: var(--surface); color: var(--text); border: 1px solid var(--border); border-radius: 8px; padding: 1.25rem; max-width: 34rem; }
+dialog.help { background: var(--surface); color: var(--text); border: 1px solid var(--border); border-radius: 8px; padding: 1.25rem; max-width: min(48rem, calc(100vw - 2rem)); }
 dialog.help::backdrop { background: rgb(0 0 0 / .4); }
 dialog.help h2 { font-size: 1.1rem; margin: 0 0 .75rem; }
 dialog.help table { border-collapse: collapse; margin-bottom: .75rem; }
@@ -239,7 +240,7 @@ dialog.help form { margin-top: 1rem; }
 kbd { display: inline-block; min-width: 1.6em; text-align: center; padding: .05rem .35rem; border: 1px solid var(--border); border-bottom-width: 2px; border-radius: 4px; background: var(--head); font: .85em ui-monospace, monospace; }
 
 /* Statistics page */
-.stats { display: grid; gap: 1rem; margin-top: 1rem; max-width: 80rem; }
+.stats { display: grid; gap: 1rem; margin-top: 1rem; }
 .stats-table th, .stats-table td { padding: .3rem .6rem; }
 .stats-table tr:not(.head) th { font-weight: normal; }
 .stats-table td.num { min-width: 6rem; }
