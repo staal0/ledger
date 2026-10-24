@@ -3,6 +3,8 @@ package main
 import (
 	"context"
 	"database/sql"
+	"encoding/base64"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"net/http"
@@ -46,10 +48,21 @@ func (b *Budget) total(section string) (t Totals) {
 	return t
 }
 
-// loadBudget returns nil when there is no budget for year.
+// querier is a *sql.DB, or a *sql.Tx to read inside a transaction.
+type querier interface {
+	QueryContext(ctx context.Context, query string, args ...any) (*sql.Rows, error)
+	QueryRowContext(ctx context.Context, query string, args ...any) *sql.Row
+}
+
 func (a *App) loadBudget(ctx context.Context, year int) (*Budget, error) {
+	return loadBudget(ctx, a.db, year, "")
+}
+
+// loadBudget returns nil when there is no budget for year. lock is appended to
+// the query of the budget row, e.g. "FOR UPDATE".
+func loadBudget(ctx context.Context, q querier, year int, lock string) (*Budget, error) {
 	b := &Budget{Year: year, Lines: map[string][]*Line{}}
-	err := a.db.QueryRowContext(ctx, "SELECT id FROM budgets WHERE year = ?", year).Scan(&b.ID)
+	err := q.QueryRowContext(ctx, "SELECT id FROM budgets WHERE year = ? "+lock, year).Scan(&b.ID)
 	if errors.Is(err, sql.ErrNoRows) {
 		return nil, nil
 	}
@@ -57,7 +70,7 @@ func (a *App) loadBudget(ctx context.Context, year int) (*Budget, error) {
 		return nil, err
 	}
 
-	rows, err := a.db.QueryContext(ctx, "SELECT id, section, name FROM budget_lines WHERE budget_id = ? ORDER BY sort, id", b.ID)
+	rows, err := q.QueryContext(ctx, "SELECT id, section, name FROM budget_lines WHERE budget_id = ? ORDER BY sort, id", b.ID)
 	if err != nil {
 		return nil, err
 	}
@@ -75,7 +88,7 @@ func (a *App) loadBudget(ctx context.Context, year int) (*Budget, error) {
 		return nil, err
 	}
 
-	amounts, err := a.db.QueryContext(ctx, `SELECT a.line_id, a.month, a.amount
+	amounts, err := q.QueryContext(ctx, `SELECT a.line_id, a.month, a.amount
 		FROM budget_amounts a JOIN budget_lines l ON l.id = a.line_id WHERE l.budget_id = ?`, b.ID)
 	if err != nil {
 		return nil, err
@@ -190,6 +203,8 @@ func (a *App) budgetPage(w http.ResponseWriter, r *http.Request) {
 		diff[i] = net[i] - allocation[i]
 	}
 	data["Budget"] = b
+	data["Original"] = originalValues(b)
+	data["Conflicts"] = a.takeConflicts(w, r)
 	data["Sections"] = secs
 	data["Summary"] = []calc{{"income", income}, {"expense", expense}, {"net", net}}
 	data["Difference"] = diff
@@ -204,8 +219,23 @@ func (a *App) budgetSave(w http.ResponseWriter, r *http.Request) {
 		http.NotFound(w, r)
 		return
 	}
+	if err := r.ParseForm(); err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
 	ctx := r.Context()
-	b, err := a.loadBudget(ctx, year)
+	L := a.locale(r)
+	var original map[string]string // see originalValues
+	_ = json.Unmarshal([]byte(r.PostFormValue("original")), &original)
+
+	tx, err := a.db.BeginTx(ctx, nil)
+	if err != nil {
+		a.fail(w, err)
+		return
+	}
+	defer tx.Rollback()
+	// The lock makes saves of the same year run one after the other, so each merges with the one before.
+	b, err := loadBudget(ctx, tx, year, "FOR UPDATE")
 	if err != nil {
 		a.fail(w, err)
 		return
@@ -214,46 +244,68 @@ func (a *App) budgetSave(w http.ResponseWriter, r *http.Request) {
 		http.NotFound(w, r)
 		return
 	}
-	if err := r.ParseForm(); err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
-		return
-	}
-	L := a.locale(r)
-
-	tx, err := a.db.BeginTx(ctx, nil)
-	if err != nil {
-		a.fail(w, err)
-		return
-	}
-	defer tx.Rollback()
 	exec := func(q string, args ...any) {
 		if err == nil {
 			_, err = tx.ExecContext(ctx, q, args...)
 		}
 	}
 
+	// Only fields changed on this page are written. A field that was also changed
+	// elsewhere since the page was loaded keeps that value and is reported.
+	var conflicts []string
+	current := map[string]bool{}
 	for _, s := range sections {
 		for _, l := range b.Lines[s] {
-			name, posted := r.PostForm[fmt.Sprintf("n_%d", l.ID)]
+			key := fmt.Sprintf("n_%d", l.ID)
+			current[key] = true
+			name, posted := r.PostForm[key]
 			if !posted {
 				continue // line was added elsewhere after this page was loaded
 			}
-			if n := strings.TrimSpace(name[0]); n != "" && n != l.Name {
-				exec("UPDATE budget_lines SET name = ? WHERE id = ?", n, l.ID)
+			if n := strings.TrimSpace(name[0]); n != "" {
+				o, known := original[key]
+				switch {
+				case known && n == o: // not changed here
+				case known && l.Name != o && l.Name != n:
+					conflicts = append(conflicts, L.T("budget.conflict_name", o, l.Name, n))
+				case n != l.Name:
+					exec("UPDATE budget_lines SET name = ? WHERE id = ?", n, l.ID)
+				}
 			}
-			exec("DELETE FROM budget_amounts WHERE line_id = ?", l.ID)
 			for _, m := range months {
-				v, perr := L.ParseMoney(r.PostFormValue(fmt.Sprintf("a_%d_%d", l.ID, m)))
+				key := fmt.Sprintf("a_%d_%d", l.ID, m)
+				v, perr := L.ParseMoney(r.PostFormValue(key))
 				if perr != nil {
 					http.Error(w, L.T("budget.invalid_amount", l.Name, L.T(fmt.Sprintf("month.%d", m))), http.StatusBadRequest)
 					return
 				}
-				if v != 0 {
-					exec("INSERT INTO budget_amounts (line_id, month, amount) VALUES (?, ?, ?)", l.ID, m, v)
+				o, known := original[key]
+				ov, _ := parseMoney(o, ".", "")
+				cur := l.Amounts[m]
+				switch {
+				case known && v == ov: // not changed here
+				case known && cur != ov && cur != v:
+					conflicts = append(conflicts, L.T("budget.conflict_amount", l.Name, L.T(fmt.Sprintf("month.%d", m)), L.Money(v), L.Money(cur)))
+				case v == cur:
+				case v == 0:
+					exec("DELETE FROM budget_amounts WHERE line_id = ? AND month = ?", l.ID, m)
+				default:
+					exec(`INSERT INTO budget_amounts (line_id, month, amount) VALUES (?, ?, ?)
+						ON DUPLICATE KEY UPDATE amount = VALUES(amount)`, l.ID, m, v)
 				}
 			}
 		}
 	}
+	// Lines deleted elsewhere: only worth mentioning if they were edited here.
+	var deleted []string
+	for key := range r.PostForm {
+		id, isLine := strings.CutPrefix(key, "n_")
+		if isLine && !current[key] && editedHere(r, original, id, L) {
+			deleted = append(deleted, L.T("budget.conflict_deleted", original[key]))
+		}
+	}
+	slices.Sort(deleted)
+	conflicts = append(conflicts, deleted...)
 
 	back := fmt.Sprintf("/budget/%d", year)
 	verb, arg, _ := strings.Cut(r.PostFormValue("action"), ":")
@@ -296,7 +348,72 @@ func (a *App) budgetSave(w http.ResponseWriter, r *http.Request) {
 		a.fail(w, err)
 		return
 	}
+	if len(conflicts) > 0 {
+		a.setConflicts(w, conflicts, L)
+	}
 	http.Redirect(w, r, back, http.StatusSeeOther)
+}
+
+// originalValues is every field of the budget form as the page shows it, sent
+// back with a save so the save can tell which fields were changed on the page.
+// Amounts are in the database format.
+func originalValues(b *Budget) string {
+	v := map[string]string{}
+	for _, lines := range b.Lines {
+		for _, l := range lines {
+			v[fmt.Sprintf("n_%d", l.ID)] = l.Name
+			for _, m := range months {
+				s := ""
+				if l.Amounts[m] != 0 {
+					s = l.Amounts[m].format(".", "")
+				}
+				v[fmt.Sprintf("a_%d_%d", l.ID, m)] = s
+			}
+		}
+	}
+	js, _ := json.Marshal(v)
+	return string(js)
+}
+
+// editedHere reports whether the page changed any field of line id.
+func editedHere(r *http.Request, original map[string]string, id string, L *Locale) bool {
+	if strings.TrimSpace(r.PostFormValue("n_"+id)) != original["n_"+id] {
+		return true
+	}
+	for _, m := range months {
+		key := fmt.Sprintf("a_%s_%d", id, m)
+		v, _ := L.ParseMoney(r.PostFormValue(key))
+		if o, _ := parseMoney(original[key], ".", ""); v != o {
+			return true
+		}
+	}
+	return false
+}
+
+const conflictCookie = "ledger_conflicts"
+
+// setConflicts hands the conflict messages to the page the save redirects to.
+func (a *App) setConflicts(w http.ResponseWriter, msgs []string, L *Locale) {
+	const most = 10 // keeps the cookie well under the 4 KB browsers allow
+	if len(msgs) > most {
+		msgs = append(msgs[:most], L.T("budget.conflict_more", len(msgs)-most))
+	}
+	js, _ := json.Marshal(msgs)
+	a.setCookie(w, conflictCookie, base64.RawURLEncoding.EncodeToString(js), "/budget/", time.Minute)
+}
+
+// takeConflicts returns the messages set by the last save, once.
+func (a *App) takeConflicts(w http.ResponseWriter, r *http.Request) []string {
+	c, err := r.Cookie(conflictCookie)
+	if err != nil {
+		return nil
+	}
+	a.setCookie(w, conflictCookie, "", "/budget/", -time.Second)
+	var msgs []string
+	if js, err := base64.RawURLEncoding.DecodeString(c.Value); err == nil {
+		_ = json.Unmarshal(js, &msgs)
+	}
+	return msgs
 }
 
 // budgetCreate creates an empty budget, or a copy of another year's lines

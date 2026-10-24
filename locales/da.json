@@ -41,6 +41,11 @@
   "budget.delete": "Slet",
   "budget.confirm_delete": "Slet \"%s\" og alle dens beløb?",
   "budget.invalid_amount": "Ugyldigt beløb i \"%s\", %s.",
+  "budget.conflicts": "Nogle ændringer blev ikke gemt, fordi de samme felter blev ændret et andet sted i mellemtiden:",
+  "budget.conflict_amount": "%s, %s: du skrev %s, men det blev gemt som %s.",
+  "budget.conflict_name": "\"%s\" blev omdøbt til \"%s\"; dit navn \"%s\" blev ikke gemt.",
+  "budget.conflict_deleted": "\"%s\" blev slettet; dine ændringer til den blev ikke gemt.",
+  "budget.conflict_more": "… og %d mere.",
 
   "help.title": "Tastaturgenveje",
   "help.move": "Flyt",
