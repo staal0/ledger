@@ -11,14 +11,16 @@ Ledger is one Go binary with three dependencies (MySQL driver, go-oidc, x/oauth2
 ## Features
 
 - A yearly budget grid with income, expenses, the disposable amount and allocation, by month, with totals that update as you type
-- Charts beside the grid: year totals, income vs. expenses per month, largest expenses and allocation
+- Charts beside the grid: year totals, income, expenses, allocation and what is left per month, largest expenses and allocation
 - Spreadsheet-style keyboard use: arrow keys or vim keys (`hjkl`, `gg`/`G`, `{`/`}`, `x`, `u`, `y`/`p`), Enter saves; press `?` for help
 - New years start empty or as a copy of the previous year
-- Statistics across years: totals, change from the year before and every line over time, for a chosen range of years
+- Several budgets, e.g. one per household or person, each visible to its owner, chosen members, identity-provider groups or everyone
+- A line can take its amounts from a line in another budget, e.g. a transfer to a joint account
+- Statistics across years: totals with the change from the year before, the difference and expenses and allocation as a share of income, and every line over time down to the month, for a chosen range of years
 - Export a year to an OpenDocument spreadsheet (`.ods`) with the totals as formulas
 - Login with OIDC, e.g. passkeys via [Pocket ID](https://pocket-id.org), or local mode without login for trying it out
 - English and Danish, chosen per user or taken from the browser; new languages are JSON files
-- Per-user settings for language, money format (`1.234,56` or `1,234.56`) and light/dark theme
+- Per-user settings for language, money format (`1.234,56` or `1,234.56`), light/dark theme, start budget and the statistics' default years and changes
 - Room for plugins (pension, investments, …), see `plugin.go`
 
 ## Try it
