@@ -34,6 +34,9 @@ type User struct {
 	NumberFormat string
 	Role         string // set at login, see roles.go
 	StartBudget  int64  // opened from the menu; 0 for the default budget
+	// Whether the statistics tables and the line page's months start with their changes shown.
+	StatsChanges, StatsMonthChanges bool
+	StatsYears                      int // shown when no range is chosen
 }
 
 type ctxKey struct{}
@@ -251,14 +254,15 @@ func (a *App) requireUser(next http.Handler) http.Handler {
 				http.Redirect(w, r, "/login", http.StatusFound)
 				return
 			}
-			row = a.db.QueryRowContext(r.Context(), `SELECT u.id, u.name, u.email, u.lang, u.theme, u.number_format, u.role, COALESCE(u.start_budget, 0)
+			row = a.db.QueryRowContext(r.Context(), `SELECT u.id, u.name, u.email, u.lang, u.theme, u.number_format, u.role, COALESCE(u.start_budget, 0),
+				u.stats_changes, u.stats_month_changes, u.stats_years
 				FROM sessions s JOIN users u ON u.id = s.user_id
 				WHERE s.token_hash = ? AND s.expires_at > UTC_TIMESTAMP()`, hashToken(c.Value))
 		} else {
-			row = a.db.QueryRowContext(r.Context(), "SELECT id, name, email, lang, theme, number_format, role, COALESCE(start_budget, 0) FROM users WHERE subject = 'local'")
+			row = a.db.QueryRowContext(r.Context(), "SELECT id, name, email, lang, theme, number_format, role, COALESCE(start_budget, 0), stats_changes, stats_month_changes, stats_years FROM users WHERE subject = 'local'")
 		}
 		u := &User{}
-		err := row.Scan(&u.ID, &u.Name, &u.Email, &u.Lang, &u.Theme, &u.NumberFormat, &u.Role, &u.StartBudget)
+		err := row.Scan(&u.ID, &u.Name, &u.Email, &u.Lang, &u.Theme, &u.NumberFormat, &u.Role, &u.StartBudget, &u.StatsChanges, &u.StatsMonthChanges, &u.StatsYears)
 		if errors.Is(err, sql.ErrNoRows) {
 			http.Redirect(w, r, "/login", http.StatusFound)
 			return

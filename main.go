@@ -170,6 +170,7 @@ func (a *App) routes() http.Handler {
 	private.HandleFunc("POST /budget/{slug}/{year}/create", a.only(roleEditor, a.budgetCreate))
 	private.HandleFunc("GET /budget/{slug}/{year}/export", a.budgetExport)
 	private.HandleFunc("GET /stats", a.statsPage)
+	private.HandleFunc("GET /stats/line", a.statsLinePage)
 	private.HandleFunc("GET /settings", a.settingsPage)
 	private.HandleFunc("POST /settings", a.settingsSave)
 	private.HandleFunc("POST /theme", a.themeSave)

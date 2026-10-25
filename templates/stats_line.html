@@ -1,0 +1,47 @@
+{{define "content"}}{{$L := .L}}
+<p class="hint"><a href="/stats?from={{.From}}&to={{.To}}{{if not .Current.IsDefault}}&budget={{.Current.Slug}}{{end}}">← {{$L.T "nav.stats"}}</a></p>
+<h1>{{.Name}} <span class="hint">{{$L.T (print "section." .Section)}}</span></h1>
+
+<form class="filters" action="/stats/line">
+  {{if not .Current.IsDefault}}<input type="hidden" name="budget" value="{{.Current.Slug}}">{{end}}
+  <input type="hidden" name="section" value="{{.Section}}">
+  <input type="hidden" name="name" value="{{.Name}}">
+  <label>{{$L.T "stats.from"}}
+    <select name="from" data-autosubmit autocomplete="off">{{range .AllYears}}<option{{if eq . $.From}} selected{{end}}>{{.}}</option>{{end}}</select>
+  </label>
+  <label>{{$L.T "stats.to"}}
+    <select name="to" data-autosubmit autocomplete="off">{{range .AllYears}}<option{{if eq . $.To}} selected{{end}}>{{.}}</option>{{end}}</select>
+  </label>
+  <noscript><button class="secondary">{{$L.T "budget.go"}}</button></noscript>
+</form>
+
+<div class="stats">
+  <figure class="chart">
+    <figcaption>{{$L.T "stats.per_month"}}</figcaption>
+    <div data-chart="line" data-section="{{.Section}}" data-label="{{.Name}}" data-change="{{$L.T "stats.vs_year_before"}}"></div>
+    <script type="application/json" id="line-data">{{.Chart}}</script>
+  </figure>
+
+  <figure class="chart">
+    <figcaption>{{$L.T "stats.per_year"}}</figcaption>
+    <label class="toggle"><input type="checkbox"{{if .User.StatsMonthChanges}} checked{{end}} autocomplete="off"> {{$L.T "stats.month_changes"}}</label>
+    <div class="scroll">
+    <table class="stats-table">
+      <tr class="head">
+        <th>{{$L.T "budget.year"}}</th>
+        {{range $.Months}}<th>{{$L.T (print "month." .)}}</th><th class="change"></th>{{end}}
+        <th>{{$L.T "stats.total"}}</th><th></th>
+      </tr>
+      {{range .Years}}{{$y := .}}
+      <tr>
+        <th><a href="{{$.Base}}/{{.Year}}">{{.Year}}</a></th>
+        {{range $.Months}}<td class="num">{{with index $y.Months .}}{{$L.Money .}}{{else}}<span class="hint">–</span>{{end}}</td>{{with index $y.Deltas .}}<td class="delta change {{.Class}}">{{.Text}}</td>{{end}}{{end}}
+        <td class="num total">{{$L.Money (index .Months 0)}}</td>{{with index .Deltas 0}}<td class="delta {{.Class}}">{{.Text}}</td>{{end}}
+      </tr>
+      {{end}}
+    </table>
+    </div>
+    <p class="hint">{{$L.T "stats.delta_hint"}}</p>
+  </figure>
+</div>
+{{end}}

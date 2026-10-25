@@ -27,6 +27,13 @@
       {{range .Themes}}<option value="{{.}}"{{if eq . $.User.Theme}} selected{{end}}>{{$.L.T (print "settings.theme_" (or . "auto"))}}</option>{{end}}
     </select>
   </label>
+  <label>{{.L.T "settings.stats_years"}}
+    <input type="number" name="stats_years" value="{{.User.StatsYears}}" min="1" max="{{.MaxStatsYears}}" required>
+  </label>
+  <p class="hint">{{.L.T "settings.stats_years_hint"}}</p>
+  <label class="check"><input type="checkbox" name="stats_changes" value="1"{{if .User.StatsChanges}} checked{{end}}> {{.L.T "settings.stats_changes"}}</label>
+  <label class="check"><input type="checkbox" name="stats_month_changes" value="1"{{if .User.StatsMonthChanges}} checked{{end}}> {{.L.T "settings.stats_month_changes"}}</label>
+  <p class="hint">{{.L.T "settings.stats_changes_hint"}}</p>
   <button>{{.L.T "save"}}</button>
 </form>
 <p class="hint">{{.L.T "settings.version" .Version}}</p>

@@ -10,6 +10,8 @@ import (
 
 var themes = []string{"", "light", "dark"}
 
+const maxStatsYears = 100
+
 // example is the amount shown for each number format choice.
 const example Money = 123456
 
@@ -34,6 +36,7 @@ func (a *App) settingsPage(w http.ResponseWriter, r *http.Request) {
 		"Themes":        themes,
 		"NumberFormats": formats,
 		"Version":       version,
+		"MaxStatsYears": maxStatsYears,
 	})
 }
 
@@ -48,6 +51,18 @@ func (a *App) settingsSave(w http.ResponseWriter, r *http.Request) {
 			a.fail(w, err)
 			return
 		}
+	}
+	if years, err := strconv.Atoi(r.PostFormValue("stats_years")); err == nil && years >= 1 && years <= maxStatsYears {
+		if _, err := a.db.ExecContext(r.Context(), "UPDATE users SET stats_years = ? WHERE id = ?", years, currentUser(r).ID); err != nil {
+			a.fail(w, err)
+			return
+		}
+	}
+	// The form always posts, so an unchecked box is off.
+	if _, err := a.db.ExecContext(r.Context(), "UPDATE users SET stats_changes = ?, stats_month_changes = ? WHERE id = ?",
+		r.PostFormValue("stats_changes") != "", r.PostFormValue("stats_month_changes") != "", currentUser(r).ID); err != nil {
+		a.fail(w, err)
+		return
 	}
 	if start, err := strconv.ParseInt(r.PostFormValue("start_budget"), 10, 64); err == nil {
 		visible, err := a.visibleBudgets(r.Context(), currentUser(r))

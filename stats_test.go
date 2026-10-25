@@ -27,7 +27,7 @@ func TestYearRange(t *testing.T) {
 		{"", nil, 0, 0},
 	}
 	for _, tt := range tests {
-		from, to := yearRange(httptest.NewRequest("GET", "/stats"+tt.query, nil), tt.all)
+		from, to := yearRange(httptest.NewRequest("GET", "/stats"+tt.query, nil), tt.all, 5)
 		if from != tt.wantFrom || to != tt.want {
 			t.Errorf("yearRange(%q, %d years) = %d–%d, want %d–%d", tt.query, len(tt.all), from, to, tt.wantFrom, tt.want)
 		}

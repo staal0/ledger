@@ -84,16 +84,7 @@ document.addEventListener('DOMContentLoaded', () => {
   function columns(box, labels, short, income, expense, { allocation, difference } = {}) {
     const L = box.dataset
     const spent = expense.map((e, i) => e + (allocation ? allocation[i] : 0) + Math.max(0, difference ? difference[i] : 0))
-    const top0 = Math.max(...income, ...spent, 100)
-    const step = niceStep(top0 / 4)
-    const top = Math.ceil(top0 / step) * step
-    const plot = el('div', 'plot')
-    for (let v = 0; v <= top; v += step) {
-      const g = el('div', 'grid')
-      g.style.bottom = v / top * 100 + '%'
-      g.append(el('span', null, compact(v)))
-      plot.append(g)
-    }
+    const [plot, top] = grid(Math.max(...income, ...spent, 100))
     labels.forEach((name, i) => {
       const m = el('div', 'month')
       const bar = (cls, v) => {
@@ -123,13 +114,48 @@ document.addEventListener('DOMContentLoaded', () => {
       hover(m, name, rows)
       plot.append(m)
     })
+    box.replaceChildren(plot, xaxis(labels, short))
+  }
+
+  // An empty plot with gridlines up to a nice value at or above top0.
+  function grid(top0) {
+    const step = niceStep(top0 / 4)
+    const top = Math.ceil(top0 / step) * step
+    const plot = el('div', 'plot')
+    for (let v = 0; v <= top; v += step) {
+      const g = el('div', 'grid')
+      g.style.bottom = v / top * 100 + '%'
+      g.append(el('span', null, compact(v)))
+      plot.append(g)
+    }
+    return [plot, top]
+  }
+
+  function xaxis(long, short) {
     const axis = el('div', 'xaxis')
-    labels.forEach((name, i) => {
+    long.forEach((name, i) => {
       const s = el('span')
       s.append(el('b', 'long', name), el('b', 'short', short[i]))
       axis.append(s)
     })
-    box.replaceChildren(plot, axis)
+    return axis
+  }
+
+  // One bar per label in a single colour. axis holds the x-axis text, which may
+  // skip labels. changes, when given, add a tooltip row each; "–" is left out.
+  function series(box, labels, axis, values, cls, changes) {
+    const [plot, top] = grid(Math.max(...values, 100))
+    labels.forEach((name, i) => {
+      const m = el('div', 'month')
+      const b = el('i', 'bar ' + cls)
+      b.style.height = Math.max(0, values[i]) / top * 100 + '%'
+      m.append(b)
+      const rows = [[cls, kr(values[i]), box.dataset.label]]
+      if (changes && changes[i] !== '–') rows.push(['', changes[i], box.dataset.change])
+      hover(m, name, rows)
+      plot.append(m)
+    })
+    box.replaceChildren(plot, xaxis(axis, axis))
   }
 
   // Statistics page: income and expenses per year.
@@ -138,6 +164,13 @@ document.addEventListener('DOMContentLoaded', () => {
     const d = JSON.parse(document.getElementById('stats-data').textContent)
     const labels = d.Years.map(String)
     columns(yearsChart, labels, labels.map(y => "'" + y.slice(2)), d.Income, d.Expense, { allocation: d.Allocation, difference: d.Difference })
+  }
+
+  // Statistics for one line: its months across the years.
+  const lineChart = document.querySelector('[data-chart="line"]')
+  if (lineChart) {
+    const d = JSON.parse(document.getElementById('line-data').textContent)
+    series(lineChart, d.Labels, d.Axis, d.Values, lineChart.dataset.section, d.Changes)
   }
 
   const form = document.querySelector('form.budget')
