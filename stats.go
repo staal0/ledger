@@ -69,7 +69,7 @@ type lineStats struct {
 }
 
 // defaultSpan is how many years the statistics show unless a range is chosen.
-const defaultSpan = 10
+const defaultSpan = 5
 
 // yearRange reads ?from= and ?to=, limited to the years that have a budget.
 // Without them it is the newest defaultSpan years.
