@@ -16,7 +16,6 @@
   "stats.delta_hint": "Change from the year before. Green is better, red is worse.",
   "stats.lines_expense": "Expenses by line",
   "stats.lines_allocation": "Allocation by line",
-  "stats.change": "Change",
   "stats.percent": "%s%%",
   "nav.logout": "Log out",
   "auth.forbidden": "Your role does not allow this.",

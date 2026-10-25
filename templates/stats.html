@@ -60,18 +60,17 @@
     <table class="stats-table">
       <tr class="head">
         <th></th>
-        {{range $.Years}}<th>{{.Year}}</th>{{end}}
-        <th>{{$L.T "stats.change"}}</th>
+        {{range $.Years}}<th>{{.Year}}</th><th></th>{{end}}
       </tr>
       {{range .Lines}}
       <tr>
         <th>{{.Name}}</th>
-        {{range .Values}}<td class="num">{{if .}}{{$L.Money .}}{{else}}<span class="hint">–</span>{{end}}</td>{{end}}
-        <td class="delta {{.Delta.Class}}">{{.Delta.Text}}</td>
+        {{range .Cells}}<td class="num">{{if .Value}}{{$L.Money .Value}}{{else}}<span class="hint">–</span>{{end}}</td><td class="delta {{.Delta.Class}}">{{.Delta.Text}}</td>{{end}}
       </tr>
       {{end}}
     </table>
     </div>
+    <p class="hint">{{$L.T "stats.delta_hint"}}</p>
   </figure>
   {{end}}
 </div>
