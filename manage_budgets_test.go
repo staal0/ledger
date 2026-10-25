@@ -9,11 +9,11 @@ import (
 
 func TestSlugify(t *testing.T) {
 	for name, want := range map[string]string{
-		"Fælles ferie":   "faelles-ferie",
-		"Dennis' budget": "dennis-budget",
-		"  Ø  ":          "oe",
-		"2026":           "budget-2026", // only digits would read as a year
-		"!!!":            "budget",
+		"Fælles ferie": "faelles-ferie",
+		"Alex' budget": "alex-budget",
+		"  Ø  ":        "oe",
+		"2026":         "budget-2026", // only digits would read as a year
+		"!!!":          "budget",
 	} {
 		if got := slugify(name); got != want {
 			t.Errorf("slugify(%q) = %q, want %q", name, got, want)
