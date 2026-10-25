@@ -41,6 +41,14 @@ func (l *Locale) delta(cur, prev Money, upGood int) Delta {
 	return d
 }
 
+// share is part as a whole percentage of whole.
+func (l *Locale) share(part, whole Money) string {
+	if whole == 0 {
+		return "–"
+	}
+	return l.T("stats.percent", fmt.Sprintf("%.0f", float64(part)/float64(whole)*100))
+}
+
 func abs(m Money) Money {
 	if m < 0 {
 		return -m
@@ -54,6 +62,7 @@ type yearStats struct {
 	Difference                          Money // net not allocated; ideally 0
 	IncomeDelta, ExpenseDelta, NetDelta Delta
 	AllocationDelta, DifferenceDelta    Delta
+	ExpenseShare, AllocationShare       string // of income
 }
 
 type lineCell struct {
@@ -166,6 +175,8 @@ func (a *App) statsPage(w http.ResponseWriter, r *http.Request) {
 	for _, y := range years {
 		y.Net = y.Income - y.Expense
 		y.Difference = y.Net - y.Allocation
+		y.ExpenseShare = L.share(y.Expense, y.Income)
+		y.AllocationShare = L.share(y.Allocation, y.Income)
 		y.IncomeDelta = L.delta(y.Income, prev.Income, 1)
 		y.ExpenseDelta = L.delta(y.Expense, prev.Expense, -1)
 		y.NetDelta = L.delta(y.Net, prev.Net, 1)

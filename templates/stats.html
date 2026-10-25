@@ -38,18 +38,18 @@
       <tr class="head">
         <th>{{$L.T "budget.year"}}</th>
         <th>{{$L.T "section.income"}}</th><th class="change"></th>
-        <th>{{$L.T "section.expense"}}</th><th class="change"></th>
+        <th>{{$L.T "section.expense"}}</th><th class="change"></th><th class="share">{{$L.T "stats.of_income"}}</th>
         <th>{{$L.T "calc.net"}}</th><th class="change"></th>
-        <th>{{$L.T "section.allocation"}}</th><th class="change"></th>
+        <th>{{$L.T "section.allocation"}}</th><th class="change"></th><th class="share">{{$L.T "stats.of_income"}}</th>
         <th>{{$L.T "calc.difference"}}</th><th class="change"></th>
       </tr>
       {{range .Years}}
       <tr>
         <th><a href="{{$.Base}}/{{.Year}}">{{.Year}}</a></th>
         <td class="num">{{$L.Money .Income}}</td><td class="delta change {{.IncomeDelta.Class}}">{{.IncomeDelta.Text}}</td>
-        <td class="num">{{$L.Money .Expense}}</td><td class="delta change {{.ExpenseDelta.Class}}">{{.ExpenseDelta.Text}}</td>
+        <td class="num">{{$L.Money .Expense}}</td><td class="delta change {{.ExpenseDelta.Class}}">{{.ExpenseDelta.Text}}</td><td class="share">{{.ExpenseShare}}</td>
         <td class="num">{{$L.Money .Net}}</td><td class="delta change {{.NetDelta.Class}}">{{.NetDelta.Text}}</td>
-        <td class="num">{{$L.Money .Allocation}}</td><td class="delta change {{.AllocationDelta.Class}}">{{.AllocationDelta.Text}}</td>
+        <td class="num">{{$L.Money .Allocation}}</td><td class="delta change {{.AllocationDelta.Class}}">{{.AllocationDelta.Text}}</td><td class="share">{{.AllocationShare}}</td>
         <td class="num{{if gt .Difference 0}} pos{{else if lt .Difference 0}} neg{{end}}">{{$L.Money .Difference}}</td><td class="delta change {{.DifferenceDelta.Class}}">{{.DifferenceDelta.Text}}</td>
       </tr>
       {{end}}

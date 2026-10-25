@@ -17,6 +17,7 @@
   "stats.lines_expense": "Udgifter pr. linje",
   "stats.lines_allocation": "Fordeling pr. linje",
   "stats.percent": "%s %%",
+  "stats.of_income": "% af indkomst",
   "stats.changes": "Vis ændringer",
   "stats.month_changes": "Vis ændringen for hver måned",
   "stats.vs_year_before": "fra året før",

@@ -17,6 +17,7 @@
   "stats.lines_expense": "Expenses by line",
   "stats.lines_allocation": "Allocation by line",
   "stats.percent": "%s%%",
+  "stats.of_income": "% of income",
   "stats.changes": "Show changes",
   "stats.month_changes": "Show the change for each month",
   "stats.vs_year_before": "from the year before",
