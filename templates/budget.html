@@ -74,7 +74,7 @@
         {{range $.Months}}<td>{{with index $.Previous (printf "a_%d_%d" $line.ID .)}}<span class="mark" title="{{.}}"></span>{{end}}<input class="num" name="a_{{$line.ID}}_{{.}}" value="{{$L.Input (index $line.Amounts .)}}" inputmode="decimal" pattern="{{$.Pattern}}"{{if or (not $.User.CanEdit) $line.Link}} readonly{{end}}></td>{{end}}
         <td class="num total">{{$L.Money (index .Amounts 0)}}</td>
         <td class="actions">{{if $.User.CanEdit}}
-          <button class="icon link{{with .Link}} on{{if .Broken}} broken{{end}}{{end}}" name="action" value="link:{{.ID}}" title="{{with .Link}}{{$L.T (print "budget." (or (and .Broken "link_broken") "linked_from")) .BudgetName ($L.T (print "section." .Section)) .Name}}{{else}}{{$L.T "budget.link"}}{{end}}">🔗</button>
+          {{if or $.Budgets .Link}}<button class="icon link{{with .Link}} on{{if .Broken}} broken{{end}}{{end}}" name="action" value="link:{{.ID}}" title="{{with .Link}}{{$L.T (print "budget." (or (and .Broken "link_broken") "linked_from")) .BudgetName ($L.T (print "section." .Section)) .Name}}{{else}}{{$L.T "budget.link"}}{{end}}">🔗</button>{{end}}
           <button class="icon" name="action" value="up:{{.ID}}" title="{{$L.T "budget.move_up"}}">↑</button>
           <button class="icon" name="action" value="down:{{.ID}}" title="{{$L.T "budget.move_down"}}">↓</button>
           <button class="icon" name="action" value="delete:{{.ID}}" title="{{$L.T "budget.delete"}}" data-confirm="{{$L.T "budget.confirm_delete" .Name}}">×</button>

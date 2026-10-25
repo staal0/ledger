@@ -9,8 +9,11 @@ import (
 
 func TestLinkedLines(t *testing.T) {
 	a := testApp(t, false) // local mode: an admin, who sees every budget
-	exec(t, "INSERT INTO budgets (name, slug) VALUES ('Dennis', 'dennis')")
 	household := setupYear(t, a, 2030, "income/Dennis")["income/Dennis"]
+	if page := request(a, "GET", "/budget/2030", nil, ""); strings.Contains(page.Body.String(), fmt.Sprintf(`value="link:%d"`, household)) {
+		t.Error("the link button shows with only one budget")
+	}
+	exec(t, "INSERT INTO budgets (name, slug) VALUES ('Dennis', 'dennis')")
 	mustStatus(t, request(a, "POST", "/budget/dennis/2030/create", url.Values{}, ""), 303)
 	exec(t, "INSERT INTO budget_lines (year_id, section, name) SELECT y.id, 'allocation', 'Joint account' FROM budget_years y JOIN budgets b ON b.id = y.budget_id WHERE b.slug = 'dennis'")
 	source := queryInt(t, "SELECT l.id FROM budget_lines l JOIN budget_years y ON y.id = l.year_id JOIN budgets b ON b.id = y.budget_id WHERE b.slug = 'dennis' AND l.name = 'Joint account'")
