@@ -165,7 +165,7 @@ button.dirty::after { content: ""; display: inline-block; width: .45rem; height:
 .summary tr.calc:not([data-calc="net"]) > * { font-weight: normal; color: var(--muted); }
 /* Difference is the result of the whole budget: set apart from Allocation, with coloured numbers. */
 tr.calc.difference > * { border-top: 1.25rem solid var(--bg); }
-.difference .pos { color: var(--pos); }
+.difference .pos, .stats-table .pos { color: var(--pos); }
 @media (max-width: 640px) {
   main { padding: .75rem .5rem; }
   .scroll table { font-size: 14px; }
@@ -204,6 +204,8 @@ tr.calc.difference > * { border-top: 1.25rem solid var(--bg); }
 .expense { background: var(--c-expense); }
 .allocation { background: var(--c-allocation); }
 .other { background: var(--c-other); }
+.unallocated { background: var(--c-other); }
+.unallocated.neg { background: var(--neg); }
 
 .plot { position: relative; height: 220px; margin-left: 2.5rem; display: flex; align-items: flex-end; border-bottom: 1px solid var(--border); }
 .plot .grid { position: absolute; left: 0; right: 0; border-top: 1px solid color-mix(in srgb, var(--border) 60%, transparent); }
@@ -211,6 +213,9 @@ tr.calc.difference > * { border-top: 1.25rem solid var(--bg); }
 .month { position: relative; flex: 1; height: 100%; display: flex; align-items: flex-end; justify-content: center; gap: 2px; border-radius: 4px 4px 0 0; outline: none; }
 .month:hover, .month:focus-visible { background: color-mix(in srgb, var(--text) 6%, transparent); }
 .month .bar { width: min(24px, 40%); border-radius: 4px 4px 0 0; }
+.month .stack { width: min(24px, 40%); height: 100%; display: flex; flex-direction: column; justify-content: flex-end; }
+.month .stack .bar { width: 100%; border-radius: 0; }
+.month .stack .bar:first-child { border-radius: 4px 4px 0 0; }
 .xaxis { margin-left: 2.5rem; display: flex; }
 .xaxis span { flex: 1; text-align: center; font-size: .8rem; color: var(--muted); }
 .xaxis b { font-weight: normal; }
