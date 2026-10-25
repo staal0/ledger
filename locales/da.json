@@ -135,6 +135,8 @@
   "settings.theme_dark": "Mørkt",
   "settings.start_budget": "Startbudget",
   "settings.start_budget_hint": "Åbnes fra menuen og på statistiksiden.",
+  "settings.stats_years": "År i statistikken",
+  "settings.stats_years_hint": "De nyeste år, der vises, indtil du vælger et interval på siden.",
   "settings.stats_changes": "Statistikkens tabeller viser ændringer som standard",
   "settings.stats_month_changes": "En linjes statistik viser ændringen for hver måned som standard",
   "settings.stats_changes_hint": "Hver tabel kan stadig slås til og fra på siden.",

@@ -37,7 +37,7 @@ func (a *App) statsLinePage(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	slices.Reverse(all) // oldest first
-	from, to := yearRange(r, all)
+	from, to := yearRange(r, all, currentUser(r).StatsYears)
 
 	// The year before the range is read only so the first year gets a change.
 	var years []*lineYear

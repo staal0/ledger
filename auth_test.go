@@ -89,10 +89,15 @@ func TestSettings(t *testing.T) {
 	if page := request(a, "GET", "/settings", nil, bob).Body.String(); !strings.Contains(page, `name="stats_changes" value="1" checked`) {
 		t.Error("changes in the statistics tables are not on by default")
 	}
-	mustStatus(t, request(a, "POST", "/settings", url.Values{"lang": {"da"}, "theme": {"dark"}, "number_format": {"comma"}, "stats_month_changes": {"1"}}, alice), 303)
+	mustStatus(t, request(a, "POST", "/settings", url.Values{"lang": {"da"}, "theme": {"dark"}, "number_format": {"comma"}, "stats_month_changes": {"1"}, "stats_years": {"3"}}, alice), 303)
 	var changes, monthChanges bool
-	if err := testDB.QueryRow("SELECT stats_changes, stats_month_changes FROM users WHERE subject = 'alice'").Scan(&changes, &monthChanges); err != nil || changes || !monthChanges {
-		t.Errorf("after saving: stats_changes %v, stats_month_changes %v, %v", changes, monthChanges, err)
+	var years int
+	if err := testDB.QueryRow("SELECT stats_changes, stats_month_changes, stats_years FROM users WHERE subject = 'alice'").Scan(&changes, &monthChanges, &years); err != nil || changes || !monthChanges || years != 3 {
+		t.Errorf("after saving: stats_changes %v, stats_month_changes %v, stats_years %d, %v", changes, monthChanges, years, err)
+	}
+	mustStatus(t, request(a, "POST", "/settings", url.Values{"lang": {"da"}, "theme": {"dark"}, "number_format": {"comma"}, "stats_years": {"0"}}, alice), 303)
+	if n := queryInt(t, "SELECT stats_years FROM users WHERE subject = 'alice'"); n != 3 {
+		t.Errorf("0 years was saved as %d", n)
 	}
 
 	// Unknown values are refused as a whole.

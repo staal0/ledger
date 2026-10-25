@@ -77,12 +77,9 @@ type lineStats struct {
 	total  Money
 }
 
-// defaultSpan is how many years the statistics show unless a range is chosen.
-const defaultSpan = 5
-
 // yearRange reads ?from= and ?to=, limited to the years that have a budget.
-// Without them it is the newest defaultSpan years.
-func yearRange(r *http.Request, all []int) (from, to int) {
+// Without them it is the newest span years.
+func yearRange(r *http.Request, all []int, span int) (from, to int) {
 	if len(all) == 0 {
 		return 0, 0
 	}
@@ -91,7 +88,7 @@ func yearRange(r *http.Request, all []int) (from, to int) {
 	if v, err := strconv.Atoi(r.FormValue("to")); err == nil {
 		to = min(max(v, first), last)
 	}
-	from = max(first, to-defaultSpan+1)
+	from = max(first, to-span+1)
 	if v, err := strconv.Atoi(r.FormValue("from")); err == nil {
 		from = min(max(v, first), last)
 	}
@@ -121,7 +118,7 @@ func (a *App) statsPage(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	slices.Reverse(all) // oldest first
-	from, to := yearRange(r, all)
+	from, to := yearRange(r, all, currentUser(r).StatsYears)
 
 	// Totals per year, section and line. The year before the range is read
 	// too, only so the first year in the range gets a change.

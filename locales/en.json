@@ -135,6 +135,8 @@
   "settings.theme_dark": "Dark",
   "settings.start_budget": "Start budget",
   "settings.start_budget_hint": "Opened from the menu and on the statistics page.",
+  "settings.stats_years": "Years in the statistics",
+  "settings.stats_years_hint": "The newest years shown until you choose a range on the page.",
   "settings.stats_changes": "Statistics tables show changes by default",
   "settings.stats_month_changes": "A line's statistics show the change for each month by default",
   "settings.stats_changes_hint": "Each table can still be switched on and off on the page.",
