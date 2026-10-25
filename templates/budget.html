@@ -153,8 +153,10 @@
     <div class="legend">
       <span><i class="swatch income"></i>{{$L.T "section.income"}}</span>
       <span><i class="swatch expense"></i>{{$L.T "section.expense"}}</span>
+      <span><i class="swatch allocation"></i>{{$L.T "section.allocation"}}</span>
+      <span><i class="swatch unallocated"></i>{{$L.T "calc.difference"}}</span>
     </div>
-    <div data-chart="monthly" data-income="{{$L.T "section.income"}}" data-expense="{{$L.T "section.expense"}}" data-net="{{$L.T "calc.net"}}"></div>
+    <div data-chart="monthly" data-income="{{$L.T "section.income"}}" data-expense="{{$L.T "section.expense"}}" data-net="{{$L.T "calc.net"}}" data-allocation="{{$L.T "section.allocation"}}" data-difference="{{$L.T "calc.difference"}}"></div>
   </figure>
   <figure class="chart">
     <figcaption>{{$L.T "chart.expense"}}</figcaption>
