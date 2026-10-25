@@ -443,7 +443,9 @@ document.addEventListener('DOMContentLoaded', () => {
       if (tile.dataset.tile === 'difference') tile.dataset.sign = v > 0 ? 'pos' : v < 0 ? 'neg' : ''
     }
     const monthly = document.querySelector('[data-chart="monthly"]')
-    columns(monthly, months, months.map(m => m[0]), t.income.slice(1), t.expense.slice(1))
+    const ms = months.map((_, i) => i + 1)
+    columns(monthly, months, months.map(m => m[0]), t.income.slice(1), t.expense.slice(1),
+      { allocation: t.allocation.slice(1), difference: ms.map(calc.difference) })
     for (const box of document.querySelectorAll('.hbars')) hbars(box, lines[box.dataset.chart])
   }
 
