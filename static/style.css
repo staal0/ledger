@@ -256,7 +256,8 @@ kbd { display: inline-block; min-width: 1.6em; text-align: center; padding: .05r
 .stats-table tr:not(.head) th { font-weight: normal; }
 .stats-table td.num { min-width: 6rem; }
 .stats-table tr + tr th, .stats-table tr + tr td { border-top: 1px solid color-mix(in srgb, var(--border) 60%, transparent); }
-.delta { color: var(--muted); font-size: .85rem; font-variant-numeric: tabular-nums; }
+.delta, .share { color: var(--muted); font-size: .85rem; font-variant-numeric: tabular-nums; }
+.share { text-align: right; }
 .delta.good { color: var(--pos); }
 .delta.bad { color: var(--neg); }
 .filters { display: flex; flex-wrap: wrap; align-items: center; gap: 1rem; margin-top: 1rem; }
