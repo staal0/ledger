@@ -55,10 +55,14 @@ type yearStats struct {
 	AllocationDelta                     Delta
 }
 
+type lineCell struct {
+	Value Money
+	Delta Delta // against the year before
+}
+
 type lineStats struct {
 	Name   string
-	Values []Money // one per year, in the order of the page's years
-	Delta  Delta   // newest year against the one before
+	Cells  []lineCell // one per year, in the order of the page's years
 	latest Money
 	total  Money
 }
@@ -166,11 +170,11 @@ func (a *App) statsPage(w http.ResponseWriter, r *http.Request) {
 		y.AllocationDelta = L.delta(y.Allocation, prev.Allocation, 0)
 		prev = y
 	}
-	// The newest year is compared with the one before it, which may lie
-	// before the range when the range is a single year.
-	compareTo := 0
-	if n := len(years); n > 1 {
-		compareTo = years[n-2].Year
+	// Each year's lines are compared with the year before, which for the
+	// first year may lie before the range.
+	prevYear := map[int]int{}
+	for i := 1; i < len(years); i++ {
+		prevYear[years[i].Year] = years[i-1].Year
 	}
 	if len(years) > 0 && years[0].Year < from {
 		years = years[1:]
@@ -182,18 +186,13 @@ func (a *App) statsPage(w http.ResponseWriter, r *http.Request) {
 		for name, byYear := range perLine[section] {
 			ls := &lineStats{Name: name}
 			for _, y := range years {
-				v := byYear[y.Year]
-				ls.Values = append(ls.Values, v)
-				ls.total += v
+				c := lineCell{byYear[y.Year], L.delta(byYear[y.Year], byYear[prevYear[y.Year]], upGood)}
+				ls.Cells = append(ls.Cells, c)
+				ls.total += c.Value
+				ls.latest = c.Value
 			}
 			if ls.total == 0 {
 				continue // only in the year before the range
-			}
-			if n := len(years); n > 0 {
-				ls.latest = byYear[years[n-1].Year]
-				if compareTo != 0 {
-					ls.Delta = L.delta(ls.latest, byYear[compareTo], upGood)
-				}
 			}
 			out = append(out, ls)
 		}

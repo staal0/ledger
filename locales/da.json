@@ -16,7 +16,6 @@
   "stats.delta_hint": "Ændring i forhold til året før. Grøn er bedre, rød er dårligere.",
   "stats.lines_expense": "Udgifter pr. linje",
   "stats.lines_allocation": "Fordeling pr. linje",
-  "stats.change": "Ændring",
   "stats.percent": "%s %%",
   "nav.logout": "Log ud",
   "auth.forbidden": "Din rolle tillader ikke dette.",
