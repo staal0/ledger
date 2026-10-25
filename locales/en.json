@@ -17,6 +17,7 @@
   "stats.lines_expense": "Expenses by line",
   "stats.lines_allocation": "Allocation by line",
   "stats.percent": "%s%%",
+  "stats.of_income": "% of income",
   "nav.logout": "Log out",
   "auth.forbidden": "Your role does not allow this.",
   "auth.no_access": "Your account is not in any of Ledger's groups. Ask an administrator for access.",

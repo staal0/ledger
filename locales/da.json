@@ -17,6 +17,7 @@
   "stats.lines_expense": "Udgifter pr. linje",
   "stats.lines_allocation": "Fordeling pr. linje",
   "stats.percent": "%s %%",
+  "stats.of_income": "% af indkomst",
   "nav.logout": "Log ud",
   "auth.forbidden": "Din rolle tillader ikke dette.",
   "auth.no_access": "Din konto er ikke i nogen af Ledgers grupper. Bed en administrator om adgang.",
