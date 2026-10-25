@@ -23,8 +23,10 @@
     <div class="legend">
       <span><i class="swatch income"></i>{{$L.T "section.income"}}</span>
       <span><i class="swatch expense"></i>{{$L.T "section.expense"}}</span>
+      <span><i class="swatch allocation"></i>{{$L.T "section.allocation"}}</span>
+      <span><i class="swatch unallocated"></i>{{$L.T "calc.difference"}}</span>
     </div>
-    <div data-chart="years" data-income="{{$L.T "section.income"}}" data-expense="{{$L.T "section.expense"}}" data-net="{{$L.T "calc.net"}}"></div>
+    <div data-chart="years" data-income="{{$L.T "section.income"}}" data-expense="{{$L.T "section.expense"}}" data-net="{{$L.T "calc.net"}}" data-allocation="{{$L.T "section.allocation"}}" data-difference="{{$L.T "calc.difference"}}"></div>
     <script type="application/json" id="stats-data">{{.Chart}}</script>
   </figure>
 
@@ -38,6 +40,7 @@
         <th>{{$L.T "section.expense"}}</th><th></th>
         <th>{{$L.T "calc.net"}}</th><th></th>
         <th>{{$L.T "section.allocation"}}</th><th></th>
+        <th>{{$L.T "calc.difference"}}</th><th></th>
       </tr>
       {{range .Years}}
       <tr>
@@ -46,6 +49,7 @@
         <td class="num">{{$L.Money .Expense}}</td><td class="delta {{.ExpenseDelta.Class}}">{{.ExpenseDelta.Text}}</td>
         <td class="num">{{$L.Money .Net}}</td><td class="delta {{.NetDelta.Class}}">{{.NetDelta.Text}}</td>
         <td class="num">{{$L.Money .Allocation}}</td><td class="delta {{.AllocationDelta.Class}}">{{.AllocationDelta.Text}}</td>
+        <td class="num{{if gt .Difference 0}} pos{{else if lt .Difference 0}} neg{{end}}">{{$L.Money .Difference}}</td><td class="delta {{.DifferenceDelta.Class}}">{{.DifferenceDelta.Text}}</td>
       </tr>
       {{end}}
     </table>

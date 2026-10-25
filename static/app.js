@@ -78,9 +78,13 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // Income vs expenses as paired columns, one group per label. The tooltip
   // also shows the net. short holds the axis labels for a narrow chart.
-  function columns(box, labels, short, income, expense) {
+  // An optional allocation and difference stack on the expenses, so the stack
+  // matches income. A negative difference marks the top of the stack red: the
+  // part allocated beyond income.
+  function columns(box, labels, short, income, expense, { allocation, difference } = {}) {
     const L = box.dataset
-    const top0 = Math.max(...income, ...expense, 100)
+    const spent = expense.map((e, i) => e + (allocation ? allocation[i] : 0) + Math.max(0, difference ? difference[i] : 0))
+    const top0 = Math.max(...income, ...spent, 100)
     const step = niceStep(top0 / 4)
     const top = Math.ceil(top0 / step) * step
     const plot = el('div', 'plot')
@@ -92,12 +96,31 @@ document.addEventListener('DOMContentLoaded', () => {
     }
     labels.forEach((name, i) => {
       const m = el('div', 'month')
-      for (const [cls, v] of [['income', income[i]], ['expense', expense[i]]]) {
+      const bar = (cls, v) => {
         const b = el('i', 'bar ' + cls)
         b.style.height = Math.max(0, v) / top * 100 + '%'
-        m.append(b)
+        return b
       }
-      hover(m, name, [['income', kr(income[i]), L.income], ['expense', kr(expense[i]), L.expense], ['', kr(income[i] - expense[i]), L.net]])
+      m.append(bar('income', income[i]))
+      const diffCls = difference && difference[i] < 0 ? 'unallocated neg' : 'unallocated'
+      if (allocation || difference) {
+        let e = expense[i], a = allocation ? allocation[i] : 0, d = difference ? difference[i] : 0
+        if (d < 0) { // the overrun is taken from the top: allocation first
+          d = Math.min(-d, e + a)
+          const fromA = Math.min(a, d)
+          a -= fromA
+          e -= d - fromA
+        }
+        const s = el('div', 'stack')
+        for (const [cls, v] of [[diffCls, d], ['allocation', a], ['expense', e]]) if (v > 0) s.append(bar(cls, v)) // the top one gets the rounded corners
+        m.append(s)
+      } else {
+        m.append(bar('expense', expense[i]))
+      }
+      const rows = [['income', kr(income[i]), L.income], ['expense', kr(expense[i]), L.expense], ['', kr(income[i] - expense[i]), L.net]]
+      if (allocation) rows.push(['allocation', kr(allocation[i]), L.allocation])
+      if (difference) rows.push([diffCls, kr(difference[i]), L.difference])
+      hover(m, name, rows)
       plot.append(m)
     })
     const axis = el('div', 'xaxis')
@@ -114,7 +137,7 @@ document.addEventListener('DOMContentLoaded', () => {
   if (yearsChart) {
     const d = JSON.parse(document.getElementById('stats-data').textContent)
     const labels = d.Years.map(String)
-    columns(yearsChart, labels, labels.map(y => "'" + y.slice(2)), d.Income, d.Expense)
+    columns(yearsChart, labels, labels.map(y => "'" + y.slice(2)), d.Income, d.Expense, { allocation: d.Allocation, difference: d.Difference })
   }
 
   const form = document.querySelector('form.budget')

@@ -51,8 +51,9 @@ func abs(m Money) Money {
 type yearStats struct {
 	Year                                int
 	Income, Expense, Net, Allocation    Money
+	Difference                          Money // net not allocated; ideally 0
 	IncomeDelta, ExpenseDelta, NetDelta Delta
-	AllocationDelta                     Delta
+	AllocationDelta, DifferenceDelta    Delta
 }
 
 type lineCell struct {
@@ -164,10 +165,18 @@ func (a *App) statsPage(w http.ResponseWriter, r *http.Request) {
 	prev := &yearStats{} // all zero for the first year, which shows "–"
 	for _, y := range years {
 		y.Net = y.Income - y.Expense
+		y.Difference = y.Net - y.Allocation
 		y.IncomeDelta = L.delta(y.Income, prev.Income, 1)
 		y.ExpenseDelta = L.delta(y.Expense, prev.Expense, -1)
 		y.NetDelta = L.delta(y.Net, prev.Net, 1)
 		y.AllocationDelta = L.delta(y.Allocation, prev.Allocation, 0)
+		y.DifferenceDelta = L.delta(y.Difference, prev.Difference, 0)
+		if prev.Difference != 0 && abs(y.Difference) != abs(prev.Difference) {
+			y.DifferenceDelta.Class = "bad"
+			if abs(y.Difference) < abs(prev.Difference) {
+				y.DifferenceDelta.Class = "good" // closer to 0
+			}
+		}
 		prev = y
 	}
 	// Each year's lines are compared with the year before, which for the
@@ -204,13 +213,15 @@ func (a *App) statsPage(w http.ResponseWriter, r *http.Request) {
 
 	// Raw numbers for the chart, in øre.
 	chart := struct {
-		Years           []int
-		Income, Expense []Money
+		Years                                   []int
+		Income, Expense, Allocation, Difference []Money
 	}{}
 	for _, y := range years {
 		chart.Years = append(chart.Years, y.Year)
 		chart.Income = append(chart.Income, y.Income)
 		chart.Expense = append(chart.Expense, y.Expense)
+		chart.Allocation = append(chart.Allocation, y.Allocation)
+		chart.Difference = append(chart.Difference, y.Difference)
 	}
 
 	a.render(w, r, "stats", map[string]any{
