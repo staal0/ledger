@@ -49,6 +49,12 @@ func (a *App) settingsSave(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	}
+	// The form always posts, so an unchecked box is off.
+	if _, err := a.db.ExecContext(r.Context(), "UPDATE users SET stats_changes = ?, stats_month_changes = ? WHERE id = ?",
+		r.PostFormValue("stats_changes") != "", r.PostFormValue("stats_month_changes") != "", currentUser(r).ID); err != nil {
+		a.fail(w, err)
+		return
+	}
 	if start, err := strconv.ParseInt(r.PostFormValue("start_budget"), 10, 64); err == nil {
 		visible, err := a.visibleBudgets(r.Context(), currentUser(r))
 		if err != nil {

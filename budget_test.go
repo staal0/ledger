@@ -244,6 +244,13 @@ func TestStatsAndExport(t *testing.T) {
 	if strings.Contains(page, `"Years":[2029`) || !strings.Contains(page, "▲ +10.0%") {
 		t.Error("a one-year range should show only 2030, compared with 2029")
 	}
+	page = html.UnescapeString(request(a, "GET", "/stats/line?section=income&name=Salary", nil, "").Body.String())
+	for _, want := range []string{`"Values":[100000,0,0,0,0,0,0,0,0,0,0,0,110000,`, "▲ +10.0%"} {
+		if !strings.Contains(page, want) {
+			t.Errorf("line page lacks %q", want)
+		}
+	}
+	mustStatus(t, request(a, "GET", "/stats/line?section=nope&name=Salary", nil, ""), 404)
 
 	w := request(a, "GET", "/budget/2030/export", nil, "")
 	mustStatus(t, w, 200)

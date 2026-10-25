@@ -85,6 +85,16 @@ func TestSettings(t *testing.T) {
 		t.Error("bob got alice's settings")
 	}
 
+	// The settings form always posts, so a missing checkbox means off.
+	if page := request(a, "GET", "/settings", nil, bob).Body.String(); !strings.Contains(page, `name="stats_changes" value="1" checked`) {
+		t.Error("changes in the statistics tables are not on by default")
+	}
+	mustStatus(t, request(a, "POST", "/settings", url.Values{"lang": {"da"}, "theme": {"dark"}, "number_format": {"comma"}, "stats_month_changes": {"1"}}, alice), 303)
+	var changes, monthChanges bool
+	if err := testDB.QueryRow("SELECT stats_changes, stats_month_changes FROM users WHERE subject = 'alice'").Scan(&changes, &monthChanges); err != nil || changes || !monthChanges {
+		t.Errorf("after saving: stats_changes %v, stats_month_changes %v, %v", changes, monthChanges, err)
+	}
+
 	// Unknown values are refused as a whole.
 	mustStatus(t, request(a, "POST", "/settings", url.Values{"lang": {"xx"}, "theme": {"pink"}, "number_format": {"comma"}}, alice), 303)
 	var lang, theme string
