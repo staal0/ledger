@@ -4,6 +4,7 @@ import (
 	"net/http"
 	"slices"
 	"strconv"
+	"strings"
 )
 
 type lineYear struct {
@@ -12,16 +13,24 @@ type lineYear struct {
 	Deltas [13]Delta // against the same month the year before
 }
 
-// statsLinePage shows one line's months across the chosen years. A line is
-// the same line in every year that has its section and name.
+// statsLinePage shows one or more lines' months across the chosen years,
+// added together. A line is the same line in every year that has its section
+// and name.
 func (a *App) statsLinePage(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	L := a.locale(r)
-	section, name := r.FormValue("section"), r.FormValue("name")
-	if !slices.Contains(sections, section) || name == "" {
+	section := r.FormValue("section")
+	var names []string
+	for _, n := range r.Form["name"] {
+		if n != "" && !slices.Contains(names, n) {
+			names = append(names, n)
+		}
+	}
+	if !slices.Contains(sections, section) || len(names) == 0 {
 		http.NotFound(w, r)
 		return
 	}
+	name := strings.Join(names, " + ")
 	current, _, ok, err := a.chosenBudget(r)
 	if err != nil {
 		a.fail(w, err)
@@ -58,12 +67,19 @@ func (a *App) statsLinePage(w http.ResponseWriter, r *http.Request) {
 	for _, y := range years {
 		byYear[y.Year] = y
 	}
-	rows, err := a.db.QueryContext(ctx, `SELECT y.year, a.month, SUM(a.amount)
+	args := []any{current.ID, years[0].Year, to, section}
+	for _, n := range names {
+		args = append(args, n)
+	}
+	// Each line's own months, for splitting the chart when there are several.
+	parts := map[string]map[int]*[13]Money{}
+	rows, err := a.db.QueryContext(ctx, `SELECT y.year, l.name, a.month, SUM(a.amount)
 		FROM budget_years y
 		JOIN budget_lines l ON l.year_id = y.id
 		JOIN budget_amounts a ON a.line_id = l.id
-		WHERE y.budget_id = ? AND y.year BETWEEN ? AND ? AND l.section = ? AND l.name = ?
-		GROUP BY y.year, a.month`, current.ID, years[0].Year, to, section, name)
+		WHERE y.budget_id = ? AND y.year BETWEEN ? AND ? AND l.section = ?
+			AND l.name IN (?`+strings.Repeat(", ?", len(names)-1)+`)
+		GROUP BY y.year, l.name, a.month`, args...)
 	if err != nil {
 		a.fail(w, err)
 		return
@@ -71,14 +87,22 @@ func (a *App) statsLinePage(w http.ResponseWriter, r *http.Request) {
 	defer rows.Close()
 	for rows.Next() {
 		var year, month int
+		var line string
 		var sum Money
-		if err := rows.Scan(&year, &month, &sum); err != nil {
+		if err := rows.Scan(&year, &line, &month, &sum); err != nil {
 			a.fail(w, err)
 			return
 		}
 		if y := byYear[year]; y != nil && month >= 1 && month <= 12 {
 			y.Months[month] += sum
 			y.Months[0] += sum
+			if parts[line] == nil {
+				parts[line] = map[int]*[13]Money{}
+			}
+			if parts[line][year] == nil {
+				parts[line][year] = &[13]Money{}
+			}
+			parts[line][year][month] += sum
 		}
 	}
 	if err := rows.Err(); err != nil {
@@ -99,11 +123,32 @@ func (a *App) statsLinePage(w http.ResponseWriter, r *http.Request) {
 		years = years[1:]
 	}
 
-	// One bar per month; the axis names only each January's year.
+	// One bar per month; the axis names only each January's year. With several
+	// lines, Parts splits each bar into the lines, in the order they were chosen.
+	type part struct {
+		Name   string
+		Values []Money
+	}
 	chart := struct {
 		Labels, Axis, Changes []string
 		Values                []Money
+		Parts                 []part
 	}{}
+	if len(names) > 1 {
+		for _, n := range names {
+			p := part{Name: n}
+			for _, y := range years {
+				for m := 1; m <= 12; m++ {
+					var v Money
+					if months := parts[n][y.Year]; months != nil {
+						v = months[m]
+					}
+					p.Values = append(p.Values, v)
+				}
+			}
+			chart.Parts = append(chart.Parts, p)
+		}
+	}
 	for _, y := range years {
 		for m := 1; m <= 12; m++ {
 			chart.Labels = append(chart.Labels, L.T("month."+strconv.Itoa(m))+" "+strconv.Itoa(y.Year))
@@ -120,6 +165,7 @@ func (a *App) statsLinePage(w http.ResponseWriter, r *http.Request) {
 	a.render(w, r, "stats_line", map[string]any{
 		"Title":    name,
 		"Name":     name,
+		"Names":    names,
 		"Section":  section,
 		"AllYears": all,
 		"Base":     current.Base(),

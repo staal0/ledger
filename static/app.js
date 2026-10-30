@@ -49,9 +49,11 @@ document.addEventListener('DOMContentLoaded', () => {
     target.tabIndex = 0
     const show = () => {
       tip.replaceChildren(el('div', 'tip-title', title))
-      for (const [cls, value, label] of rows) {
+      for (const [cls, value, label, color] of rows) {
         const row = el('div', 'tip-row')
-        row.append(el('i', 'key ' + cls), el('strong', null, value), el('span', null, label))
+        const key = el('i', 'key ' + cls)
+        if (color) key.style.background = color
+        row.append(key, el('strong', null, value), el('span', null, label))
         tip.append(row)
       }
       tip.hidden = false
@@ -143,19 +145,48 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // One bar per label in a single colour. axis holds the x-axis text, which may
   // skip labels. changes, when given, add a tooltip row each; "–" is left out.
-  function series(box, labels, axis, values, cls, changes) {
+  // parts, when given, split each bar into stacked lines in lighter tints of the
+  // colour, the first at the bottom, with a legend above the chart.
+  function series(box, labels, axis, values, cls, changes, parts) {
     const [plot, top] = grid(Math.max(...values, 100))
+    const tint = i => `color-mix(in srgb, var(--c-${cls}) ${100 - i * 60 / Math.max(1, parts.length - 1)}%, var(--surface))`
     labels.forEach((name, i) => {
       const m = el('div', 'month')
-      const b = el('i', 'bar ' + cls)
-      b.style.height = Math.max(0, values[i]) / top * 100 + '%'
-      m.append(b)
-      const rows = [[cls, kr(values[i]), box.dataset.label]]
+      const bar = (v, color) => {
+        const b = el('i', 'bar ' + cls)
+        b.style.height = Math.max(0, v) / top * 100 + '%'
+        if (color) b.style.background = color
+        return b
+      }
+      const rows = []
+      if (parts) {
+        const s = el('div', 'stack')
+        parts.forEach((p, j) => {
+          if (p.Values[i] > 0) s.prepend(bar(p.Values[i], tint(j))) // the top one gets the rounded corners
+          rows.unshift([cls, kr(p.Values[i]), p.Name, tint(j)]) // top to bottom, as in the bar
+        })
+        m.append(s)
+        rows.push(['', kr(values[i]), box.dataset.total])
+      } else {
+        m.append(bar(values[i]))
+        rows.push([cls, kr(values[i]), box.dataset.label])
+      }
       if (changes && changes[i] !== '–') rows.push(['', changes[i], box.dataset.change])
       hover(m, name, rows)
       plot.append(m)
     })
     box.replaceChildren(plot, xaxis(axis, axis))
+    if (parts) {
+      const legend = el('div', 'legend')
+      parts.forEach((p, j) => {
+        const s = el('span')
+        const sw = el('i', 'swatch')
+        sw.style.background = tint(j)
+        s.append(sw, p.Name)
+        legend.append(s)
+      })
+      box.before(legend)
+    }
   }
 
   // Statistics page: income and expenses per year.
@@ -166,11 +197,33 @@ document.addEventListener('DOMContentLoaded', () => {
     columns(yearsChart, labels, labels.map(y => "'" + y.slice(2)), d.Income, d.Expense, { allocation: d.Allocation, difference: d.Difference })
   }
 
-  // Statistics for one line: its months across the years.
+  // Line tables: the button shows how many lines are ticked and needs at least one.
+  // "Select all" ticks or clears every line, and is half-ticked for some.
+  for (const b of document.querySelectorAll('button[data-pick]')) {
+    const boxes = [...b.form.elements].filter(e => e.type === 'checkbox')
+    const all = b.closest('.chart').querySelector('[data-pick-all]')
+    const label = b.textContent
+    const update = () => {
+      const n = boxes.filter(c => c.checked).length
+      b.disabled = n === 0
+      b.textContent = n ? `${label} (${n})` : label
+      all.checked = n === boxes.length
+      all.indeterminate = n > 0 && n < boxes.length
+    }
+    for (const c of boxes) c.addEventListener('change', update)
+    all.addEventListener('change', () => {
+      for (const c of boxes) c.checked = all.checked
+      update()
+    })
+    all.closest('label').hidden = false
+    update()
+  }
+
+  // Statistics for one line, or several added together: their months across the years.
   const lineChart = document.querySelector('[data-chart="line"]')
   if (lineChart) {
     const d = JSON.parse(document.getElementById('line-data').textContent)
-    series(lineChart, d.Labels, d.Axis, d.Values, lineChart.dataset.section, d.Changes)
+    series(lineChart, d.Labels, d.Axis, d.Values, lineChart.dataset.section, d.Changes, d.Parts)
   }
 
   const form = document.querySelector('form.budget')
