@@ -61,7 +61,16 @@
   {{range .LineTables}}{{$key := .Key}}
   <figure class="chart">
     <figcaption>{{$L.T (print "stats.lines_" .Key)}}</figcaption>
-    <label class="toggle"><input type="checkbox"{{if $.User.StatsChanges}} checked{{end}} autocomplete="off"> {{$L.T "stats.changes"}}</label>
+    <form id="pick-{{$key}}" action="/stats/line" hidden>
+      <input type="hidden" name="section" value="{{$key}}">
+      <input type="hidden" name="from" value="{{$.From}}">
+      <input type="hidden" name="to" value="{{$.To}}">
+      {{if not $.Current.IsDefault}}<input type="hidden" name="budget" value="{{$.Current.Slug}}">{{end}}
+    </form>
+    <div class="toggles">
+      <label class="toggle"><input type="checkbox"{{if $.User.StatsChanges}} checked{{end}} autocomplete="off"> {{$L.T "stats.changes"}}</label>
+      <label class="toggle-all" hidden><input type="checkbox" data-pick-all autocomplete="off"> {{$L.T "stats.select_all"}}</label>
+    </div>
     <div class="scroll">
     <table class="stats-table">
       <tr class="head">
@@ -70,12 +79,13 @@
       </tr>
       {{range .Lines}}
       <tr>
-        <th><a href="/stats/line?section={{$key}}&name={{.Name}}&from={{$.From}}&to={{$.To}}{{if not $.Current.IsDefault}}&budget={{$.Current.Slug}}{{end}}">{{.Name}}</a></th>
+        <th><input type="checkbox" class="pick" name="name" value="{{.Name}}" form="pick-{{$key}}" autocomplete="off" aria-label="{{.Name}}"> <a href="/stats/line?section={{$key}}&name={{.Name}}&from={{$.From}}&to={{$.To}}{{if not $.Current.IsDefault}}&budget={{$.Current.Slug}}{{end}}">{{.Name}}</a></th>
         {{range .Cells}}<td class="num">{{if .Value}}{{$L.Money .Value}}{{else}}<span class="hint">–</span>{{end}}</td><td class="delta change {{.Delta.Class}}">{{.Delta.Text}}</td>{{end}}
       </tr>
       {{end}}
     </table>
     </div>
+    <button class="secondary pick" form="pick-{{$key}}" data-pick>{{$L.T "stats.show_selected"}}</button>
     <p class="hint">{{$L.T "stats.delta_hint"}}</p>
   </figure>
   {{end}}

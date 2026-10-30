@@ -229,9 +229,9 @@ func TestCopyYear(t *testing.T) {
 func TestStatsAndExport(t *testing.T) {
 	a := testApp(t, false)
 	for _, y := range []int{2029, 2030} {
-		ids := setupYear(t, a, y, "income/Salary", "expense/Rent")
+		ids := setupYear(t, a, y, "income/Salary", "expense/Rent", "expense/Insurance")
 		salary := map[int]string{2029: "1000", 2030: "1100"}[y]
-		form := saveForm(t, a, y, "save", map[int64]map[int]string{ids["income/Salary"]: {1: salary}, ids["expense/Rent"]: {1: "400"}})
+		form := saveForm(t, a, y, "save", map[int64]map[int]string{ids["income/Salary"]: {1: salary}, ids["expense/Rent"]: {1: "400"}, ids["expense/Insurance"]: {1: "100", 2: "50"}})
 		mustStatus(t, request(a, "POST", fmt.Sprintf("/budget/%d", y), form, ""), 303)
 	}
 	page := html.UnescapeString(request(a, "GET", "/stats", nil, "").Body.String()) // as the browser shows it
@@ -245,12 +245,21 @@ func TestStatsAndExport(t *testing.T) {
 		t.Error("a one-year range should show only 2030, compared with 2029")
 	}
 	page = html.UnescapeString(request(a, "GET", "/stats/line?section=income&name=Salary", nil, "").Body.String())
-	for _, want := range []string{`"Values":[100000,0,0,0,0,0,0,0,0,0,0,0,110000,`, "▲ +10.0%"} {
+	for _, want := range []string{`"Values":[100000,0,0,0,0,0,0,0,0,0,0,0,110000,`, "▲ +10.0%", `"Parts":null`} {
 		if !strings.Contains(page, want) {
 			t.Errorf("line page lacks %q", want)
 		}
 	}
+	// Several lines are added together; a repeated name counts once.
+	page = html.UnescapeString(request(a, "GET", "/stats/line?section=expense&name=Rent&name=Insurance&name=Rent", nil, "").Body.String())
+	for _, want := range []string{`"Values":[50000,5000,0,0,0,0,0,0,0,0,0,0,50000,5000,`, "Rent + Insurance", `name="name" value="Insurance"`,
+		`"Parts":[{"Name":"Rent","Values":[40000,0,`, `{"Name":"Insurance","Values":[10000,5000,`} {
+		if !strings.Contains(page, want) {
+			t.Errorf("combined line page lacks %q", want)
+		}
+	}
 	mustStatus(t, request(a, "GET", "/stats/line?section=nope&name=Salary", nil, ""), 404)
+	mustStatus(t, request(a, "GET", "/stats/line?section=expense", nil, ""), 404)
 
 	w := request(a, "GET", "/budget/2030/export", nil, "")
 	mustStatus(t, w, 200)

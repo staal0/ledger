@@ -24,6 +24,8 @@
   "stats.per_month": "Per month",
   "stats.per_year": "Per year",
   "stats.total": "Total",
+  "stats.show_selected": "Show selected together",
+  "stats.select_all": "Select all",
   "nav.logout": "Log out",
   "auth.forbidden": "Your role does not allow this.",
   "auth.no_access": "Your account is not in any of Ledger's groups. Ask an administrator for access.",

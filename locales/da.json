@@ -24,6 +24,8 @@
   "stats.per_month": "Pr. måned",
   "stats.per_year": "Pr. år",
   "stats.total": "I alt",
+  "stats.show_selected": "Vis valgte samlet",
+  "stats.select_all": "Vælg alle",
   "nav.logout": "Log ud",
   "auth.forbidden": "Din rolle tillader ikke dette.",
   "auth.no_access": "Din konto er ikke i nogen af Ledgers grupper. Bed en administrator om adgang.",

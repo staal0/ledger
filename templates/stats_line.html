@@ -5,7 +5,7 @@
 <form class="filters" action="/stats/line">
   {{if not .Current.IsDefault}}<input type="hidden" name="budget" value="{{.Current.Slug}}">{{end}}
   <input type="hidden" name="section" value="{{.Section}}">
-  <input type="hidden" name="name" value="{{.Name}}">
+  {{range .Names}}<input type="hidden" name="name" value="{{.}}">{{end}}
   <label>{{$L.T "stats.from"}}
     <select name="from" data-autosubmit autocomplete="off">{{range .AllYears}}<option{{if eq . $.From}} selected{{end}}>{{.}}</option>{{end}}</select>
   </label>
@@ -18,7 +18,7 @@
 <div class="stats">
   <figure class="chart">
     <figcaption>{{$L.T "stats.per_month"}}</figcaption>
-    <div data-chart="line" data-section="{{.Section}}" data-label="{{.Name}}" data-change="{{$L.T "stats.vs_year_before"}}"></div>
+    <div data-chart="line" data-section="{{.Section}}" data-label="{{.Name}}" data-total="{{$L.T "stats.total"}}" data-change="{{$L.T "stats.vs_year_before"}}"></div>
     <script type="application/json" id="line-data">{{.Chart}}</script>
   </figure>
 
