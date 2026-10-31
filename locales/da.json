@@ -180,7 +180,6 @@
   "manage.no_years": "Der er ingen budgetter endnu.",
   "manage.history": "Ændringshistorik",
   "manage.history_empty": "Ingen ændringer registreret for %d.",
-  "manage.history_limit": "Viser de nyeste %d ændringer.",
   "manage.when": "Hvornår",
   "manage.who": "Hvem",
   "manage.line": "Linje",
@@ -313,5 +312,11 @@
   "bank.filled": "Udfyldte %s beløb fra banken.",
   "bank.fill_update": "opdatering fra banken",
   "bank.fill_months": "Måneder, der udfyldes:",
-  "bank.fill_untouched": "Linjer uden posteringer i en måned og forbundne linjer ændres ikke."
+  "bank.fill_untouched": "Linjer uden posteringer i en måned og forbundne linjer ændres ikke.",
+
+  "pager.label": "Sider",
+  "pager.prev": "Forrige",
+  "pager.next": "Næste",
+  "pager.page": "Side %d af %d",
+  "pager.size": "Pr. side"
 }

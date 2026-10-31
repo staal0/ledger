@@ -167,11 +167,18 @@ func (a *App) bankPage(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	var total int
+	if err := a.db.QueryRowContext(ctx, `SELECT COUNT(*) FROM bank_imports i JOIN bank_accounts a ON a.id = i.account_id
+		WHERE a.budget_id = ?`, current.ID).Scan(&total); err != nil {
+		a.fail(w, err)
+		return
+	}
+	pages := newPager(r, a.locale(r), "page", total, "#imports")
 	var imports []bankImportRow
 	rows, err := a.db.QueryContext(ctx, `SELECT i.id, a.name, COALESCE(u.name, ''), i.imported_at, i.added, i.skipped,
 			(SELECT COUNT(*) FROM bank_transactions t WHERE t.import_id = i.id)
 		FROM bank_imports i JOIN bank_accounts a ON a.id = i.account_id LEFT JOIN users u ON u.id = i.user_id
-		WHERE a.budget_id = ? ORDER BY i.id DESC LIMIT 20`, current.ID)
+		WHERE a.budget_id = ? ORDER BY i.id DESC LIMIT ? OFFSET ?`, current.ID, pages.Size, pages.Offset())
 	if err != nil {
 		a.fail(w, err)
 		return
@@ -200,6 +207,7 @@ func (a *App) bankPage(w http.ResponseWriter, r *http.Request) {
 		"Accounts": accounts,
 		"Formats":  bankFormats,
 		"Imports":  imports,
+		"Pages":    pages,
 		"Imported": r.Form.Has("added"),
 		"Added":    added,
 		"Skipped":  r.FormValue("skipped"),

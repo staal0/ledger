@@ -81,7 +81,7 @@
   {{if .Years}}
   <table class="manage-table">
     <tr class="head"><th>{{$L.T "budget.year"}}</th><th class="num">{{$L.T "manage.lines"}}</th><th></th></tr>
-    {{range .Years}}
+    {{range .YearsShown}}
     <tr>
       <th><a href="{{$.Base}}/{{.Year}}">{{.Year}}</a></th>
       <td class="num">{{.Lines}}</td>
@@ -95,6 +95,7 @@
     </tr>
     {{end}}
   </table>
+  {{template "pager" .YearPages}}
   <p class="hint">{{$L.T "manage.delete_hint"}}</p>
   {{else}}
   <p class="hint">{{$L.T "manage.no_years"}}</p>
@@ -131,7 +132,8 @@
     {{end}}
   </table>
   </div>
-  <p class="hint">{{$L.T "manage.restore_hint"}}{{if .Limited}} {{$L.T "manage.history_limit" .Shown}}{{end}}</p>
+  {{template "pager" .HistoryPages}}
+  <p class="hint">{{$L.T "manage.restore_hint"}}</p>
   {{else}}
   <p class="hint">{{$L.T "manage.history_empty" .Year}}</p>
   {{end}}

@@ -53,7 +53,7 @@
 {{end}}
 
 {{if .Imports}}
-<section class="card wide">
+<section class="card wide" id="imports">
   <h2>{{$L.T "bank.imports"}}</h2>
   <div class="scroll">
   <table class="manage-table">
@@ -66,6 +66,7 @@
     {{end}}
   </table>
   </div>
+  {{template "pager" .Pages}}
 </section>
 {{end}}
 

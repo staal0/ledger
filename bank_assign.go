@@ -35,11 +35,13 @@ func (t bankTransaction) Choice() string {
 }
 
 // bankListFilter is what the transactions list shows: one account or all
-// (Account 0), one year, and only the unassigned unless All.
+// (Account 0), one year, only the unassigned unless All, and which page of
+// what size.
 type bankListFilter struct {
-	Account int64
-	Year    int
-	All     bool
+	Account    int64
+	Year       int
+	All        bool
+	Page, Size int
 }
 
 func (f bankListFilter) query() url.Values {
@@ -49,6 +51,12 @@ func (f bankListFilter) query() url.Values {
 	}
 	if f.All {
 		q.Set("show", "all")
+	}
+	if f.Page > 1 {
+		q.Set("page", strconv.Itoa(f.Page))
+	}
+	if f.Size != 0 && f.Size != pageSizeDefault {
+		q.Set("size", strconv.Itoa(f.Size))
 	}
 	return q
 }
@@ -108,11 +116,24 @@ func (a *App) bankTransactionsPage(w http.ResponseWriter, r *http.Request) {
 		f.Year = y
 	}
 
+	from := ` FROM bank_transactions t JOIN bank_accounts a ON a.id = t.account_id
+		WHERE a.budget_id = ? AND YEAR(t.booked) = ?` + scope
+	args := []any{current.ID, f.Year, f.Account, f.Account}
+	var unassigned, total int
+	if err := a.db.QueryRowContext(ctx, `SELECT COUNT(*), COALESCE(SUM(t.line_id IS NULL AND NOT t.ignored), 0)`+from, args...).Scan(&total, &unassigned); err != nil {
+		a.fail(w, err)
+		return
+	}
+	if !f.All {
+		from += ` AND t.line_id IS NULL AND NOT t.ignored`
+		total = unassigned
+	}
+	pages := newPager(r, L, "page", total, "")
+	f.Page, f.Size = pages.Page, pages.Size
+
 	var list []bankTransaction
-	unassigned := 0
-	rows, err = a.db.QueryContext(ctx, `SELECT t.id, t.booked, a.name, t.text, t.amount, COALESCE(t.line_id, 0), t.ignored, t.rule_id IS NOT NULL
-		FROM bank_transactions t JOIN bank_accounts a ON a.id = t.account_id
-		WHERE a.budget_id = ? AND YEAR(t.booked) = ?`+scope+` ORDER BY t.booked DESC, t.id`, current.ID, f.Year, f.Account, f.Account)
+	rows, err = a.db.QueryContext(ctx, `SELECT t.id, t.booked, a.name, t.text, t.amount, COALESCE(t.line_id, 0), t.ignored, t.rule_id IS NOT NULL`+
+		from+` ORDER BY t.booked DESC, t.id DESC LIMIT ? OFFSET ?`, append(args, pages.Size, pages.Offset())...)
 	if err != nil {
 		a.fail(w, err)
 		return
@@ -124,13 +145,7 @@ func (a *App) bankTransactionsPage(w http.ResponseWriter, r *http.Request) {
 			a.fail(w, err)
 			return
 		}
-		open := t.Choice() == ""
-		if open {
-			unassigned++
-		}
-		if open || f.All {
-			list = append(list, t)
-		}
+		list = append(list, t)
 	}
 	if err := rows.Err(); err != nil {
 		a.fail(w, err)
@@ -152,6 +167,7 @@ func (a *App) bankTransactionsPage(w http.ResponseWriter, r *http.Request) {
 		"Years":        years,
 		"Transactions": list,
 		"Unassigned":   unassigned,
+		"Pages":        pages,
 		"Sections":     groupLines(lines),
 		"HasYear":      hasYear,
 		"YearURL":      current.yearURL(f.Year),
@@ -191,6 +207,8 @@ func (a *App) bankTransactionsSave(w http.ResponseWriter, r *http.Request) {
 	f := bankListFilter{All: r.FormValue("show") == "all"}
 	f.Account, _ = strconv.ParseInt(r.FormValue("account"), 10, 64)
 	f.Year, _ = strconv.Atoi(r.FormValue("year"))
+	f.Page, _ = strconv.Atoi(r.FormValue("page"))
+	f.Size, _ = strconv.Atoi(r.FormValue("size"))
 
 	tx, err := a.db.BeginTx(ctx, nil)
 	if err != nil {
