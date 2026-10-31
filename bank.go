@@ -9,7 +9,6 @@ import (
 	"io/fs"
 	"net/http"
 	"net/url"
-	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -39,7 +38,10 @@ func (bankPlugin) Routes(mux *http.ServeMux, a *App) {
 	mux.HandleFunc("POST /bank/preview", a.only(roleEditor, a.bankPreview))
 	mux.HandleFunc("POST /bank/import", a.only(roleEditor, a.bankImport))
 	mux.HandleFunc("POST /bank/imports/{id}/delete", a.only(roleEditor, a.bankImportDelete))
-	mux.HandleFunc("POST /bank/transactions/{id}/delete", a.only(roleEditor, a.bankTransactionDelete))
+	mux.HandleFunc("GET /bank/transactions", a.bankTransactionsPage)
+	mux.HandleFunc("POST /bank/transactions", a.only(roleEditor, a.bankTransactionsSave))
+	mux.HandleFunc("GET /bank/rules", a.bankRulesPage)
+	mux.HandleFunc("POST /bank/rules", a.only(roleEditor, a.bankRulesSave))
 }
 
 func (bankPlugin) Nav() []NavItem { return []NavItem{{Path: "/bank", Label: "nav.bank"}} }
@@ -59,8 +61,8 @@ func (b bankAccount) FormatName() string {
 	return f.Name
 }
 
-// bankURL is the bank page of budget b with query q.
-func bankURL(b budgetRef, q url.Values) string {
+// bankURL is the plugin's page at path for budget b, with query q.
+func bankURL(path string, b budgetRef, q url.Values) string {
 	if q == nil {
 		q = url.Values{}
 	}
@@ -68,9 +70,23 @@ func bankURL(b budgetRef, q url.Values) string {
 		q.Set("budget", b.Slug)
 	}
 	if len(q) == 0 {
-		return "/bank"
+		return path
 	}
-	return "/bank?" + q.Encode()
+	return path + "?" + q.Encode()
+}
+
+type bankTab struct {
+	URL, Label string
+	Active     bool
+}
+
+// bankTabs are the plugin's pages for budget b, with active marked.
+func bankTabs(L *Locale, b budgetRef, active string) []bankTab {
+	var tabs []bankTab
+	for _, t := range []struct{ key, path string }{{"import", "/bank"}, {"transactions", "/bank/transactions"}, {"rules", "/bank/rules"}} {
+		tabs = append(tabs, bankTab{bankURL(t.path, b, nil), L.T("bank.tab_" + t.key), t.key == active})
+	}
+	return tabs
 }
 
 func (a *App) bankAccounts(ctx context.Context, budget int64) ([]bankAccount, error) {
@@ -130,15 +146,7 @@ type bankImportRow struct {
 	Left       int // of the added, those not deleted since
 }
 
-type bankTransaction struct {
-	ID      int64
-	Booked  time.Time
-	Account string
-	Text    string
-	Amount  Money
-}
-
-// bankPage lists the chosen budget's accounts, imports and one year's transactions.
+// bankPage lists the chosen budget's accounts and imports, with the form to import a file.
 func (a *App) bankPage(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	current, visible, ok, err := a.chosenBudget(r)
@@ -179,81 +187,20 @@ func (a *App) bankPage(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// The transactions are of one account, when one of the budget's is chosen, else of all.
-	var account int64
-	for _, acc := range accounts {
-		if r.FormValue("account") == strconv.FormatInt(acc.ID, 10) {
-			account = acc.ID
-		}
-	}
-	scope := ` AND (? = 0 OR t.account_id = ?)`
-
-	// The years with transactions, newest first; the newest is shown unless one is chosen.
-	var years []int
-	rows, err = a.db.QueryContext(ctx, `SELECT DISTINCT YEAR(t.booked) FROM bank_transactions t
-		JOIN bank_accounts a ON a.id = t.account_id WHERE a.budget_id = ?`+scope+` ORDER BY 1 DESC`, current.ID, account, account)
-	if err != nil {
-		a.fail(w, err)
-		return
-	}
-	defer rows.Close()
-	for rows.Next() {
-		var y int
-		if err := rows.Scan(&y); err != nil {
-			a.fail(w, err)
-			return
-		}
-		years = append(years, y)
-	}
-	if err := rows.Err(); err != nil {
-		a.fail(w, err)
-		return
-	}
-	year := time.Now().Year()
-	if len(years) > 0 {
-		year = years[0]
-	}
-	if y, err := strconv.Atoi(r.FormValue("year")); err == nil && slices.Contains(years, y) {
-		year = y
-	}
-
-	var transactions []bankTransaction
-	rows, err = a.db.QueryContext(ctx, `SELECT t.id, t.booked, a.name, t.text, t.amount
-		FROM bank_transactions t JOIN bank_accounts a ON a.id = t.account_id
-		WHERE a.budget_id = ? AND YEAR(t.booked) = ?`+scope+` ORDER BY t.booked DESC, t.id`, current.ID, year, account, account)
-	if err != nil {
-		a.fail(w, err)
-		return
-	}
-	defer rows.Close()
-	for rows.Next() {
-		var t bankTransaction
-		if err := rows.Scan(&t.ID, &t.Booked, &t.Account, &t.Text, &t.Amount); err != nil {
-			a.fail(w, err)
-			return
-		}
-		transactions = append(transactions, t)
-	}
-	if err := rows.Err(); err != nil {
-		a.fail(w, err)
-		return
-	}
-
 	added, _ := strconv.Atoi(r.FormValue("added"))
+	L := a.locale(r)
 	a.render(w, r, "bank", map[string]any{
-		"Title":        a.locale(r).T("nav.bank"),
-		"Current":      current,
-		"Budgets":      pickable(visible),
-		"Accounts":     accounts,
-		"Formats":      bankFormats,
-		"Imports":      imports,
-		"Account":      account,
-		"Years":        years,
-		"Year":         year,
-		"Transactions": transactions,
-		"Imported":     r.Form.Has("added"),
-		"Added":        added,
-		"Skipped":      r.FormValue("skipped"),
+		"Title":    L.T("nav.bank"),
+		"Tabs":     bankTabs(L, current, "import"),
+		"Current":  current,
+		"Budgets":  pickable(visible),
+		"Accounts": accounts,
+		"Formats":  bankFormats,
+		"Imports":  imports,
+		"Imported": r.Form.Has("added"),
+		"Added":    added,
+		"Skipped":  r.FormValue("skipped"),
+		"Assigned": r.FormValue("assigned"),
 	})
 }
 
@@ -276,7 +223,7 @@ func (a *App) bankAccountCreate(w http.ResponseWriter, r *http.Request) {
 		a.fail(w, err)
 		return
 	}
-	http.Redirect(w, r, bankURL(b, nil), http.StatusSeeOther)
+	http.Redirect(w, r, bankURL("/bank", b, nil), http.StatusSeeOther)
 }
 
 func (a *App) bankAccountUpdate(w http.ResponseWriter, r *http.Request) {
@@ -298,7 +245,7 @@ func (a *App) bankAccountUpdate(w http.ResponseWriter, r *http.Request) {
 		a.fail(w, err)
 		return
 	}
-	http.Redirect(w, r, bankURL(b, nil), http.StatusSeeOther)
+	http.Redirect(w, r, bankURL("/bank", b, nil), http.StatusSeeOther)
 }
 
 // bankAccountDelete deletes the account with its imports and transactions.
@@ -316,7 +263,7 @@ func (a *App) bankAccountDelete(w http.ResponseWriter, r *http.Request) {
 		a.fail(w, err)
 		return
 	}
-	http.Redirect(w, r, bankURL(b, nil), http.StatusSeeOther)
+	http.Redirect(w, r, bankURL("/bank", b, nil), http.StatusSeeOther)
 }
 
 // bankFileRows reads the file for acc and marks which rows are imported already.
@@ -391,7 +338,7 @@ func (a *App) bankPreview(w http.ResponseWriter, r *http.Request) {
 		"Title":   L.T("bank.preview"),
 		"Current": b,
 		"Account": acc,
-		"Back":    bankURL(b, nil),
+		"Back":    bankURL("/bank", b, nil),
 	}
 	rows, imported, err := a.bankFileRows(r.Context(), a.db, acc, data)
 	var pe *bankParseError
@@ -491,11 +438,17 @@ func (a *App) bankImport(w http.ResponseWriter, r *http.Request) {
 			}
 		}
 	}
+	assigned, err := applyBankRules(ctx, tx, acc.BudgetID)
+	if err != nil {
+		a.fail(w, err)
+		return
+	}
 	if err := tx.Commit(); err != nil {
 		a.fail(w, err)
 		return
 	}
-	http.Redirect(w, r, bankURL(b, url.Values{"added": {strconv.Itoa(added)}, "skipped": {strconv.Itoa(len(rows) - added)}}), http.StatusSeeOther)
+	http.Redirect(w, r, bankURL("/bank", b, url.Values{"added": {strconv.Itoa(added)}, "skipped": {strconv.Itoa(len(rows) - added)},
+		"assigned": {strconv.Itoa(assigned)}}), http.StatusSeeOther)
 }
 
 // bankImportDelete undoes an import: its transactions are deleted with it.
@@ -523,41 +476,5 @@ func (a *App) bankImportDelete(w http.ResponseWriter, r *http.Request) {
 		a.fail(w, err)
 		return
 	}
-	http.Redirect(w, r, bankURL(b, nil), http.StatusSeeOther)
-}
-
-// bankTransactionDelete deletes one transaction. A file that has it is
-// imported again in full, so it comes back with the next such import.
-func (a *App) bankTransactionDelete(w http.ResponseWriter, r *http.Request) {
-	var account int64
-	err := a.db.QueryRowContext(r.Context(), `SELECT account_id FROM bank_transactions WHERE id = ?`, r.PathValue("id")).Scan(&account)
-	if errors.Is(err, sql.ErrNoRows) {
-		http.NotFound(w, r)
-		return
-	}
-	if err != nil {
-		a.fail(w, err)
-		return
-	}
-	acc, b, ok, err := a.bankAccountFor(r, strconv.FormatInt(account, 10))
-	if err != nil {
-		a.fail(w, err)
-		return
-	}
-	if !ok {
-		http.NotFound(w, r)
-		return
-	}
-	if _, err := a.db.ExecContext(r.Context(), `DELETE FROM bank_transactions WHERE id = ? AND account_id = ?`, r.PathValue("id"), acc.ID); err != nil {
-		a.fail(w, err)
-		return
-	}
-	// Back to the list as it was: the same year and account.
-	q := url.Values{}
-	for _, k := range []string{"year", "account"} {
-		if v := r.FormValue(k); v != "" {
-			q.Set(k, v)
-		}
-	}
-	http.Redirect(w, r, bankURL(b, q)+"#transactions", http.StatusSeeOther)
+	http.Redirect(w, r, bankURL("/bank", b, nil), http.StatusSeeOther)
 }

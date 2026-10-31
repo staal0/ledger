@@ -1,0 +1,64 @@
+{{define "content"}}{{$L := .L}}{{$budget := ""}}{{if not .Current.IsDefault}}{{$budget = .Current.Slug}}{{end}}
+<h1>{{.Title}}</h1>
+{{template "tabs" .Tabs}}
+
+{{if .Budgets}}
+<form class="filters" action="/bank/rules">
+  {{- template "budget-picker" .}}
+  <noscript><button class="secondary">{{$L.T "budget.go"}}</button></noscript>
+</form>
+{{end}}
+
+{{with .Error}}<p class="notice" role="alert">{{$L.T (print "bank.rule_err_" .)}}</p>{{end}}
+
+<section class="card wide bank-list">
+  <p class="hint">{{$L.T "bank.rules_hint"}}</p>
+  <div class="hint">{{$L.T "bank.rules_tips"}}
+    <ul class="tips">
+      <li>{{$L.T "bank.rules_tip_contains"}}</li>
+      <li>{{$L.T "bank.rules_tip_star"}}</li>
+      <li>{{$L.T "bank.rules_tip_keep"}}</li>
+    </ul>
+  </div>
+  <form method="post" action="/bank/rules">
+    {{with $budget}}<input type="hidden" name="budget" value="{{.}}">{{end}}
+    {{if .User.CanEdit}}<p><button name="action" value="save">{{$L.T "save"}}</button></p>{{end}}
+    <div class="scroll">
+    <table class="manage-table bank-table">
+      <tr class="head"><th>{{$L.T "bank.rule_text"}}</th><th>{{$L.T "bank.budget_line"}}</th><th class="num">{{$L.T "bank.rule_assigned"}}</th>{{if .User.CanEdit}}<th></th>{{end}}</tr>
+      {{range .Rules}}
+      <tr>
+        {{if $.User.CanEdit}}
+        <td><input class="rule-pattern" name="pattern_{{.ID}}" value="{{.Pattern}}" required maxlength="255" aria-label="{{$L.T "bank.rule_text"}}"></td>
+        <td><select name="target_{{.ID}}" aria-label="{{$L.T "bank.budget_line"}}" autocomplete="off">
+          {{if and (not .Ignored) (not (index $.Known .Target))}}<option value="{{.Target}}" selected>{{.LineName}} ({{$L.T "bank.rule_missing_line"}})</option>{{end}}
+          {{template "bank-rule-target" (index $.Pickers .ID)}}
+        </select></td>
+        {{else}}
+        <td>{{.Pattern}}</td><td>{{if .Ignored}}{{$L.T "bank.ignore"}}{{else}}{{$L.T (print "section." .Section)}} › {{.LineName}}{{end}}</td>
+        {{end}}
+        <td class="num">{{.Assigned}}</td>
+        {{if $.User.CanEdit}}<td><button class="icon" name="action" value="delete:{{.ID}}" title="{{$L.T "bank.rule_delete"}}" aria-label="{{$L.T "bank.rule_delete"}}" data-confirm="{{$L.T "bank.rule_delete_confirm" .Pattern .Assigned}}">×</button></td>{{end}}
+      </tr>
+      {{else}}
+      <tr><td colspan="4" class="hint">{{$L.T "bank.no_rules"}}</td></tr>
+      {{end}}
+      {{if .User.CanEdit}}
+      <tr>
+        <td><input class="rule-pattern" name="new_pattern" maxlength="255" placeholder="{{$L.T "bank.rule_new"}}" aria-label="{{$L.T "bank.rule_new"}}"></td>
+        <td><select name="new_target" aria-label="{{$L.T "bank.budget_line"}}" autocomplete="off"><option value="">–</option>{{template "bank-rule-target" .NewPicker}}</select></td>
+        <td></td><td></td>
+      </tr>
+      {{end}}
+    </table>
+    </div>
+    {{if .User.CanEdit}}<p><button name="action" value="save">{{$L.T "save"}}</button></p>{{end}}
+  </form>
+</section>
+{{end}}
+
+{{/* The choices of a rule: Ignore or a line by name, with .Target selected. */}}
+{{define "bank-rule-target"}}{{$t := .Target}}{{$L := .L}}
+<option value="ignore"{{if eq $t "ignore"}} selected{{end}}>{{$L.T "bank.ignore"}}</option>
+{{range .Sections}}<optgroup label="{{$L.T (print "section." .Key)}}">{{range .Lines}}<option value="{{.Target}}"{{if eq $t .Target}} selected{{end}}>{{.Name}}</option>{{end}}</optgroup>{{end}}
+{{- end}}

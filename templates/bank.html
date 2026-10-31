@@ -1,5 +1,6 @@
 {{define "content"}}{{$L := .L}}{{$budget := ""}}{{if not .Current.IsDefault}}{{$budget = .Current.Slug}}{{end}}
 <h1>{{.Title}}</h1>
+{{template "tabs" .Tabs}}
 
 {{if .Budgets}}
 <form class="filters" action="/bank">
@@ -8,7 +9,7 @@
 </form>
 {{end}}
 
-{{if .Imported}}<p class="notice ok" role="status">{{$L.T "bank.imported" .Added .Skipped}}</p>{{end}}
+{{if .Imported}}<p class="notice ok" role="status">{{$L.T "bank.imported" .Added .Skipped}}{{with .Assigned}}{{if ne . "0"}} {{$L.T "bank.imported_assigned" .}}{{end}}{{end}}</p>{{end}}
 
 <section class="card wide">
   <h2>{{$L.T "bank.accounts"}}</h2>
@@ -24,7 +25,7 @@
       <button class="secondary" data-confirm="{{$L.T "bank.delete_account_confirm" .Name .Transactions}}">{{$L.T "bank.delete_account"}}</button>
     </form>
     {{else}}<strong>{{.Name}}</strong>{{if gt (len $.Formats) 1}} <span class="hint">{{.FormatName}}</span>{{end}}{{end}}
-    <a class="hint" href="?{{with $budget}}budget={{.}}&amp;{{end}}account={{.ID}}#transactions">{{$L.T "bank.transactions_count" .Transactions}}</a>
+    <a class="hint" href="/bank/transactions?{{with $budget}}budget={{.}}&amp;{{end}}account={{.ID}}&amp;show=all">{{$L.T "bank.transactions_count" .Transactions}}</a>
   </div>
   {{else}}
   <p class="hint">{{$L.T "bank.no_accounts"}}</p>
@@ -68,42 +69,5 @@
 </section>
 {{end}}
 
-<section class="card wide" id="transactions">
-  <h2>{{$L.T "bank.transactions"}}</h2>
-  {{if .Accounts}}
-  <form class="filters" action="/bank#transactions">
-    {{with $budget}}<input type="hidden" name="budget" value="{{.}}">{{end}}
-    {{if gt (len .Accounts) 1}}
-    <label>{{$L.T "bank.account"}}
-      <select name="account" data-autosubmit autocomplete="off">
-        <option value="">{{$L.T "bank.all_accounts"}}</option>
-        {{range .Accounts}}<option value="{{.ID}}"{{if eq .ID $.Account}} selected{{end}}>{{.Name}}</option>{{end}}
-      </select>
-    </label>
-    {{end}}
-    {{if .Years}}<label>{{$L.T "budget.year"}}
-      <select name="year" data-autosubmit autocomplete="off">{{range .Years}}<option{{if eq . $.Year}} selected{{end}}>{{.}}</option>{{end}}</select>
-    </label>{{end}}
-    <noscript><button class="secondary">{{$L.T "budget.go"}}</button></noscript>
-  </form>
-  {{end}}
-  {{if .Transactions}}
-  <div class="scroll">
-  <table class="manage-table bank-table">
-    {{$all := and (not .Account) (gt (len .Accounts) 1)}}
-    <tr class="head"><th>{{$L.T "bank.date"}}</th>{{if $all}}<th>{{$L.T "bank.account"}}</th>{{end}}<th>{{$L.T "bank.text"}}</th><th class="num">{{$L.T "bank.amount"}}</th>{{if $.User.CanEdit}}<th></th>{{end}}</tr>
-    {{range .Transactions}}
-    <tr><td>{{.Booked.Format "2006-01-02"}}</td>{{if $all}}<td>{{.Account}}</td>{{end}}<td>{{.Text}}</td><td class="num{{if lt .Amount 0}} neg{{else}} pos{{end}}">{{$L.Money .Amount}}</td>
-      {{if $.User.CanEdit}}<td><form method="post" action="/bank/transactions/{{.ID}}/delete" class="inline">
-        <input type="hidden" name="year" value="{{$.Year}}">{{with $.Account}}<input type="hidden" name="account" value="{{.}}">{{end}}
-        <button class="icon" title="{{$L.T "bank.delete_transaction"}}" aria-label="{{$L.T "bank.delete_transaction"}}" data-confirm="{{$L.T "bank.delete_transaction_confirm" .Text ($L.Money .Amount)}}">×</button>
-      </form></td>{{end}}</tr>
-    {{end}}
-  </table>
-  </div>
-  {{else}}
-  <p class="hint">{{$L.T "bank.no_transactions"}}</p>
-  {{end}}
-</section>
 {{end}}
 

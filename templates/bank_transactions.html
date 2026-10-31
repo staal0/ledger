@@ -1,0 +1,79 @@
+{{define "content"}}{{$L := .L}}{{$f := .Filter}}{{$budget := ""}}{{if not .Current.IsDefault}}{{$budget = .Current.Slug}}{{end}}
+<h1>{{.Title}}</h1>
+{{template "tabs" .Tabs}}
+
+{{if .Accounts}}
+<form class="filters" action="/bank/transactions">
+  {{- template "budget-picker" .}}
+  {{if gt (len .Accounts) 1}}
+  <label>{{$L.T "bank.account"}}
+    <select name="account" data-autosubmit autocomplete="off">
+      <option value="">{{$L.T "bank.all_accounts"}}</option>
+      {{range .Accounts}}<option value="{{.ID}}"{{if eq .ID $f.Account}} selected{{end}}>{{.Name}}</option>{{end}}
+    </select>
+  </label>
+  {{end}}
+  {{if .Years}}<label>{{$L.T "budget.year"}}
+    <select name="year" data-autosubmit autocomplete="off">{{range .Years}}<option{{if eq . $f.Year}} selected{{end}}>{{.}}</option>{{end}}</select>
+  </label>{{end}}
+  <label>{{$L.T "bank.show"}}
+    <select name="show" data-autosubmit autocomplete="off">
+      <option value="">{{$L.T "bank.show_unassigned"}}</option>
+      <option value="all"{{if $f.All}} selected{{end}}>{{$L.T "bank.show_all"}}</option>
+    </select>
+  </label>
+  <noscript><button class="secondary">{{$L.T "budget.go"}}</button></noscript>
+</form>
+{{end}}
+
+<section class="card wide bank-list">
+  {{if not .Years}}
+  <p class="hint">{{$L.T "bank.no_transactions"}}</p>
+  {{else}}
+  <p>{{if .Unassigned}}{{$L.T "bank.unassigned_count" .Unassigned $f.Year}}{{else}}{{$L.T "bank.all_assigned" $f.Year}}{{end}}</p>
+  {{if not .HasYear}}<p class="notice" role="alert">{{$L.T "bank.no_budget_year" $f.Year}} <a href="{{.YearURL}}">{{$L.T "bank.open_year" $f.Year}}</a></p>{{end}}
+  {{if .Transactions}}
+  <form method="post" action="/bank/transactions">
+    {{with $budget}}<input type="hidden" name="budget" value="{{.}}">{{end}}
+    <input type="hidden" name="year" value="{{$f.Year}}">
+    {{with $f.Account}}<input type="hidden" name="account" value="{{.}}">{{end}}
+    {{if $f.All}}<input type="hidden" name="show" value="all">{{end}}
+    {{/* First, so that Enter in the form saves rather than deleting the first row. */}}
+    {{if $.User.CanEdit}}<p><button name="action" value="save">{{$L.T "save"}}</button></p>{{end}}
+    <div class="scroll">
+    <table class="manage-table bank-table">
+      {{$all := and (not $f.Account) (gt (len .Accounts) 1)}}
+      <tr class="head">
+        <th>{{$L.T "bank.date"}}</th>{{if $all}}<th>{{$L.T "bank.account"}}</th>{{end}}<th>{{$L.T "bank.text"}}</th><th class="num">{{$L.T "bank.amount"}}</th>
+        <th>{{$L.T "bank.budget_line"}}</th>{{if $.User.CanEdit}}<th title="{{$L.T "bank.remember_hint"}}">{{$L.T "bank.remember"}}</th><th></th>{{end}}
+      </tr>
+      {{range .Transactions}}{{$choice := .Choice}}
+      <tr>
+        <td>{{.Booked.Format "2006-01-02"}}</td>{{if $all}}<td>{{.Account}}</td>{{end}}
+        <td class="text">{{.Text}}{{if .ByRule}} <span class="hint" title="{{$L.T "bank.by_rule_hint"}}">· {{$L.T "bank.by_rule"}}</span>{{end}}</td>
+        <td class="num{{if lt .Amount 0}} neg{{else}} pos{{end}}">{{$L.Money .Amount}}</td>
+        <td>
+          <input type="hidden" name="t" value="{{.ID}}">
+          <select name="line_{{.ID}}" aria-label="{{$L.T "bank.budget_line"}}" autocomplete="off"{{if not $.User.CanEdit}} disabled{{end}}>
+            <option value="">–</option>
+            <option value="ignore"{{if eq $choice "ignore"}} selected{{end}}>{{$L.T "bank.ignore"}}</option>
+            {{range $.Sections}}<optgroup label="{{$L.T (print "section." .Key)}}">{{range .Lines}}<option value="{{.ID}}"{{if eq $choice (print .ID)}} selected{{end}}>{{.Name}}</option>{{end}}</optgroup>{{end}}
+          </select>
+        </td>
+        {{if $.User.CanEdit}}
+        <td><input type="checkbox" name="remember_{{.ID}}" value="1" checked autocomplete="off" aria-label="{{$L.T "bank.remember"}}" title="{{$L.T "bank.remember_hint"}}"></td>
+        <td><button class="icon" name="action" value="delete:{{.ID}}" title="{{$L.T "bank.delete_transaction"}}" aria-label="{{$L.T "bank.delete_transaction"}}" data-confirm="{{$L.T "bank.delete_transaction_confirm" .Text ($L.Money .Amount)}}">×</button></td>
+        {{end}}
+      </tr>
+      {{end}}
+    </table>
+    </div>
+    {{if $.User.CanEdit}}
+    <p><button name="action" value="save">{{$L.T "save"}}</button></p>
+    <p class="hint">{{$L.T "bank.assign_hint"}}</p>
+    {{end}}
+  </form>
+  {{end}}
+  {{end}}
+</section>
+{{end}}
