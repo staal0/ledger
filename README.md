@@ -22,7 +22,7 @@ Ledger is one Go binary with three dependencies (MySQL driver, go-oidc, x/oauth2
 - Login with OIDC, e.g. passkeys via [Pocket ID](https://pocket-id.org), or local mode without login for trying it out
 - English and Danish, chosen per user or taken from the browser; new languages are JSON files
 - Per-user settings for language, money format (`1.234,56` or `1,234.56`), light/dark theme, start budget and the statistics' default years and changes
-- Plugins, such as the bank import, see `internal/app/plugin.go`; they are off until an admin turns them on under Manage
+- Plugins, see `internal/app/plugin.go`; they are off until an admin turns them on under Manage
 
 ## Try it
 
