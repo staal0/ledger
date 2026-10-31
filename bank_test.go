@@ -87,7 +87,7 @@ func TestBankImport(t *testing.T) {
 		t.Fatalf("%d transactions after the overlapping import, want 7", n)
 	}
 	page = html.UnescapeString(request(a, "GET", "/bank", nil, "").Body.String())
-	for _, want := range []string{"Overførsel til lån 1111222233", "-1,234.50", "31,000"} {
+	for _, want := range []string{"<title>CSV import", "Overførsel til lån 1111222233", "-1,234.50", "31,000"} {
 		if !strings.Contains(page, want) {
 			t.Errorf("bank page lacks %q", want)
 		}

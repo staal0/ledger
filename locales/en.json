@@ -194,7 +194,7 @@
   "manage.keep_hint": "When a field changes again, its oldest changes beyond this number are removed. 0 keeps no history.",
   "settings.lang_hint": "To add a language, copy locales/en.json to a new file such as de.json in LEDGER_LOCALES_DIR, translate it and restart.",
 
-  "nav.bank": "Bank",
+  "nav.bank": "CSV import",
   "bank.accounts": "Bank accounts",
   "bank.account": "Account",
   "bank.account_name": "Account name",
