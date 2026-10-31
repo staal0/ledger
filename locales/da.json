@@ -242,5 +242,10 @@
   "bank.err_no_file": "Vælg en fil.",
   "bank.all_accounts": "Alle konti",
   "bank.delete_transaction": "Slet postering",
-  "bank.delete_transaction_confirm": "Slet %s (%s)? Den kommer igen, hvis en fil med den importeres igen."
+  "bank.delete_transaction_confirm": "Slet %s (%s)? Den kommer igen, hvis en fil med den importeres igen.",
+
+  "manage.plugins": "Plugins",
+  "manage.plugins_hint": "Et plugin, der er slået fra, er skjult i menuen og dets sider for alle. Dets data bevares.",
+  "plugin.bank": "CSV-import",
+  "plugin.bank.about": "Bankkonti pr. budget med posteringer importeret fra bankens CSV-eksport."
 }

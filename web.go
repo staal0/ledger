@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"context"
 	"crypto/sha256"
 	"encoding/hex"
 	"html/template"
@@ -69,7 +70,7 @@ func (a *App) render(w http.ResponseWriter, r *http.Request, page string, data m
 	data["L"] = a.locale(r)
 	data["User"] = currentUser(r)
 	data["Path"] = r.URL.Path
-	data["Nav"] = a.nav(currentUser(r))
+	data["Nav"] = a.nav(r.Context(), currentUser(r))
 	data["LoginEnabled"] = a.loginEnabled()
 	var buf bytes.Buffer
 	if err := a.pages[page].ExecuteTemplate(&buf, "layout", data); err != nil {
@@ -80,10 +81,17 @@ func (a *App) render(w http.ResponseWriter, r *http.Request, page string, data m
 	buf.WriteTo(w)
 }
 
-func (a *App) nav(u *User) []NavItem {
+// nav is the menu for u: the core's entries and those of the plugins that are on.
+func (a *App) nav(ctx context.Context, u *User) []NavItem {
 	all := append([]NavItem{}, coreNav...)
 	for _, p := range plugins {
-		all = append(all, p.Nav()...)
+		on, err := a.pluginOn(ctx, p.ID())
+		if err != nil {
+			log.Print(err) // the page itself still works without the plugin's entries
+		}
+		if on {
+			all = append(all, p.Nav()...)
+		}
 	}
 	var nav []NavItem
 	for _, item := range all {
