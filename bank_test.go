@@ -17,13 +17,19 @@ func uploadBank(t *testing.T, a *App, account, data string) *httptest.ResponseRe
 	t.Helper()
 	var body bytes.Buffer
 	m := multipart.NewWriter(&body)
-	m.WriteField("account", account)
+	if err := m.WriteField("account", account); err != nil {
+		t.Fatal(err)
+	}
 	f, err := m.CreateFormFile("file", "export.csv")
 	if err != nil {
 		t.Fatal(err)
 	}
-	f.Write([]byte(data))
-	m.Close()
+	if _, err := f.Write([]byte(data)); err != nil {
+		t.Fatal(err)
+	}
+	if err := m.Close(); err != nil {
+		t.Fatal(err)
+	}
 	r := httptest.NewRequest("POST", "/bank/preview", &body)
 	r.Header.Set("Content-Type", m.FormDataContentType())
 	r.Header.Set("Accept-Language", "en")

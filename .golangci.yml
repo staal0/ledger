@@ -12,6 +12,7 @@ linters:
         - (*database/sql.DB).Close
         - (*database/sql.Conn).Close
         - (io.ReadCloser).Close
+        - (mime/multipart.File).Close
         - (*database/sql.Tx).Rollback
         - (*bytes.Buffer).WriteTo
         - fmt.Fprint
