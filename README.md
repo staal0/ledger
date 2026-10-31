@@ -8,7 +8,7 @@
 
 Ledger is one Go binary with three dependencies (MySQL driver, go-oidc, x/oauth2) and no frontend build step.
 
-How to use it, with screenshots, is in the [user guide](https://github.com/staal0/ledger/wiki). This README covers running and configuring it.
+How to use it is in the [user guide](https://github.com/staal0/ledger/wiki). This README covers running and configuring it.
 
 ## Features
 
