@@ -3,3 +3,6 @@ Budget/
 
 /ledger
 .env
+
+# Bank exports used for local testing; never commit real bank data
+/*.csv

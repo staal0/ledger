@@ -49,7 +49,7 @@ func testApp(t *testing.T, login bool) *App {
 	if testDBErr != nil {
 		t.Fatal(testDBErr)
 	}
-	for _, q := range []string{"DELETE FROM budget_years", "DELETE FROM budgets WHERE NOT is_default", "DELETE FROM sessions", "DELETE FROM settings", "DELETE FROM users"} {
+	for _, q := range []string{"DELETE FROM bank_accounts", "DELETE FROM budget_years", "DELETE FROM budgets WHERE NOT is_default", "DELETE FROM sessions", "DELETE FROM settings", "DELETE FROM users"} {
 		exec(t, q)
 	}
 
@@ -174,9 +174,16 @@ func dropAll(ctx context.Context) error {
 		return err
 	}
 	defer conn.Close()
-	for _, q := range []string{"SET FOREIGN_KEY_CHECKS = 0", `DROP TABLE IF EXISTS budget_history, budget_amounts, budget_lines,
-		budget_members, budget_groups, user_groups, budget_years, budgets, sessions, settings, users, schema_migrations`,
-		"SET FOREIGN_KEY_CHECKS = 1"} {
+	// Every table, so that the plugins' tables go too.
+	var tables sql.NullString
+	if err := conn.QueryRowContext(ctx, `SELECT GROUP_CONCAT(CONCAT('`+"`"+`', table_name, '`+"`"+`'))
+		FROM information_schema.tables WHERE table_schema = DATABASE()`).Scan(&tables); err != nil {
+		return err
+	}
+	if !tables.Valid {
+		return nil
+	}
+	for _, q := range []string{"SET FOREIGN_KEY_CHECKS = 0", "DROP TABLE IF EXISTS " + tables.String, "SET FOREIGN_KEY_CHECKS = 1"} {
 		if _, err := conn.ExecContext(ctx, q); err != nil {
 			return err
 		}
