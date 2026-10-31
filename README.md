@@ -8,6 +8,8 @@
 
 Ledger is one Go binary with three dependencies (MySQL driver, go-oidc, x/oauth2) and no frontend build step.
 
+How to use it is in the [user guide](https://github.com/staal0/ledger/wiki). This README covers running and configuring it.
+
 ## Features
 
 - A yearly budget grid with income, expenses, the disposable amount and allocation, by month, with totals that update as you type
