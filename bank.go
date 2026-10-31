@@ -39,6 +39,7 @@ func (bankPlugin) Routes(mux *http.ServeMux, a *App) {
 	mux.HandleFunc("POST /bank/preview", a.only(roleEditor, a.bankPreview))
 	mux.HandleFunc("POST /bank/import", a.only(roleEditor, a.bankImport))
 	mux.HandleFunc("POST /bank/imports/{id}/delete", a.only(roleEditor, a.bankImportDelete))
+	mux.HandleFunc("POST /bank/transactions/{id}/delete", a.only(roleEditor, a.bankTransactionDelete))
 }
 
 func (bankPlugin) Nav() []NavItem { return []NavItem{{Path: "/bank", Label: "nav.bank"}} }
@@ -126,9 +127,11 @@ type bankImportRow struct {
 	ImportedAt time.Time
 	Added      int
 	Skipped    int
+	Left       int // of the added, those not deleted since
 }
 
 type bankTransaction struct {
+	ID      int64
 	Booked  time.Time
 	Account string
 	Text    string
@@ -154,7 +157,8 @@ func (a *App) bankPage(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var imports []bankImportRow
-	rows, err := a.db.QueryContext(ctx, `SELECT i.id, a.name, COALESCE(u.name, ''), i.imported_at, i.added, i.skipped
+	rows, err := a.db.QueryContext(ctx, `SELECT i.id, a.name, COALESCE(u.name, ''), i.imported_at, i.added, i.skipped,
+			(SELECT COUNT(*) FROM bank_transactions t WHERE t.import_id = i.id)
 		FROM bank_imports i JOIN bank_accounts a ON a.id = i.account_id LEFT JOIN users u ON u.id = i.user_id
 		WHERE a.budget_id = ? ORDER BY i.id DESC LIMIT 20`, current.ID)
 	if err != nil {
@@ -164,7 +168,7 @@ func (a *App) bankPage(w http.ResponseWriter, r *http.Request) {
 	defer rows.Close()
 	for rows.Next() {
 		var i bankImportRow
-		if err := rows.Scan(&i.ID, &i.Account, &i.User, &i.ImportedAt, &i.Added, &i.Skipped); err != nil {
+		if err := rows.Scan(&i.ID, &i.Account, &i.User, &i.ImportedAt, &i.Added, &i.Skipped, &i.Left); err != nil {
 			a.fail(w, err)
 			return
 		}
@@ -214,7 +218,7 @@ func (a *App) bankPage(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var transactions []bankTransaction
-	rows, err = a.db.QueryContext(ctx, `SELECT t.booked, a.name, t.text, t.amount
+	rows, err = a.db.QueryContext(ctx, `SELECT t.id, t.booked, a.name, t.text, t.amount
 		FROM bank_transactions t JOIN bank_accounts a ON a.id = t.account_id
 		WHERE a.budget_id = ? AND YEAR(t.booked) = ?`+scope+` ORDER BY t.booked DESC, t.id`, current.ID, year, account, account)
 	if err != nil {
@@ -224,7 +228,7 @@ func (a *App) bankPage(w http.ResponseWriter, r *http.Request) {
 	defer rows.Close()
 	for rows.Next() {
 		var t bankTransaction
-		if err := rows.Scan(&t.Booked, &t.Account, &t.Text, &t.Amount); err != nil {
+		if err := rows.Scan(&t.ID, &t.Booked, &t.Account, &t.Text, &t.Amount); err != nil {
 			a.fail(w, err)
 			return
 		}
@@ -520,4 +524,40 @@ func (a *App) bankImportDelete(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	http.Redirect(w, r, bankURL(b, nil), http.StatusSeeOther)
+}
+
+// bankTransactionDelete deletes one transaction. A file that has it is
+// imported again in full, so it comes back with the next such import.
+func (a *App) bankTransactionDelete(w http.ResponseWriter, r *http.Request) {
+	var account int64
+	err := a.db.QueryRowContext(r.Context(), `SELECT account_id FROM bank_transactions WHERE id = ?`, r.PathValue("id")).Scan(&account)
+	if errors.Is(err, sql.ErrNoRows) {
+		http.NotFound(w, r)
+		return
+	}
+	if err != nil {
+		a.fail(w, err)
+		return
+	}
+	acc, b, ok, err := a.bankAccountFor(r, strconv.FormatInt(account, 10))
+	if err != nil {
+		a.fail(w, err)
+		return
+	}
+	if !ok {
+		http.NotFound(w, r)
+		return
+	}
+	if _, err := a.db.ExecContext(r.Context(), `DELETE FROM bank_transactions WHERE id = ? AND account_id = ?`, r.PathValue("id"), acc.ID); err != nil {
+		a.fail(w, err)
+		return
+	}
+	// Back to the list as it was: the same year and account.
+	q := url.Values{}
+	for _, k := range []string{"year", "account"} {
+		if v := r.FormValue(k); v != "" {
+			q.Set(k, v)
+		}
+	}
+	http.Redirect(w, r, bankURL(b, q)+"#transactions", http.StatusSeeOther)
 }

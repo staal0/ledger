@@ -240,5 +240,7 @@
   "bank.err_fits": "Filen passer til:",
   "bank.err_too_large": "Filen er for stor.",
   "bank.err_no_file": "Vælg en fil.",
-  "bank.all_accounts": "Alle konti"
+  "bank.all_accounts": "Alle konti",
+  "bank.delete_transaction": "Slet postering",
+  "bank.delete_transaction_confirm": "Slet %s (%s)? Den kommer igen, hvis en fil med den importeres igen."
 }

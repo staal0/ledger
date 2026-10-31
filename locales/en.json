@@ -240,5 +240,7 @@
   "bank.err_fits": "The file does fit:",
   "bank.err_too_large": "The file is too large.",
   "bank.err_no_file": "Choose a file.",
-  "bank.all_accounts": "All accounts"
+  "bank.all_accounts": "All accounts",
+  "bank.delete_transaction": "Delete transaction",
+  "bank.delete_transaction_confirm": "Delete %s (%s)? It comes back if a file with it is imported again."
 }

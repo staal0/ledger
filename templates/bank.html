@@ -60,7 +60,7 @@
     {{range .Imports}}
     <tr>
       <td>{{.ImportedAt.Format "2006-01-02 15:04"}}</td><td>{{.Account}}</td><td>{{.User}}</td><td class="num">{{.Added}}</td><td class="num">{{.Skipped}}</td>
-      <td>{{if $.User.CanEdit}}<form method="post" action="/bank/imports/{{.ID}}/delete" class="inline"><button class="secondary" data-confirm="{{$L.T "bank.undo_confirm" .Added}}">{{$L.T "bank.undo"}}</button></form>{{end}}</td>
+      <td>{{if $.User.CanEdit}}<form method="post" action="/bank/imports/{{.ID}}/delete" class="inline"><button class="secondary" data-confirm="{{$L.T "bank.undo_confirm" .Left}}">{{$L.T "bank.undo"}}</button></form>{{end}}</td>
     </tr>
     {{end}}
   </table>
@@ -91,9 +91,13 @@
   <div class="scroll">
   <table class="manage-table bank-table">
     {{$all := and (not .Account) (gt (len .Accounts) 1)}}
-    <tr class="head"><th>{{$L.T "bank.date"}}</th>{{if $all}}<th>{{$L.T "bank.account"}}</th>{{end}}<th>{{$L.T "bank.text"}}</th><th class="num">{{$L.T "bank.amount"}}</th></tr>
+    <tr class="head"><th>{{$L.T "bank.date"}}</th>{{if $all}}<th>{{$L.T "bank.account"}}</th>{{end}}<th>{{$L.T "bank.text"}}</th><th class="num">{{$L.T "bank.amount"}}</th>{{if $.User.CanEdit}}<th></th>{{end}}</tr>
     {{range .Transactions}}
-    <tr><td>{{.Booked.Format "2006-01-02"}}</td>{{if $all}}<td>{{.Account}}</td>{{end}}<td>{{.Text}}</td><td class="num{{if lt .Amount 0}} neg{{else}} pos{{end}}">{{$L.Money .Amount}}</td></tr>
+    <tr><td>{{.Booked.Format "2006-01-02"}}</td>{{if $all}}<td>{{.Account}}</td>{{end}}<td>{{.Text}}</td><td class="num{{if lt .Amount 0}} neg{{else}} pos{{end}}">{{$L.Money .Amount}}</td>
+      {{if $.User.CanEdit}}<td><form method="post" action="/bank/transactions/{{.ID}}/delete" class="inline">
+        <input type="hidden" name="year" value="{{$.Year}}">{{with $.Account}}<input type="hidden" name="account" value="{{.}}">{{end}}
+        <button class="icon" title="{{$L.T "bank.delete_transaction"}}" aria-label="{{$L.T "bank.delete_transaction"}}" data-confirm="{{$L.T "bank.delete_transaction_confirm" .Text ($L.Money .Amount)}}">×</button>
+      </form></td>{{end}}</tr>
     {{end}}
   </table>
   </div>
