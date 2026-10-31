@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="static/logo.svg" width="96" height="96" alt="Ledger logo">
+  <img src="internal/app/static/logo.svg" width="96" height="96" alt="Ledger logo">
 </p>
 
 <h1 align="center">Ledger</h1>
@@ -22,7 +22,7 @@ Ledger is one Go binary with three dependencies (MySQL driver, go-oidc, x/oauth2
 - Login with OIDC, e.g. passkeys via [Pocket ID](https://pocket-id.org), or local mode without login for trying it out
 - English and Danish, chosen per user or taken from the browser; new languages are JSON files
 - Per-user settings for language, money format (`1.234,56` or `1,234.56`), light/dark theme, start budget and the statistics' default years and changes
-- Room for plugins (pension, investments, …), see `plugin.go`; they are off until an admin turns them on under Manage
+- Room for plugins (pension, investments, …), see `internal/app/plugin.go`; they are off until an admin turns them on under Manage
 
 ## Try it
 
@@ -109,14 +109,23 @@ go build && LEDGER_DB_DSN=... OIDC_ISSUER=... OIDC_CLIENT_ID=... ./ledger
 
 ## Languages
 
-Each language is a `locales/<code>.json` file. To add one, copy `locales/en.json` to e.g. `de.json`, translate it,
-and either put it in `locales/` (compiled in) or in `LEDGER_LOCALES_DIR`. Missing keys fall back to English.
+Each language is a `<code>.json` file in `internal/app/locales/`, and each plugin has its own texts in its `locales/`.
+To add a language, copy the `en.json` files to e.g. `de.json` and translate them, either in place (compiled in) or
+merged into one file in `LEDGER_LOCALES_DIR`. Missing keys fall back to English.
 `_decimal` and `_thousands` control number formatting.
+
+## Code layout
+
+- `main.go` starts the app and imports the plugins compiled in.
+- `internal/app/` is the core: budgets, statistics, management, login, with its templates, texts, migrations and static files.
+- `plugins/<name>/` is a plugin, with its own templates, texts and migrations.
 
 ## Plugins
 
-A plugin implements the `Plugin` interface in `plugin.go` and calls `register` from `init()`.
-It can add migrations (tracked per plugin), routes behind login and menu entries.
+A plugin is a package in `plugins/` that implements the `Plugin` interface in `internal/app/plugin.go`, calls
+`app.Register` from `init()` and is imported in `main.go`. It can add migrations (tracked per plugin), pages
+parsed with the core's layout, texts, routes behind login and menu entries. `testsupport.go` has the helpers
+for its database tests.
 
 ## Tests
 
