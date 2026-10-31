@@ -87,7 +87,7 @@ func TestBankImport(t *testing.T) {
 	if n := queryInt(t, "SELECT COUNT(*) FROM bank_transactions"); n != 7 {
 		t.Fatalf("%d transactions after the overlapping import, want 7", n)
 	}
-	page = html.UnescapeString(request(a, "GET", "/bank", nil, "").Body.String())
+	page = html.UnescapeString(request(a, "GET", "/bank/transactions?show=all", nil, "").Body.String())
 	for _, want := range []string{"<title>CSV import", "Overførsel til lån 1111222233", "-1,234.50", "31,000"} {
 		if !strings.Contains(page, want) {
 			t.Errorf("bank page lacks %q", want)
@@ -98,11 +98,11 @@ func TestBankImport(t *testing.T) {
 	mustStatus(t, request(a, "POST", "/bank/accounts", url.Values{"name": {"Savings"}, "format": {"laanspar"}}, ""), 303)
 	savings := strconv.FormatInt(queryInt(t, "SELECT id FROM bank_accounts WHERE name = 'Savings'"), 10)
 	previewAndImport(t, a, savings, "15-06-2030;Renter;12,34;DKK;\r\n")
-	page = html.UnescapeString(request(a, "GET", "/bank?account="+savings+"&year=2031", nil, "").Body.String())
+	page = html.UnescapeString(request(a, "GET", "/bank/transactions?show=all&account="+savings+"&year=2031", nil, "").Body.String())
 	if !strings.Contains(page, "Renter") || strings.Contains(page, "Bager Hansen") {
 		t.Errorf("the savings account shows other transactions, or not its own in its only year")
 	}
-	page = html.UnescapeString(request(a, "GET", "/bank?account="+account, nil, "").Body.String())
+	page = html.UnescapeString(request(a, "GET", "/bank/transactions?show=all&account="+account, nil, "").Body.String())
 	if strings.Contains(page, "Renter") || !strings.Contains(page, "Bager Hansen") {
 		t.Errorf("the budget account shows the savings account's transactions")
 	}
@@ -117,7 +117,7 @@ func TestBankImport(t *testing.T) {
 
 	// One transaction can be deleted; importing a file with it brings it back.
 	salary := strconv.FormatInt(queryInt(t, "SELECT id FROM bank_transactions WHERE text = 'Løn'"), 10)
-	mustStatus(t, request(a, "POST", "/bank/transactions/"+salary+"/delete", url.Values{"year": {"2031"}}, ""), 303)
+	mustStatus(t, request(a, "POST", "/bank/transactions", url.Values{"action": {"delete:" + salary}, "year": {"2031"}}, ""), 303)
 	if n := queryInt(t, "SELECT COUNT(*) FROM bank_transactions"); n != 4 {
 		t.Errorf("%d transactions after deleting one, want 4", n)
 	}
@@ -127,7 +127,10 @@ func TestBankImport(t *testing.T) {
 	if n := queryInt(t, "SELECT COUNT(*) FROM bank_transactions WHERE text = 'Løn'"); n != 1 {
 		t.Errorf("the deleted transaction is back %d times, want once", n)
 	}
-	mustStatus(t, request(a, "POST", "/bank/transactions/999999/delete", url.Values{}, ""), 404)
+	mustStatus(t, request(a, "POST", "/bank/transactions", url.Values{"action": {"delete:999999"}}, ""), 303)
+	if n := queryInt(t, "SELECT COUNT(*) FROM bank_transactions"); n != 5 {
+		t.Errorf("deleting an unknown transaction changed the count to %d", n)
+	}
 
 	// A file in another layout is not imported, and the line is named.
 	w = uploadBank(t, a, account, "01-03-2031;Ok;-1,00;DKK;\n2031-03-02;Bad;-1,00;DKK;\n")

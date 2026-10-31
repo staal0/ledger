@@ -41,3 +41,6 @@
     {{range .Budgets}}<option value="{{.Slug}}"{{if eq .ID $.Current.ID}} selected{{end}}>{{.Name}}</option>{{end}}
   </select>
 {{else if not .Current.IsDefault}}<input type="hidden" name="budget" value="{{.Current.Slug}}">{{end}}{{end}}
+
+{{/* Tabs between the pages of one area: a list of URL, Label and Active. */}}
+{{define "tabs"}}<nav class="tabs">{{range .}}<a href="{{.URL}}"{{if .Active}} class="active" aria-current="page"{{end}}>{{.Label}}</a>{{end}}</nav>{{end}}
