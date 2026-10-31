@@ -11,7 +11,7 @@ jobs:
   test:
     name: test
     runs-on: ubuntu-latest
-    # A throwaway MariaDB for the database tests (db_test.go).
+    # A throwaway MariaDB for the database tests (internal/app/testsupport.go).
     services:
       mariadb:
         image: mariadb:lts
