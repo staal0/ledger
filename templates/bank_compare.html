@@ -1,0 +1,43 @@
+{{define "content"}}{{$L := .L}}
+<h1>{{.Title}}</h1>
+{{template "tabs" .Tabs}}
+
+<form class="filters" action="/bank/compare">
+  {{- template "budget-picker" .}}
+  {{if .Years}}
+  <label>{{$L.T "budget.year"}}
+    <select name="year" data-autosubmit autocomplete="off">{{range .Years}}<option{{if eq . $.Year}} selected{{end}}>{{.}}</option>{{end}}</select>
+  </label>
+  <label>{{$L.T "bank.period"}}
+    <select name="period" data-autosubmit autocomplete="off">
+      <option value="imported"{{if eq .Period "imported"}} selected{{end}}>{{$L.T "bank.period_imported"}}</option>
+      <option value="ytd"{{if eq .Period "ytd"}} selected{{end}}>{{$L.T "bank.period_ytd"}}</option>
+      <option value="year"{{if eq .Period "year"}} selected{{end}}>{{$L.T "bank.period_year"}}</option>
+      {{range .Months}}<option value="{{.}}"{{if eq (print .) $.Period}} selected{{end}}>{{$L.T (print "month." .)}}</option>{{end}}
+    </select>
+  </label>
+  {{end}}
+  <noscript><button class="secondary">{{$L.T "budget.go"}}</button></noscript>
+</form>
+
+<section class="card wide">
+  {{if not .HasYear}}
+  <p class="hint">{{$L.T "bank.compare_no_year"}}</p>
+  {{else}}
+  <p>{{if .In}}{{$L.T "bank.compared"}} {{range $i, $m := .In}}{{if $i}}, {{end}}{{$L.T (print "month." $m)}}{{end}}{{else}}{{$L.T "bank.compared_none"}}{{end}}</p>
+  {{if .Unassigned}}<p class="notice" role="status">{{$L.T "bank.compare_unassigned" .Unassigned ($L.Money .UnassignedSum)}} <a href="{{.UnassignedURL}}">{{$L.T "bank.compare_assign"}}</a></p>{{end}}
+  <div class="scroll">
+  <table class="manage-table bank-table compare-table">
+    {{range .Sections}}
+    <tr class="head"><th>{{$L.T (print "section." .Key)}}</th><th class="num">{{$L.T "bank.budget"}}</th><th class="num">{{$L.T "bank.actual"}}</th><th class="num">{{$L.T "bank.difference"}}</th></tr>
+    {{range .Rows}}
+    <tr><td>{{.Name}}</td><td class="num">{{$L.Money .Budget}}</td><td class="num">{{$L.Money .Actual}}</td><td class="num{{if gt .Diff 0}} pos{{else if lt .Diff 0}} neg{{end}}">{{$L.Money .Diff}}</td></tr>
+    {{end}}
+    {{with .Total}}<tr class="total"><th>{{.Name}}</th><td class="num">{{$L.Money .Budget}}</td><td class="num">{{$L.Money .Actual}}</td><td class="num{{if gt .Diff 0}} pos{{else if lt .Diff 0}} neg{{end}}">{{$L.Money .Diff}}</td></tr>{{end}}
+    {{end}}
+  </table>
+  </div>
+  <p class="hint">{{$L.T "bank.compare_hint"}}</p>
+  {{end}}
+</section>
+{{end}}

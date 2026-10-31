@@ -42,6 +42,7 @@ func (bankPlugin) Routes(mux *http.ServeMux, a *App) {
 	mux.HandleFunc("POST /bank/transactions", a.only(roleEditor, a.bankTransactionsSave))
 	mux.HandleFunc("GET /bank/rules", a.bankRulesPage)
 	mux.HandleFunc("POST /bank/rules", a.only(roleEditor, a.bankRulesSave))
+	mux.HandleFunc("GET /bank/compare", a.bankComparePage)
 }
 
 func (bankPlugin) Nav() []NavItem { return []NavItem{{Path: "/bank", Label: "nav.bank"}} }
@@ -83,7 +84,7 @@ type bankTab struct {
 // bankTabs are the plugin's pages for budget b, with active marked.
 func bankTabs(L *Locale, b budgetRef, active string) []bankTab {
 	var tabs []bankTab
-	for _, t := range []struct{ key, path string }{{"import", "/bank"}, {"transactions", "/bank/transactions"}, {"rules", "/bank/rules"}} {
+	for _, t := range []struct{ key, path string }{{"import", "/bank"}, {"transactions", "/bank/transactions"}, {"rules", "/bank/rules"}, {"compare", "/bank/compare"}} {
 		tabs = append(tabs, bankTab{bankURL(t.path, b, nil), L.T("bank.tab_" + t.key), t.key == active})
 	}
 	return tabs

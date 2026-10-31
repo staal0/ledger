@@ -281,5 +281,20 @@
   "bank.rule_err_empty": "En regel skal have tekst ud over *.",
   "bank.rules_tip_contains": "Reglens tekst skal bare indgå i posteringens tekst, uanset store og små bogstaver: apotek passer på \"Apotek Hovedgaden 12\" og \"APOTEK STATION\".",
   "bank.rules_tip_star": "* står for en vilkårlig tekst: apotek*gade passer på \"Apotek Hovedgaden 12\" og \"Apotek Storegade 3\", men ikke \"Apotek Station\".",
-  "bank.rules_tip_keep": "Behold kun den del, der er den samme hver gang: apotek i stedet for \"Kortkøb Apotek Hovedgaden 12\"."
+  "bank.rules_tip_keep": "Behold kun den del, der er den samme hver gang: apotek i stedet for \"Kortkøb Apotek Hovedgaden 12\".",
+
+  "bank.tab_compare": "Budget vs. faktisk",
+  "bank.period": "Periode",
+  "bank.period_ytd": "År til dato",
+  "bank.period_year": "Hele året",
+  "bank.budget": "Budget",
+  "bank.actual": "Faktisk",
+  "bank.difference": "Forskel",
+  "bank.compare_no_year": "Budgettet har endnu ingen år.",
+  "bank.compare_unassigned": "%d posteringer i perioden, i alt %s, er ikke tildelt en linje og tælles ikke med.",
+  "bank.compare_assign": "Tildel dem",
+  "bank.compare_hint": "Faktisk er summen af de posteringer, der er tildelt linjen i perioden; ignorerede er ikke med. Forskellen er grøn, hvor linjen klarede sig bedre end budgetteret: mindre brugt eller mere tjent.",
+  "bank.period_imported": "Importerede måneder",
+  "bank.compared": "Sammenlignet:",
+  "bank.compared_none": "Ingen måneder at sammenligne: der er ikke importeret posteringer for dette år."
 }
