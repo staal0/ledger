@@ -19,7 +19,6 @@ import (
 const (
 	historyKeepSetting = "history_keep"
 	historyKeepDefault = 10
-	historyShown       = 200
 )
 
 // dbValue is an amount as stored in budget_history.
@@ -137,7 +136,17 @@ func (a *App) managePage(w http.ResponseWriter, r *http.Request) {
 	if y, err := strconv.Atoi(r.FormValue("year")); err == nil {
 		year = y
 	}
-	changes, err := a.changes(ctx, budget, year, L)
+	// The years list is paged; the history's year picker keeps them all.
+	yearPages := newPager(r, L, "years_page", len(years), "#years")
+	yearsShown := years[yearPages.Offset():min(len(years), yearPages.Offset()+yearPages.Size)]
+	var total int
+	if err := a.db.QueryRowContext(ctx, `SELECT COUNT(*) FROM budget_history h JOIN budget_lines l ON l.id = h.line_id
+		JOIN budget_years y ON y.id = l.year_id WHERE y.budget_id = ? AND y.year = ?`, budget, year).Scan(&total); err != nil {
+		a.fail(w, err)
+		return
+	}
+	historyPages := newPager(r, L, "history_page", total, "#history")
+	changes, err := a.changes(ctx, budget, year, historyPages, L)
 	if err != nil {
 		a.fail(w, err)
 		return
@@ -171,33 +180,35 @@ func (a *App) managePage(w http.ResponseWriter, r *http.Request) {
 		plugs = append(plugs, pluginInfo{p.ID(), on})
 	}
 	a.render(w, r, "manage", map[string]any{
-		"Title":      L.T("nav.manage"),
-		"Current":    current,
-		"Budgets":    pickable(visible),
-		"Base":       current.Base(),
-		"AllBudgets": all,
-		"Links":      links,
-		"Open":       openBudget(r, current),
-		"Users":      users,
-		"Years":      years,
-		"Year":       year,
-		"Changes":    changes,
-		"Limited":    len(changes) == historyShown,
-		"Shown":      historyShown,
-		"Keep":       keep,
-		"Plugins":    plugs,
+		"Title":        L.T("nav.manage"),
+		"Current":      current,
+		"Budgets":      pickable(visible),
+		"Base":         current.Base(),
+		"AllBudgets":   all,
+		"Links":        links,
+		"Open":         openBudget(r, current),
+		"Users":        users,
+		"Years":        years,
+		"Year":         year,
+		"Changes":      changes,
+		"YearsShown":   yearsShown,
+		"YearPages":    yearPages,
+		"HistoryPages": historyPages,
+		"Keep":         keep,
+		"Plugins":      plugs,
 	})
 }
 
-// changes lists the newest recorded changes of budget's year, formatted for display.
-func (a *App) changes(ctx context.Context, budget int64, year int, L *Locale) ([]change, error) {
+// changes lists one page of the recorded changes of budget's year, newest
+// first, formatted for display.
+func (a *App) changes(ctx context.Context, budget int64, year int, page pager, L *Locale) ([]change, error) {
 	rows, err := a.db.QueryContext(ctx, `SELECT h.id, h.changed_at, COALESCE(NULLIF(u.name, ''), u.email, ''),
 			l.name, h.field, h.old_value, h.new_value
 		FROM budget_history h
 		JOIN budget_lines l ON l.id = h.line_id
 		JOIN budget_years y ON y.id = l.year_id
 		LEFT JOIN users u ON u.id = h.user_id
-		WHERE y.budget_id = ? AND y.year = ? ORDER BY h.id DESC LIMIT ?`, budget, year, historyShown)
+		WHERE y.budget_id = ? AND y.year = ? ORDER BY h.id DESC LIMIT ? OFFSET ?`, budget, year, page.Size, page.Offset())
 	if err != nil {
 		return nil, err
 	}

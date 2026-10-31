@@ -38,6 +38,8 @@
     <input type="hidden" name="year" value="{{$f.Year}}">
     {{with $f.Account}}<input type="hidden" name="account" value="{{.}}">{{end}}
     {{if $f.All}}<input type="hidden" name="show" value="all">{{end}}
+    {{if gt $f.Page 1}}<input type="hidden" name="page" value="{{$f.Page}}">{{end}}
+    <input type="hidden" name="size" value="{{$f.Size}}">
     {{/* First, so that Enter in the form saves rather than deleting the first row. */}}
     {{if $.User.CanEdit}}<p><button name="action" value="save">{{$L.T "save"}}</button></p>{{end}}
     <div class="scroll">
@@ -73,6 +75,7 @@
     <p class="hint">{{$L.T "bank.assign_hint"}}</p>
     {{end}}
   </form>
+  {{template "pager" $.Pages}}
   {{end}}
   {{end}}
 </section>

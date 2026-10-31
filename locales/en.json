@@ -180,7 +180,6 @@
   "manage.no_years": "There are no budgets yet.",
   "manage.history": "Change history",
   "manage.history_empty": "No changes recorded for %d.",
-  "manage.history_limit": "Showing the newest %d changes.",
   "manage.when": "When",
   "manage.who": "Who",
   "manage.line": "Line",
@@ -313,5 +312,11 @@
   "bank.filled": "Filled %s amounts from the bank.",
   "bank.fill_update": "update from the bank",
   "bank.fill_months": "Months filled:",
-  "bank.fill_untouched": "Lines without transactions in a month, and linked lines, are not changed."
+  "bank.fill_untouched": "Lines without transactions in a month, and linked lines, are not changed.",
+
+  "pager.label": "Pages",
+  "pager.prev": "Previous",
+  "pager.next": "Next",
+  "pager.page": "Page %d of %d",
+  "pager.size": "Per page"
 }

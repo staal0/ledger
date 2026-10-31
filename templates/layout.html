@@ -44,3 +44,19 @@
 
 {{/* Tabs between the pages of one area: a list of URL, Label and Active. */}}
 {{define "tabs"}}<nav class="tabs">{{range .}}<a href="{{.URL}}"{{if .Active}} class="active" aria-current="page"{{end}}>{{.Label}}</a>{{end}}</nav>{{end}}
+
+{{/* Previous and next links of a long list, from newPager, and the number per page;
+     nothing when the list is short. It has a form of its own, so it must not be put
+     inside another form: browsers drop a nested form and its menu joins the outer one. */}}
+{{define "pager"}}{{if .Shown}}<nav class="pager" aria-label="{{.L.T "pager.label"}}">
+  {{if .Prev}}<a href="{{.Prev}}" rel="prev">← {{.L.T "pager.prev"}}</a>{{else}}<span></span>{{end}}
+  <span class="hint">{{.L.T "pager.page" .Page .Pages}}</span>
+  {{if .Next}}<a href="{{.Next}}" rel="next">{{.L.T "pager.next"}} →</a>{{else}}<span></span>{{end}}
+  <form action="{{.Action}}" class="pager-size">
+    {{range $k, $vs := .Hidden}}{{range $vs}}<input type="hidden" name="{{$k}}" value="{{.}}">{{end}}{{end}}
+    <label>{{.L.T "pager.size"}}
+      <select name="{{.SizeParam}}" data-autosubmit autocomplete="off">{{$size := .Size}}{{range .Sizes}}<option{{if eq . $size}} selected{{end}}>{{.}}</option>{{end}}</select>
+    </label>
+    <noscript><button class="secondary">{{.L.T "budget.go"}}</button></noscript>
+  </form>
+</nav>{{end}}{{end}}
