@@ -281,5 +281,20 @@
   "bank.rule_err_empty": "A rule needs some text besides *.",
   "bank.rules_tip_contains": "The rule's text only has to be part of the transaction's text, in any case: pharmacy matches \"Pharmacy Main Street 12\" and \"PHARMACY STATION\".",
   "bank.rules_tip_star": "* stands for any text: pharmacy*street matches \"Pharmacy Main Street 12\" and \"Pharmacy High Street\", but not \"Pharmacy Station\".",
-  "bank.rules_tip_keep": "Keep only the part that stays the same: pharmacy instead of \"Card purchase Pharmacy Main Street 12\"."
+  "bank.rules_tip_keep": "Keep only the part that stays the same: pharmacy instead of \"Card purchase Pharmacy Main Street 12\".",
+
+  "bank.tab_compare": "Budget vs. actual",
+  "bank.period": "Period",
+  "bank.period_ytd": "Year to date",
+  "bank.period_year": "Whole year",
+  "bank.budget": "Budget",
+  "bank.actual": "Actual",
+  "bank.difference": "Difference",
+  "bank.compare_no_year": "The budget has no years yet.",
+  "bank.compare_unassigned": "%d transactions in the period, %s in all, are not assigned to a line and not counted.",
+  "bank.compare_assign": "Assign them",
+  "bank.compare_hint": "Actual is the sum of the transactions assigned to the line in the period; ignored ones are left out. The difference is green where the line did better than budgeted: less spent, or more earned.",
+  "bank.period_imported": "Imported months",
+  "bank.compared": "Compared:",
+  "bank.compared_none": "No months to compare: no transactions are imported for this year."
 }

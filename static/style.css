@@ -335,3 +335,5 @@ input[type="file"]:focus-visible::file-selector-button { outline: 2px solid var(
 .bank-table td.text { white-space: normal; min-width: 14rem; }
 .bank-table select { min-width: 16rem; max-width: 24rem; }
 .hint .tips { margin: .25rem 0 0; padding-left: 1.25rem; }
+.compare-table tr.head th { padding-top: .9rem; }
+.compare-table tr.total th, .compare-table tr.total td { font-weight: 600; border-top: 1px solid var(--border); }
