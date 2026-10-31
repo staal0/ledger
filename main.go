@@ -178,14 +178,12 @@ func (a *App) routes() http.Handler {
 	private.HandleFunc("POST /manage/years/{year}/delete", a.only(roleAdmin, a.manageDeleteYear))
 	private.HandleFunc("POST /manage/history/{id}/restore", a.only(roleAdmin, a.manageRestore))
 	private.HandleFunc("POST /manage/history-keep", a.only(roleAdmin, a.manageKeep))
+	private.HandleFunc("POST /manage/plugins", a.only(roleAdmin, a.managePlugins))
 	private.HandleFunc("POST /manage/budgets", a.only(roleAdmin, a.manageCreateBudget))
 	private.HandleFunc("POST /manage/budgets/{id}", a.only(roleAdmin, a.manageUpdateBudget))
 	private.HandleFunc("POST /manage/budgets/{id}/delete", a.only(roleAdmin, a.manageDeleteBudget))
 	private.HandleFunc("POST /manage/links/{id}/unlink", a.only(roleAdmin, a.manageUnlink))
-	for _, p := range plugins {
-		p.Routes(private, a)
-	}
-	public.Handle("/", a.requireUser(private))
+	public.Handle("/", a.requireUser(a.withPlugins(private)))
 
 	return securityHeaders(http.NewCrossOriginProtection().Handler(public))
 }

@@ -54,6 +54,7 @@ func previewAndImport(t *testing.T, a *App, account, data string) string {
 
 func TestBankImport(t *testing.T) {
 	a := testApp(t, false)
+	exec(t, "INSERT INTO settings (name, value) VALUES ('plugin.bank', '1')")
 	mustStatus(t, request(a, "POST", "/bank/accounts", url.Values{"name": {"Budget account"}, "format": {"laanspar"}}, ""), 303)
 	mustStatus(t, request(a, "POST", "/bank/accounts", url.Values{"name": {"x"}, "format": {"nope"}}, ""), 400)
 	account := strconv.FormatInt(queryInt(t, "SELECT id FROM bank_accounts WHERE name = 'Budget account'"), 10)

@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -156,6 +157,19 @@ func (a *App) managePage(w http.ResponseWriter, r *http.Request) {
 		a.fail(w, err)
 		return
 	}
+	type pluginInfo struct {
+		ID string
+		On bool
+	}
+	var plugs []pluginInfo
+	for _, p := range plugins {
+		on, err := a.pluginOn(ctx, p.ID())
+		if err != nil {
+			a.fail(w, err)
+			return
+		}
+		plugs = append(plugs, pluginInfo{p.ID(), on})
+	}
 	a.render(w, r, "manage", map[string]any{
 		"Title":      L.T("nav.manage"),
 		"Current":    current,
@@ -171,6 +185,7 @@ func (a *App) managePage(w http.ResponseWriter, r *http.Request) {
 		"Limited":    len(changes) == historyShown,
 		"Shown":      historyShown,
 		"Keep":       keep,
+		"Plugins":    plugs,
 	})
 }
 
@@ -372,4 +387,37 @@ func (a *App) manageKeep(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	http.Redirect(w, r, "/manage", http.StatusSeeOther)
+}
+
+// managePlugins turns each plugin on or off: on when its box is ticked.
+func (a *App) managePlugins(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+	if err := r.ParseForm(); err != nil {
+		http.Error(w, "invalid form", http.StatusBadRequest)
+		return
+	}
+	tx, err := a.db.BeginTx(ctx, nil)
+	if err != nil {
+		a.fail(w, err)
+		return
+	}
+	defer tx.Rollback()
+	for _, p := range plugins {
+		on := "0"
+		if slices.Contains(r.PostForm["on"], p.ID()) {
+			on = "1"
+		}
+		if _, err = tx.ExecContext(ctx, `INSERT INTO settings (name, value) VALUES (?, ?)
+			ON DUPLICATE KEY UPDATE value = VALUES(value)`, pluginSetting(p.ID()), on); err != nil {
+			break
+		}
+	}
+	if err == nil {
+		err = tx.Commit()
+	}
+	if err != nil {
+		a.fail(w, err)
+		return
+	}
+	http.Redirect(w, r, "/manage#plugins", http.StatusSeeOther)
 }

@@ -138,6 +138,18 @@
 </section>
 {{end}}
 
+{{with .Plugins}}
+<form method="post" action="/manage/plugins" class="card" id="plugins">
+  <h2>{{$L.T "manage.plugins"}}</h2>
+  {{range .}}
+  <label class="check"><input type="checkbox" name="on" value="{{.ID}}"{{if .On}} checked{{end}}> {{$L.T (print "plugin." .ID)}}</label>
+  <p class="hint">{{$L.T (print "plugin." .ID ".about")}}</p>
+  {{end}}
+  <p class="hint">{{$L.T "manage.plugins_hint"}}</p>
+  <button>{{$L.T "save"}}</button>
+</form>
+{{end}}
+
 <form method="post" action="/manage/history-keep" class="card">
   <label>{{$L.T "manage.keep"}}
     <input type="number" name="keep" min="0" max="1000" value="{{.Keep}}" required>

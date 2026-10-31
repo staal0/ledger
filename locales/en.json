@@ -242,5 +242,10 @@
   "bank.err_no_file": "Choose a file.",
   "bank.all_accounts": "All accounts",
   "bank.delete_transaction": "Delete transaction",
-  "bank.delete_transaction_confirm": "Delete %s (%s)? It comes back if a file with it is imported again."
+  "bank.delete_transaction_confirm": "Delete %s (%s)? It comes back if a file with it is imported again.",
+
+  "manage.plugins": "Plugins",
+  "manage.plugins_hint": "A plugin that is off is hidden from the menu and its pages, for everyone. Its data is kept.",
+  "plugin.bank": "CSV import",
+  "plugin.bank.about": "Bank accounts per budget, with transactions imported from the bank's CSV export."
 }
