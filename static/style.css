@@ -310,3 +310,11 @@ button.icon.link.on { opacity: 1; }
 button.icon.link.broken { opacity: 1; filter: grayscale(1); text-decoration: line-through; }
 .link-chooser { margin-bottom: 1rem; }
 .manage-table td.row { display: flex; gap: .4rem; }
+
+/* Bank page */
+.notice.ok { border-left-color: var(--pos); }
+form.inline input.account-name { width: 16rem; max-width: 100%; }
+.bank-account { display: flex; flex-wrap: wrap; align-items: center; gap: .5rem; }
+.bank-table .pos { color: var(--pos); }
+.bank-table tr.done td { color: var(--muted); }
+.bank-table tr + tr td { border-top: 1px solid color-mix(in srgb, var(--border) 60%, transparent); }

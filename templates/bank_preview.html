@@ -1,0 +1,33 @@
+{{define "content"}}{{$L := .L}}
+<p class="hint"><a href="{{.Back}}">← {{$L.T "nav.bank"}}</a></p>
+<h1>{{.Title}} <span class="hint">{{.Account.Name}}</span></h1>
+
+{{with .Error}}
+<div class="notice" role="alert">
+  {{if .Line}}{{$L.T "bank.err_line" .Line}} {{end}}{{$L.T .Key}}{{with .Value}} <code>{{.}}</code>{{end}}
+  {{with $.Fits}}<p>{{$L.T "bank.err_fits"}} {{range $i, $f := .}}{{if $i}}, {{end}}<strong>{{$f.Name}}</strong>{{end}}</p>{{end}}
+</div>
+{{else}}
+<section class="card wide">
+  <p>{{$L.T "bank.preview_summary" .Added .Skipped}}</p>
+  <form method="post" action="/bank/import" class="inline">
+    <input type="hidden" name="account" value="{{.Account.ID}}">
+    <input type="hidden" name="data" value="{{.Data}}">
+    <button{{if not .Added}} disabled{{end}}>{{$L.T "bank.import_rows" .Added}}</button>
+    <a class="button secondary" href="{{.Back}}">{{$L.T "bank.cancel"}}</a>
+  </form>
+  <div class="scroll">
+  <table class="manage-table bank-table">
+    <tr class="head"><th>{{$L.T "bank.line"}}</th><th>{{$L.T "bank.date"}}</th><th>{{$L.T "bank.text"}}</th><th class="num">{{$L.T "bank.amount"}}</th><th>{{$L.T "bank.status"}}</th></tr>
+    {{range .Rows}}
+    <tr{{if .Imported}} class="done"{{end}}>
+      <td class="hint">{{.Line}}</td><td>{{.Booked.Format "2006-01-02"}}</td><td>{{.Text}}{{if gt .Seq 1}} <span class="hint">({{$L.T "bank.same_again" .Seq}})</span>{{end}}</td>
+      <td class="num{{if lt .Amount 0}} neg{{else}} pos{{end}}">{{$L.Money .Amount}}</td>
+      <td>{{if .Imported}}<span class="hint">{{$L.T "bank.status_imported"}}</span>{{else}}{{$L.T "bank.status_new"}}{{end}}</td>
+    </tr>
+    {{end}}
+  </table>
+  </div>
+</section>
+{{end}}
+{{end}}

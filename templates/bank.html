@@ -1,0 +1,109 @@
+{{define "content"}}{{$L := .L}}{{$budget := ""}}{{if not .Current.IsDefault}}{{$budget = .Current.Slug}}{{end}}
+<h1>{{.Title}}</h1>
+
+{{if .Budgets}}
+<form class="filters" action="/bank">
+  {{- template "budget-picker" .}}
+  <noscript><button class="secondary">{{$L.T "budget.go"}}</button></noscript>
+</form>
+{{end}}
+
+{{if .Imported}}<p class="notice ok" role="status">{{$L.T "bank.imported" .Added .Skipped}}</p>{{end}}
+
+<section class="card wide">
+  <h2>{{$L.T "bank.accounts"}}</h2>
+  {{range .Accounts}}
+  <div class="row bank-account">
+    {{if $.User.CanEdit}}
+    <form method="post" action="/bank/accounts/{{.ID}}" class="inline">
+      <input class="account-name" name="name" value="{{.Name}}" required maxlength="100" aria-label="{{$L.T "bank.account_name"}}">
+      {{if gt (len $.Formats) 1}}<select name="format" aria-label="{{$L.T "bank.format"}}">{{$f := .Format}}{{range $.Formats}}<option value="{{.ID}}"{{if eq .ID $f}} selected{{end}}>{{.Name}}</option>{{end}}</select>{{else}}<input type="hidden" name="format" value="{{.Format}}">{{end}}
+      <button class="secondary">{{$L.T "save"}}</button>
+    </form>
+    <form method="post" action="/bank/accounts/{{.ID}}/delete" class="inline">
+      <button class="secondary" data-confirm="{{$L.T "bank.delete_account_confirm" .Name .Transactions}}">{{$L.T "bank.delete_account"}}</button>
+    </form>
+    {{else}}<strong>{{.Name}}</strong>{{if gt (len $.Formats) 1}} <span class="hint">{{.FormatName}}</span>{{end}}{{end}}
+    <a class="hint" href="?{{with $budget}}budget={{.}}&amp;{{end}}account={{.ID}}#transactions">{{$L.T "bank.transactions_count" .Transactions}}</a>
+  </div>
+  {{else}}
+  <p class="hint">{{$L.T "bank.no_accounts"}}</p>
+  {{end}}
+  {{if .User.CanEdit}}
+  <form method="post" action="/bank/accounts" class="inline">
+    {{with $budget}}<input type="hidden" name="budget" value="{{.}}">{{end}}
+    <input class="account-name" name="name" required maxlength="100" placeholder="{{$L.T "bank.new_account"}}" aria-label="{{$L.T "bank.new_account"}}">
+    {{if gt (len .Formats) 1}}<select name="format" aria-label="{{$L.T "bank.format"}}">{{range .Formats}}<option value="{{.ID}}">{{.Name}}</option>{{end}}</select>{{else}}{{with index .Formats 0}}<input type="hidden" name="format" value="{{.ID}}">{{end}}{{end}}
+    <button>{{$L.T "bank.add_account"}}</button>
+  </form>
+  {{end}}
+</section>
+
+{{if and .User.CanEdit .Accounts}}
+<section class="card wide">
+  <h2>{{$L.T "bank.import"}}</h2>
+  <form method="post" action="/bank/preview" enctype="multipart/form-data" class="inline">
+    <select name="account" aria-label="{{$L.T "bank.account"}}">{{range .Accounts}}<option value="{{.ID}}">{{.Name}}</option>{{end}}</select>
+    <input type="file" name="file" accept=".csv,text/csv" required aria-label="{{$L.T "bank.file"}}">
+    <button>{{$L.T "bank.read"}}</button>
+  </form>
+  <p class="hint">{{$L.T "bank.import_hint"}}</p>
+</section>
+{{end}}
+
+{{if .Imports}}
+<section class="card wide">
+  <h2>{{$L.T "bank.imports"}}</h2>
+  <div class="scroll">
+  <table class="manage-table">
+    <tr class="head"><th>{{$L.T "bank.imported_at"}}</th><th>{{$L.T "bank.account"}}</th><th>{{$L.T "bank.by"}}</th><th>{{$L.T "bank.added"}}</th><th>{{$L.T "bank.skipped"}}</th><th></th></tr>
+    {{range .Imports}}
+    <tr>
+      <td>{{.ImportedAt.Format "2006-01-02 15:04"}}</td><td>{{.Account}}</td><td>{{.User}}</td><td class="num">{{.Added}}</td><td class="num">{{.Skipped}}</td>
+      <td>{{if $.User.CanEdit}}<form method="post" action="/bank/imports/{{.ID}}/delete" class="inline"><button class="secondary" data-confirm="{{$L.T "bank.undo_confirm" .Left}}">{{$L.T "bank.undo"}}</button></form>{{end}}</td>
+    </tr>
+    {{end}}
+  </table>
+  </div>
+</section>
+{{end}}
+
+<section class="card wide" id="transactions">
+  <h2>{{$L.T "bank.transactions"}}</h2>
+  {{if .Accounts}}
+  <form class="filters" action="/bank#transactions">
+    {{with $budget}}<input type="hidden" name="budget" value="{{.}}">{{end}}
+    {{if gt (len .Accounts) 1}}
+    <label>{{$L.T "bank.account"}}
+      <select name="account" data-autosubmit autocomplete="off">
+        <option value="">{{$L.T "bank.all_accounts"}}</option>
+        {{range .Accounts}}<option value="{{.ID}}"{{if eq .ID $.Account}} selected{{end}}>{{.Name}}</option>{{end}}
+      </select>
+    </label>
+    {{end}}
+    {{if .Years}}<label>{{$L.T "budget.year"}}
+      <select name="year" data-autosubmit autocomplete="off">{{range .Years}}<option{{if eq . $.Year}} selected{{end}}>{{.}}</option>{{end}}</select>
+    </label>{{end}}
+    <noscript><button class="secondary">{{$L.T "budget.go"}}</button></noscript>
+  </form>
+  {{end}}
+  {{if .Transactions}}
+  <div class="scroll">
+  <table class="manage-table bank-table">
+    {{$all := and (not .Account) (gt (len .Accounts) 1)}}
+    <tr class="head"><th>{{$L.T "bank.date"}}</th>{{if $all}}<th>{{$L.T "bank.account"}}</th>{{end}}<th>{{$L.T "bank.text"}}</th><th class="num">{{$L.T "bank.amount"}}</th>{{if $.User.CanEdit}}<th></th>{{end}}</tr>
+    {{range .Transactions}}
+    <tr><td>{{.Booked.Format "2006-01-02"}}</td>{{if $all}}<td>{{.Account}}</td>{{end}}<td>{{.Text}}</td><td class="num{{if lt .Amount 0}} neg{{else}} pos{{end}}">{{$L.Money .Amount}}</td>
+      {{if $.User.CanEdit}}<td><form method="post" action="/bank/transactions/{{.ID}}/delete" class="inline">
+        <input type="hidden" name="year" value="{{$.Year}}">{{with $.Account}}<input type="hidden" name="account" value="{{.}}">{{end}}
+        <button class="icon" title="{{$L.T "bank.delete_transaction"}}" aria-label="{{$L.T "bank.delete_transaction"}}" data-confirm="{{$L.T "bank.delete_transaction_confirm" .Text ($L.Money .Amount)}}">×</button>
+      </form></td>{{end}}</tr>
+    {{end}}
+  </table>
+  </div>
+  {{else}}
+  <p class="hint">{{$L.T "bank.no_transactions"}}</p>
+  {{end}}
+</section>
+{{end}}
+
