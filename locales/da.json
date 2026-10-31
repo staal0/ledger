@@ -296,5 +296,22 @@
   "bank.compare_hint": "Faktisk er summen af de posteringer, der er tildelt linjen i perioden; ignorerede er ikke med. Forskellen er grøn, hvor linjen klarede sig bedre end budgetteret: mindre brugt eller mere tjent.",
   "bank.period_imported": "Importerede måneder",
   "bank.compared": "Sammenlignet:",
-  "bank.compared_none": "Ingen måneder at sammenligne: der er ikke importeret posteringer for dette år."
+  "bank.compared_none": "Ingen måneder at sammenligne: der er ikke importeret posteringer for dette år.",
+
+  "bank.fill": "Udfyld budgettet fra banken…",
+  "bank.fill_title": "Udfyld %d fra banken",
+  "bank.fill_mode": "Beløb",
+  "bank.fill_empty": "Udfyld tomme beløb",
+  "bank.fill_overwrite": "Overskriv beløb",
+  "bank.fill_kept": "%d beløb, der er sat i hånden, beholdes. Vælg Overskriv beløb for også at erstatte dem.",
+  "bank.month": "Måned",
+  "bank.fill_now": "Nu",
+  "bank.fill_new": "Ny",
+  "bank.fill_apply": "Udfyld %d beløb",
+  "bank.fill_hint": "Hvert beløb gemmes som en ændring på budgetsiden, med historik, så det kan gendannes under Administration.",
+  "bank.fill_nothing": "Intet at udfylde: budgettet har allerede disse beløb.",
+  "bank.filled": "Udfyldte %s beløb fra banken.",
+  "bank.fill_update": "opdatering fra banken",
+  "bank.fill_months": "Måneder, der udfyldes:",
+  "bank.fill_untouched": "Linjer uden posteringer i en måned og forbundne linjer ændres ikke."
 }

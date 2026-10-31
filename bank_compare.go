@@ -1,7 +1,9 @@
 package main
 
 import (
+	"context"
 	"net/http"
+	"net/url"
 	"slices"
 	"strconv"
 	"time"
@@ -67,23 +69,8 @@ func (a *App) bankComparePage(w http.ResponseWriter, r *http.Request) {
 
 	// The months with imported transactions, which the comparison covers by
 	// default: a budgeted month without them would look as if nothing was spent.
-	var imported []int
-	rows, err := a.db.QueryContext(ctx, `SELECT DISTINCT MONTH(t.booked) FROM bank_transactions t
-		JOIN bank_accounts a ON a.id = t.account_id WHERE a.budget_id = ? AND YEAR(t.booked) = ? ORDER BY 1`, current.ID, year)
+	imported, err := importedMonths(ctx, a.db, current.ID, year)
 	if err != nil {
-		a.fail(w, err)
-		return
-	}
-	defer rows.Close()
-	for rows.Next() {
-		var m int
-		if err := rows.Scan(&m); err != nil {
-			a.fail(w, err)
-			return
-		}
-		imported = append(imported, m)
-	}
-	if err := rows.Err(); err != nil {
 		a.fail(w, err)
 		return
 	}
@@ -135,36 +122,23 @@ func (a *App) bankComparePage(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Sums per line and month, of which the period's months are added up below.
-	actual := map[int64]Money{}
-	rows, err = a.db.QueryContext(ctx, `SELECT t.line_id, MONTH(t.booked), SUM(t.amount) FROM bank_transactions t
-		JOIN bank_accounts a ON a.id = t.account_id
-		WHERE a.budget_id = ? AND YEAR(t.booked) = ? AND t.line_id IS NOT NULL AND NOT t.ignored
-		GROUP BY t.line_id, MONTH(t.booked)`, current.ID, year)
+	sums, err := lineActuals(ctx, a.db, current.ID, year)
 	if err != nil {
 		a.fail(w, err)
 		return
 	}
-	defer rows.Close()
-	for rows.Next() {
-		var id int64
-		var month int
-		var sum Money
-		if err := rows.Scan(&id, &month, &sum); err != nil {
-			a.fail(w, err)
-			return
+	actual := map[int64]Money{}
+	for id, byMonth := range sums {
+		for month, sum := range byMonth {
+			if slices.Contains(in, month) {
+				actual[id] += sum
+			}
 		}
-		if slices.Contains(in, month) {
-			actual[id] += sum
-		}
-	}
-	if err := rows.Err(); err != nil {
-		a.fail(w, err)
-		return
 	}
 
 	var unassigned int
 	var unassignedSum Money
-	rows, err = a.db.QueryContext(ctx, `SELECT MONTH(t.booked), COUNT(*), SUM(t.amount) FROM bank_transactions t
+	rows, err := a.db.QueryContext(ctx, `SELECT MONTH(t.booked), COUNT(*), SUM(t.amount) FROM bank_transactions t
 		JOIN bank_accounts a ON a.id = t.account_id
 		WHERE a.budget_id = ? AND YEAR(t.booked) = ? AND t.line_id IS NULL AND NOT t.ignored
 		GROUP BY MONTH(t.booked)`, current.ID, year)
@@ -215,5 +189,55 @@ func (a *App) bankComparePage(w http.ResponseWriter, r *http.Request) {
 	page["UnassignedSum"] = unassignedSum
 	page["UnassignedURL"] = bankURL("/bank/transactions", current, map[string][]string{"year": {strconv.Itoa(year)}})
 	page["YearURL"] = current.yearURL(year)
+	page["Imported"] = imported
+	page["FillURL"] = bankURL("/bank/fill", current, url.Values{"year": {strconv.Itoa(year)}})
+	page["Filled"] = r.FormValue("filled")
 	a.render(w, r, "bank_compare", page)
+}
+
+// importedMonths lists the months of year with transactions in the budget's accounts.
+func importedMonths(ctx context.Context, q querier, budget int64, year int) ([]int, error) {
+	rows, err := q.QueryContext(ctx, `SELECT DISTINCT MONTH(t.booked) FROM bank_transactions t
+		JOIN bank_accounts a ON a.id = t.account_id WHERE a.budget_id = ? AND YEAR(t.booked) = ? ORDER BY 1`, budget, year)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var out []int
+	for rows.Next() {
+		var m int
+		if err := rows.Scan(&m); err != nil {
+			return nil, err
+		}
+		out = append(out, m)
+	}
+	return out, rows.Err()
+}
+
+// lineActuals sums the year's assigned transactions per line and month, as the
+// bank has them: negative for money going out. A month is present when the
+// line has transactions in it, even when they add up to 0.
+func lineActuals(ctx context.Context, q querier, budget int64, year int) (map[int64]map[int]Money, error) {
+	rows, err := q.QueryContext(ctx, `SELECT t.line_id, MONTH(t.booked), SUM(t.amount) FROM bank_transactions t
+		JOIN bank_accounts a ON a.id = t.account_id
+		WHERE a.budget_id = ? AND YEAR(t.booked) = ? AND t.line_id IS NOT NULL AND NOT t.ignored
+		GROUP BY t.line_id, MONTH(t.booked)`, budget, year)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	out := map[int64]map[int]Money{}
+	for rows.Next() {
+		var id int64
+		var month int
+		var sum Money
+		if err := rows.Scan(&id, &month, &sum); err != nil {
+			return nil, err
+		}
+		if out[id] == nil {
+			out[id] = map[int]Money{}
+		}
+		out[id][month] = sum
+	}
+	return out, rows.Err()
 }

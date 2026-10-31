@@ -17,7 +17,7 @@ Ledger is one Go binary with three dependencies (MySQL driver, go-oidc, x/oauth2
 - Several budgets, e.g. one per household or person, each visible to its owner, chosen members, identity-provider groups or everyone
 - A line can take its amounts from a line in another budget, e.g. a transfer to a joint account
 - Statistics across years: totals with the change from the year before, the difference and expenses and allocation as a share of income, and every line over time down to the month, alone or several added together, for a chosen range of years
-- Bank accounts per budget with transactions imported from the bank's CSV export; a file is shown before it is imported, and rows imported before are skipped. Transactions are assigned to budget lines by hand or by rules learned from their text, and compared with the budget per line for the months imported
+- Bank accounts per budget with transactions imported from the bank's CSV export; a file is shown before it is imported, and rows imported before are skipped. Transactions are assigned to budget lines by hand or by rules learned from their text, compared with the budget per line for the months imported, and used to fill in the budget
 - Export a year to an OpenDocument spreadsheet (`.ods`) with the totals as formulas
 - Login with OIDC, e.g. passkeys via [Pocket ID](https://pocket-id.org), or local mode without login for trying it out
 - English and Danish, chosen per user or taken from the browser; new languages are JSON files

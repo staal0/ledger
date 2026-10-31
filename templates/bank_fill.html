@@ -1,0 +1,44 @@
+{{define "content"}}{{$L := .L}}{{$budget := ""}}{{if not .Current.IsDefault}}{{$budget = .Current.Slug}}{{end}}
+<p class="hint"><a href="{{.Back}}">← {{$L.T "bank.tab_compare"}}</a></p>
+<h1>{{.Title}}</h1>
+
+<section class="card wide">
+  <p>{{$L.T "bank.fill_months"}} {{range $i, $m := .In}}{{if $i}}, {{end}}{{$L.T (print "month." $m)}}{{end}}.</p>
+  <p class="hint">{{$L.T "bank.fill_untouched"}}</p>
+  <form class="filters" action="/bank/fill">
+    {{with $budget}}<input type="hidden" name="budget" value="{{.}}">{{end}}
+    <input type="hidden" name="year" value="{{.Year}}">
+    <label>{{$L.T "bank.fill_mode"}}
+      <select name="mode" data-autosubmit autocomplete="off">
+        <option value="">{{$L.T "bank.fill_empty"}}</option>
+        <option value="overwrite"{{if .Overwrite}} selected{{end}}>{{$L.T "bank.fill_overwrite"}}</option>
+      </select>
+    </label>
+    <noscript><button class="secondary">{{$L.T "budget.go"}}</button></noscript>
+  </form>
+  {{if .Kept}}<p class="hint">{{$L.T "bank.fill_kept" .Kept}}</p>{{end}}
+
+  {{if .Changes}}
+  <div class="scroll">
+  <table class="manage-table bank-table">
+    <tr class="head"><th>{{$L.T "bank.budget_line"}}</th><th>{{$L.T "bank.month"}}</th><th class="num">{{$L.T "bank.fill_now"}}</th><th class="num">{{$L.T "bank.fill_new"}}</th><th></th></tr>
+    {{range .Changes}}
+    <tr><td>{{$L.T (print "section." .Line.Section)}} › {{.Line.Name}}</td><td>{{$L.T (print "month." .Month)}}</td>
+      <td class="num">{{if .Old}}{{$L.Money .Old}}{{else}}<span class="hint">–</span>{{end}}</td><td class="num">{{$L.Money .New}}</td>
+      <td>{{if .Update}}<span class="hint">{{$L.T "bank.fill_update"}}</span>{{end}}</td></tr>
+    {{end}}
+  </table>
+  </div>
+  <form method="post" action="/bank/fill" class="inline">
+    {{with $budget}}<input type="hidden" name="budget" value="{{.}}">{{end}}
+    <input type="hidden" name="year" value="{{.Year}}">
+    {{if .Overwrite}}<input type="hidden" name="mode" value="overwrite">{{end}}
+    <button>{{$L.T "bank.fill_apply" (len .Changes)}}</button>
+    <a class="button secondary" href="{{.Back}}">{{$L.T "bank.cancel"}}</a>
+  </form>
+  <p class="hint">{{$L.T "bank.fill_hint"}}</p>
+  {{else}}
+  <p class="hint">{{$L.T "bank.fill_nothing"}}</p>
+  {{end}}
+</section>
+{{end}}
