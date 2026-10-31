@@ -43,6 +43,8 @@ func (bankPlugin) Routes(mux *http.ServeMux, a *App) {
 	mux.HandleFunc("GET /bank/rules", a.bankRulesPage)
 	mux.HandleFunc("POST /bank/rules", a.only(roleEditor, a.bankRulesSave))
 	mux.HandleFunc("GET /bank/compare", a.bankComparePage)
+	mux.HandleFunc("GET /bank/fill", a.only(roleEditor, a.bankFillPage))
+	mux.HandleFunc("POST /bank/fill", a.only(roleEditor, a.bankFillSave))
 }
 
 func (bankPlugin) Nav() []NavItem { return []NavItem{{Path: "/bank", Label: "nav.bank"}} }

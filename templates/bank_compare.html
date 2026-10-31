@@ -24,6 +24,7 @@
   {{if not .HasYear}}
   <p class="hint">{{$L.T "bank.compare_no_year"}}</p>
   {{else}}
+  {{with .Filled}}<p class="notice ok" role="status">{{$L.T "bank.filled" .}}</p>{{end}}
   <p>{{if .In}}{{$L.T "bank.compared"}} {{range $i, $m := .In}}{{if $i}}, {{end}}{{$L.T (print "month." $m)}}{{end}}{{else}}{{$L.T "bank.compared_none"}}{{end}}</p>
   {{if .Unassigned}}<p class="notice" role="status">{{$L.T "bank.compare_unassigned" .Unassigned ($L.Money .UnassignedSum)}} <a href="{{.UnassignedURL}}">{{$L.T "bank.compare_assign"}}</a></p>{{end}}
   <div class="scroll">
@@ -38,6 +39,7 @@
   </table>
   </div>
   <p class="hint">{{$L.T "bank.compare_hint"}}</p>
+  {{if and .User.CanEdit .Imported}}<p><a class="button secondary" href="{{.FillURL}}">{{$L.T "bank.fill"}}</a></p>{{end}}
   {{end}}
 </section>
 {{end}}

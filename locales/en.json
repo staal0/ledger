@@ -296,5 +296,22 @@
   "bank.compare_hint": "Actual is the sum of the transactions assigned to the line in the period; ignored ones are left out. The difference is green where the line did better than budgeted: less spent, or more earned.",
   "bank.period_imported": "Imported months",
   "bank.compared": "Compared:",
-  "bank.compared_none": "No months to compare: no transactions are imported for this year."
+  "bank.compared_none": "No months to compare: no transactions are imported for this year.",
+
+  "bank.fill": "Fill the budget from the bank…",
+  "bank.fill_title": "Fill %d from the bank",
+  "bank.fill_mode": "Amounts",
+  "bank.fill_empty": "Fill empty amounts",
+  "bank.fill_overwrite": "Overwrite amounts",
+  "bank.fill_kept": "%d amounts set by hand are kept. Choose Overwrite amounts to replace them too.",
+  "bank.month": "Month",
+  "bank.fill_now": "Now",
+  "bank.fill_new": "New",
+  "bank.fill_apply": "Fill %d amounts",
+  "bank.fill_hint": "Each amount is saved like an edit on the budget page, with history, so it can be restored under Manage.",
+  "bank.fill_nothing": "Nothing to fill: the budget already has these amounts.",
+  "bank.filled": "Filled %s amounts from the bank.",
+  "bank.fill_update": "update from the bank",
+  "bank.fill_months": "Months filled:",
+  "bank.fill_untouched": "Lines without transactions in a month, and linked lines, are not changed."
 }

@@ -246,6 +246,14 @@ func (a *App) previousValues(ctx context.Context, year int64, L *Locale) (map[st
 		return nil, err
 	}
 	defer rows.Close()
+	// A field gets a mark once a value in it was replaced. Its first value is
+	// not a change: an amount typed into an empty month, or the name given to a
+	// line added as "New line" (in any language).
+	placeholder := map[string]bool{}
+	for _, l := range a.locales {
+		placeholder[l.T("budget.new_line")] = true
+	}
+	changed := map[string]bool{}
 	lists := map[string][]string{}
 	for rows.Next() {
 		var line int64
@@ -259,6 +267,9 @@ func (a *App) previousValues(ctx context.Context, year int64, L *Locale) (map[st
 		if field == 0 {
 			key = fmt.Sprintf("n_%d", line)
 		}
+		if old != "" && (field != 0 || !placeholder[old]) {
+			changed[key] = true
+		}
 		if len(lists[key]) < most {
 			lists[key] = append(lists[key], fmt.Sprintf("%s → %s · %s · %s",
 				L.historyValue(field, old), L.historyValue(field, new), cmp.Or(who, "–"), when.In(time.Local).Format("2006-01-02 15:04")))
@@ -266,7 +277,9 @@ func (a *App) previousValues(ctx context.Context, year int64, L *Locale) (map[st
 	}
 	tips := map[string]string{}
 	for key, list := range lists {
-		tips[key] = L.T("budget.previous") + "\n" + strings.Join(list, "\n")
+		if changed[key] {
+			tips[key] = L.T("budget.previous") + "\n" + strings.Join(list, "\n")
+		}
 	}
 	return tips, rows.Err()
 }

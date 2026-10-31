@@ -15,6 +15,11 @@ func TestHistoryAndRestore(t *testing.T) {
 		mustStatus(t, request(a, "POST", "/budget/2030", saveForm(t, a, 2030, "save", map[int64]map[int]string{salary: {1: v}}), ""), 303)
 	}
 	save("100")
+	// A first value is not a change: neither the amount in the empty month nor
+	// the name that replaced the placeholder gets a mark, though both are recorded.
+	if grid := request(a, "GET", "/budget/2030", nil, "").Body.String(); strings.Contains(grid, `class="mark"`) {
+		t.Error("a first value is marked as changed")
+	}
 	save("200")
 	if n := queryInt(t, "SELECT COUNT(*) FROM budget_history WHERE line_id = ? AND field = 1", salary); n != 2 {
 		t.Fatalf("%d changes recorded, want 2", n)
