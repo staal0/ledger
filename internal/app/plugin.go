@@ -56,15 +56,16 @@ func (a *App) linePanels(r *http.Request, budget BudgetRef, section string, name
 }
 
 // LineActuals is a plugin that knows what was actually spent or earned on
-// lines: year → month → amount, signed like the budget. A line's stats page
-// shows it against the budget.
+// lines: year → month → amount, signed like the budget, and a name for them
+// when "Actual" says too little. A line's stats page shows it against the budget.
 type LineActuals interface {
-	LineActuals(a *App, r *http.Request, budget BudgetRef, section string, names []string, from, to int) (map[int]map[int]Money, error)
+	LineActuals(a *App, r *http.Request, budget BudgetRef, section string, names []string, from, to int) (map[int]map[int]Money, string, error)
 }
 
-// lineActuals are the actual amounts of the plugins that are on, added up; nil when none has any.
-func (a *App) lineActuals(r *http.Request, budget BudgetRef, section string, names []string, from, to int) (map[int]map[int]Money, error) {
-	var out map[int]map[int]Money
+// lineActuals are the actual amounts of the plugins that are on, added up,
+// nil when none has any, and their name when only one plugin has them.
+func (a *App) lineActuals(r *http.Request, budget BudgetRef, section string, names []string, from, to int) (out map[int]map[int]Money, name string, err error) {
+	sources := 0
 	for _, p := range plugins {
 		la, ok := p.(LineActuals)
 		if !ok {
@@ -72,14 +73,18 @@ func (a *App) lineActuals(r *http.Request, budget BudgetRef, section string, nam
 		}
 		on, err := a.pluginOn(r.Context(), p.ID())
 		if err != nil {
-			return nil, err
+			return nil, "", err
 		}
 		if !on {
 			continue
 		}
-		got, err := la.LineActuals(a, r, budget, section, names, from, to)
+		got, label, err := la.LineActuals(a, r, budget, section, names, from, to)
 		if err != nil {
-			return nil, err
+			return nil, "", err
+		}
+		if len(got) > 0 {
+			sources++
+			name = label
 		}
 		for y, months := range got {
 			for m, v := range months {
@@ -93,7 +98,10 @@ func (a *App) lineActuals(r *http.Request, budget BudgetRef, section string, nam
 			}
 		}
 	}
-	return out, nil
+	if sources > 1 {
+		name = ""
+	}
+	return out, name, nil
 }
 
 // NavItem is a menu entry. Label is a locale key.

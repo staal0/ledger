@@ -3,6 +3,7 @@ package bank
 import (
 	"net/url"
 	"strconv"
+	"strings"
 	"testing"
 
 	"github.com/staal0/ledger/internal/app"
@@ -29,6 +30,11 @@ func TestBankDefaultLine(t *testing.T) {
 	}
 	if n := count("SELECT COUNT(*) FROM bank_transactions WHERE ignored AND rule_id IS NOT NULL"); n != 1 {
 		t.Errorf("%d transfers ignored by the rule, want 1", n)
+	}
+	// Bank rows on a line: its chart shows them as the actual, not as receipts.
+	w := app.TestRequest(a, "GET", "/stats/line?section=allocation&name=Food+account&from=2031&to=2031", nil, "")
+	if app.MustStatus(t, w, 200); !strings.Contains(w.Body.String(), `data-actual="Actual"`) {
+		t.Error("a line with bank rows does not show them as the actual")
 	}
 
 	// A new rule takes over from the default; a choice by hand stays.

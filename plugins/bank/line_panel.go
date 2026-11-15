@@ -26,19 +26,31 @@ func lineQuery(b app.BudgetRef, section string, names []string, from, to int) (s
 		WHERE y.budget_id = ? AND y.year BETWEEN ? AND ? AND l.section = ? AND l.name IN (?` + strings.Repeat(", ?", len(names)-1) + `)`, args
 }
 
-// LineActuals is what the bank and receipts have on the lines, per year and month.
-func (bankPlugin) LineActuals(core *app.App, r *http.Request, b app.BudgetRef, section string, names []string, from, to int) (map[int]map[int]app.Money, error) {
+// LineActuals is what the bank and receipts have on the lines, per year and
+// month, named "Receipts" when it all comes from receipts.
+func (bankPlugin) LineActuals(core *app.App, r *http.Request, b app.BudgetRef, section string, names []string, from, to int) (map[int]map[int]app.Money, string, error) {
 	ctx := r.Context()
 	q, args := lineQuery(b, section, names, from, to)
 	ids, err := lineIDs(ctx, core.DB(), q, args)
 	if err != nil || len(ids) == 0 {
-		return nil, err
+		return nil, "", err
+	}
+	// Bank rows on the lines, whole or in part: then it is not receipts alone.
+	var bankRows int
+	if err := core.DB().QueryRowContext(ctx, `SELECT COUNT(*) FROM bank_transactions t
+		LEFT JOIN bank_splits s ON s.transaction_id = t.id AND NOT s.ignored
+		WHERE t.receipt IS NULL AND COALESCE(s.line_id, t.line_id) IN (`+q+`)`, args...).Scan(&bankRows); err != nil {
+		return nil, "", err
+	}
+	name := ""
+	if bankRows == 0 {
+		name = core.Locale(r).T("bank.receipts")
 	}
 	out := map[int]map[int]app.Money{}
 	for year := from; year <= to; year++ {
 		sums, err := lineActuals(ctx, core.DB(), b.ID, year)
 		if err != nil {
-			return nil, err
+			return nil, "", err
 		}
 		for id, months := range sums {
 			if !ids[id] {
@@ -52,7 +64,7 @@ func (bankPlugin) LineActuals(core *app.App, r *http.Request, b app.BudgetRef, s
 			}
 		}
 	}
-	return out, nil
+	return out, name, nil
 }
 
 func lineIDs(ctx context.Context, q app.Querier, query string, args []any) (map[int64]bool, error) {

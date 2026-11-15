@@ -157,5 +157,6 @@
   "bank.receipts_count": "Kvitteringer",
   "bank.item": "Vare",
   "bank.times": "Gange",
-  "bank.line_receipts_hint": "Varer tæller på den linje, kvitteringen er opdelt til. Kvitteringer, der er opdelt i hånden, er ikke med."
+  "bank.line_receipts_hint": "Varer tæller på den linje, kvitteringen er opdelt til. Kvitteringer, der er opdelt i hånden, er ikke med.",
+  "bank.receipts": "Kvitteringer"
 }

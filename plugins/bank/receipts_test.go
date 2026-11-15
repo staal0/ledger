@@ -89,7 +89,7 @@ func TestBankReceipts(t *testing.T) {
 		return html.UnescapeString(w.Body.String())
 	}
 	food, household := stats("allocation", "Food account"), stats("expense", "Household")
-	for _, want := range []string{`"Actual":[null,null,10550,null`, "Receipts by store", "Grocer", "BREAD", "MILK 1L"} {
+	for _, want := range []string{`"Actual":[null,null,10550,null`, `data-actual="Receipts"`, "Receipts by store", "Grocer", "BREAD", "MILK 1L"} {
 		if !strings.Contains(food, want) {
 			t.Errorf("the food line's stats lack %q", want)
 		}

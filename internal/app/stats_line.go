@@ -137,7 +137,10 @@ func (a *App) statsLinePage(w http.ResponseWriter, r *http.Request) {
 		Actual                []*Money
 		Up                    int // 1 when more is better
 	}{Up: map[bool]int{true: 1, false: -1}[section == "income"]}
-	actual, err := a.lineActuals(r, current, section, names, from, to)
+	actual, actualName, err := a.lineActuals(r, current, section, names, from, to)
+	if actualName == "" {
+		actualName = L.T("stats.actual")
+	}
 	if err != nil {
 		a.Fail(w, err)
 		return
@@ -184,6 +187,7 @@ func (a *App) statsLinePage(w http.ResponseWriter, r *http.Request) {
 	}
 	a.Render(w, r, "stats_line", map[string]any{
 		"Panels":   panels,
+		"Actual":   actualName,
 		"Title":    name,
 		"Name":     name,
 		"Names":    names,
