@@ -137,3 +137,45 @@ func TestBankAssign(t *testing.T) {
 		}
 	}
 }
+
+func TestRuleTestAndDisplayNames(t *testing.T) {
+	a := app.TestApp(t, false)
+	app.TestExec(t, "INSERT INTO settings (name, value) VALUES ('plugin.bank', '1')")
+	lines := app.TestSetupYear(t, a, 2031, "expense/Food")
+	app.MustStatus(t, app.TestRequest(a, "POST", "/bank/accounts", url.Values{"name": {"Budget account"}, "format": {"laanspar"}}, ""), 303)
+	previewAndImport(t, a, strconv.FormatInt(app.TestQueryInt(t, "SELECT id FROM bank_accounts"), 10), laanSparSample)
+	netto := strconv.FormatInt(app.TestQueryInt(t, "SELECT id FROM bank_transactions WHERE text = 'Netto Butik 123'"), 10)
+	app.MustStatus(t, app.TestRequest(a, "POST", "/bank/transactions", url.Values{"year": {"2031"}, "t": {netto},
+		"line_" + netto: {strconv.FormatInt(lines["expense/Food"], 10)}}, ""), 303)
+	app.MustStatus(t, app.TestRequest(a, "POST", "/bank/rules", url.Values{"new_pattern": {"bager"}, "new_target": {"ignore"}, "new_display": {"Bakery"}}, ""), 303)
+
+	test := func(text string) string {
+		return html.UnescapeString(app.TestRequest(a, "GET", "/bank/rules?test="+url.QueryEscape(text), nil, "").Body.String())
+	}
+	if page := test("netto"); !strings.Contains(page, "Food (by hand)") || !strings.Contains(page, "Stays as it is") {
+		t.Errorf("a row assigned by hand: %s", page)
+	}
+	if page := test("bager"); !strings.Contains(page, "by rule: bager") {
+		t.Errorf("a row assigned by a rule: %s", page)
+	}
+	if page := test("løn"); !strings.Contains(page, "Would be assigned") {
+		t.Errorf("an unassigned row: %s", page)
+	}
+	if page := test("nothing like it"); !strings.Contains(page, "No transactions match.") {
+		t.Errorf("no matches: %s", page)
+	}
+
+	// The display name shows in the list; changing it keeps the assignments.
+	page := html.UnescapeString(app.TestRequest(a, "GET", "/bank/transactions?year=2031&show=all", nil, "").Body.String())
+	if !strings.Contains(page, `<span title="Bager Hansen">Bakery</span>`) {
+		t.Errorf("transactions list lacks the display name")
+	}
+	rule := strconv.FormatInt(app.TestQueryInt(t, "SELECT id FROM bank_rules WHERE pattern = 'bager'"), 10)
+	app.MustStatus(t, app.TestRequest(a, "POST", "/bank/rules", url.Values{"pattern_" + rule: {"bager"}, "target_" + rule: {"ignore"}, "display_" + rule: {"Baker"}}, ""), 303)
+	if n := app.TestQueryInt(t, "SELECT COUNT(*) FROM bank_transactions WHERE rule_id = ?", rule); n != 2 {
+		t.Errorf("%d rows still assigned by the rule after renaming its display, want 2", n)
+	}
+	if n := app.TestQueryInt(t, "SELECT COUNT(*) FROM bank_rules WHERE display_name = 'Baker'"); n != 1 {
+		t.Error("the display name was not changed")
+	}
+}

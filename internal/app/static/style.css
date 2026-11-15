@@ -324,6 +324,7 @@ form.inline input.account-name { width: 16rem; max-width: 100%; }
 .tabs a:hover { color: var(--text); }
 .tabs a.active { color: var(--text); font-weight: 600; border-bottom-color: var(--accent); }
 form.inline input.rule-pattern, input.rule-pattern { width: 18rem; max-width: 100%; }
+input.rule-display { width: 12rem; max-width: 100%; }
 /* A file field as one of the app's buttons, with the chosen file's name beside it. */
 /* Browsers give a file field a wide default width; this fits the button and a usual file name. */
 input[type="file"], form.inline input[type="file"] { width: 15rem; max-width: 100%; padding: 0; border: 0; background: none; color: var(--muted); font-size: .9em; }

@@ -22,7 +22,8 @@ type bankRule struct {
 	Section  string
 	LineName string
 	Ignored  bool
-	Assigned int // transactions this rule assigned
+	Display  string // shown instead of the bank's text, if set
+	Assigned int    // transactions this rule assigned
 }
 
 // Target is the rule's choice as the rule form sends it.
@@ -98,7 +99,7 @@ func matchRule(rules []bankRule, text string) *bankRule {
 
 func loadBankRules(ctx context.Context, q app.Querier, budget int64) ([]bankRule, error) {
 	rows, err := q.QueryContext(ctx, `SELECT r.id, r.pattern, COALESCE(r.section, ''), COALESCE(r.line_name, ''), r.ignored,
-			(SELECT COUNT(*) FROM bank_transactions t WHERE t.rule_id = r.id)
+			COALESCE(r.display_name, ''), (SELECT COUNT(*) FROM bank_transactions t WHERE t.rule_id = r.id)
 		FROM bank_rules r WHERE r.budget_id = ? ORDER BY r.pattern`, budget)
 	if err != nil {
 		return nil, err
@@ -107,7 +108,7 @@ func loadBankRules(ctx context.Context, q app.Querier, budget int64) ([]bankRule
 	var out []bankRule
 	for rows.Next() {
 		var r bankRule
-		if err := rows.Scan(&r.ID, &r.Pattern, &r.Section, &r.LineName, &r.Ignored, &r.Assigned); err != nil {
+		if err := rows.Scan(&r.ID, &r.Pattern, &r.Section, &r.LineName, &r.Ignored, &r.Display, &r.Assigned); err != nil {
 			return nil, err
 		}
 		out = append(out, r)
@@ -289,7 +290,17 @@ func (a handlers) bankRulesPage(w http.ResponseWriter, r *http.Request) {
 	for _, rule := range rules {
 		pickers[rule.ID] = picker{rule.Target(), L, grouped}
 	}
+	test := strings.Join(strings.Fields(r.FormValue("test")), " ")
+	var matches []bankRuleMatch
+	if specificity(test) > 0 {
+		if matches, err = a.ruleMatches(r, current.ID, rules, test); err != nil {
+			a.Fail(w, err)
+			return
+		}
+	}
 	a.Render(w, r, "bank_rules", map[string]any{
+		"Test":      test,
+		"Matches":   matches,
 		"Title":     L.T("nav.bank"),
 		"Tabs":      bankTabs(L, current, "rules"),
 		"Current":   current,
@@ -352,6 +363,13 @@ func (a handlers) bankRulesSave(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		seen[strings.ToLower(pattern)] = true
+		// The display name only changes how transactions are shown.
+		if display := strings.Join(strings.Fields(r.FormValue("display_"+id)), " "); r.Form.Has("display_"+id) && display != rule.Display {
+			if _, err := tx.ExecContext(ctx, `UPDATE bank_rules SET display_name = NULLIF(?, '') WHERE id = ?`, display, rule.ID); err != nil {
+				a.Fail(w, err)
+				return
+			}
+		}
 		if pattern != rule.Pattern || section != rule.Section || name != rule.LineName || ignored != rule.Ignored {
 			changed = append(changed, rule.ID)
 			if _, err := tx.ExecContext(ctx, `UPDATE bank_rules SET pattern = ?, section = NULLIF(?, ''), line_name = NULLIF(?, ''), ignored = ? WHERE id = ?`,
@@ -389,8 +407,9 @@ func (a handlers) bankRulesSave(w http.ResponseWriter, r *http.Request) {
 			http.Redirect(w, r, back(url.Values{"error": {"duplicate"}}), http.StatusSeeOther)
 			return
 		}
-		if _, err := tx.ExecContext(ctx, `INSERT INTO bank_rules (budget_id, pattern, section, line_name, ignored) VALUES (?, ?, NULLIF(?, ''), NULLIF(?, ''), ?)`,
-			b.ID, pattern, section, name, ignored); err != nil {
+		if _, err := tx.ExecContext(ctx, `INSERT INTO bank_rules (budget_id, pattern, section, line_name, ignored, display_name)
+			VALUES (?, ?, NULLIF(?, ''), NULLIF(?, ''), ?, NULLIF(?, ''))`,
+			b.ID, pattern, section, name, ignored, strings.Join(strings.Fields(r.FormValue("new_display")), " ")); err != nil {
 			a.Fail(w, err)
 			return
 		}
@@ -404,4 +423,57 @@ func (a handlers) bankRulesSave(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	http.Redirect(w, r, back(nil), http.StatusSeeOther)
+}
+
+// bankRuleMatch is a transaction a tested text matches. Takes is false when a
+// choice by hand or a more specific rule keeps it from the text.
+type bankRuleMatch struct {
+	bankTransaction
+	State string // "unassigned", "hand" or "rule"
+	Line  string // the line or rule that has it now
+	Takes bool
+}
+
+// ruleMatches lists the budget's newest transactions that test matches.
+func (a handlers) ruleMatches(r *http.Request, budget int64, rules []bankRule, test string) ([]bankRuleMatch, error) {
+	rows, err := a.DB().QueryContext(r.Context(), `SELECT t.id, t.booked, t.text, t.amount, t.ignored, COALESCE(l.name, ''), COALESCE(ru.pattern, '')
+		FROM bank_transactions t JOIN bank_accounts a ON a.id = t.account_id
+		LEFT JOIN budget_lines l ON l.id = t.line_id LEFT JOIN bank_rules ru ON ru.id = t.rule_id
+		WHERE a.budget_id = ? ORDER BY t.booked DESC, t.id DESC`, budget)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var out []bankRuleMatch
+	for rows.Next() && len(out) < 50 {
+		var m bankRuleMatch
+		var rule string
+		if err := rows.Scan(&m.ID, &m.Booked, &m.Text, &m.Amount, &m.Ignored, &m.Line, &rule); err != nil {
+			return nil, err
+		}
+		if !patternMatches(m.Text, test) {
+			continue
+		}
+		switch {
+		case rule != "":
+			m.State, m.Line = "rule", rule
+		case m.Line != "" || m.Ignored:
+			m.State = "hand"
+		default:
+			m.State = "unassigned"
+		}
+		// The text takes what nothing assigned by hand, unless a more specific rule fits.
+		best := matchRule(rules, m.Text)
+		m.Takes = m.State != "hand" && (best == nil || specificity(test) >= specificity(best.Pattern))
+		out = append(out, m)
+	}
+	return out, rows.Err()
+}
+
+// displayName is the name a transaction is shown with: its rule's, else its text.
+func displayName(rules []bankRule, text string) string {
+	if r := matchRule(rules, text); r != nil && r.Display != "" {
+		return r.Display
+	}
+	return text
 }

@@ -18,6 +18,7 @@ type bankTransaction struct {
 	Booked  time.Time
 	Account string
 	Text    string
+	Shown   string // the rule's display name, or Text
 	Amount  app.Money
 	LineID  int64
 	Ignored bool
@@ -132,6 +133,11 @@ func (a handlers) bankTransactionsPage(w http.ResponseWriter, r *http.Request) {
 	pages := app.NewPager(r, L, "page", total, "")
 	f.Page, f.Size = pages.Page, pages.Size
 
+	rules, err := loadBankRules(ctx, a.DB(), current.ID)
+	if err != nil {
+		a.Fail(w, err)
+		return
+	}
 	var list []bankTransaction
 	rows, err = a.DB().QueryContext(ctx, `SELECT t.id, t.booked, a.name, t.text, t.amount, COALESCE(t.line_id, 0), t.ignored, t.rule_id IS NOT NULL`+
 		from+` ORDER BY t.booked DESC, t.id DESC LIMIT ? OFFSET ?`, append(args, pages.Size, pages.Offset())...)
@@ -146,6 +152,7 @@ func (a handlers) bankTransactionsPage(w http.ResponseWriter, r *http.Request) {
 			a.Fail(w, err)
 			return
 		}
+		t.Shown = displayName(rules, t.Text)
 		list = append(list, t)
 	}
 	if err := rows.Err(); err != nil {
