@@ -547,31 +547,18 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   }
 
-  // The running balance by month, with bars above or below zero.
-  function balance(box, values) {
-    const lo = Math.min(0, ...values), hi = Math.max(0, ...values, 100)
-    const step = niceStep((hi - lo) / 4)
-    const top = Math.ceil(hi / step) * step, bottom = Math.floor(lo / step) * step
-    const at = v => (v - bottom) / (top - bottom) * 100 + '%'
-    const plot = el('div', 'plot balance')
-    for (let v = bottom; v <= top; v += step) {
-      const g = el('div', 'grid')
-      g.style.bottom = at(v)
-      g.append(el('span', null, (v < 0 ? '-' : '') + compact(Math.abs(v))))
-      plot.append(g)
-    }
-    values.forEach((v, i) => {
-      const m = el('div', 'month')
-      const b = el('i', 'bar unallocated' + (v < 0 ? ' neg' : ''))
-      b.style.bottom = at(Math.min(v, 0))
-      b.style.height = Math.abs(v) / (top - bottom) * 100 + '%'
-      m.append(b)
-      hover(m, months[i], [['unallocated' + (v < 0 ? ' neg' : ''), kr(v), L.balance]])
-      plot.append(m)
-    })
-    const low = values.indexOf(Math.min(...values))
-    const note = el('p', 'hint', values[low] < 0 ? L.balanceLow.replace('%s', kr(values[low])).replace('%m', months[low]) : L.balanceOk)
-    box.replaceChildren(plot, xaxis(months, months.map(m => m[0])), note)
+  // The buffer the year needs on 1 January, when its running balance dips below zero.
+  function buffer(note, diffs) {
+    let sum = 0
+    const run = diffs.map(d => (sum += d))
+    const low = run.indexOf(Math.min(...run))
+    note.hidden = run[low] >= 0
+    if (note.hidden) return
+    const back = run.findIndex((v, i) => i > low && v >= 0)
+    let text = L.buffer.replace('%s', kr(-run[low])) + ' ' +
+      (back < 0 ? L.bufferNever : L.bufferBack.replace('%s', months[back]))
+    if (L.prevEnd !== undefined) text += ' ' + L.prevText.replace('%s', kr(+L.prevEnd))
+    note.textContent = text
   }
 
   function drawCharts(t, lines, calc) {
@@ -585,8 +572,7 @@ document.addEventListener('DOMContentLoaded', () => {
     columns(monthly, months, months.map(m => m[0]), t.income.slice(1), t.expense.slice(1),
       { allocation: t.allocation.slice(1), difference: ms.map(calc.difference) })
     for (const box of document.querySelectorAll('.hbars')) hbars(box, lines[box.dataset.chart])
-    let sum = 0
-    balance(document.querySelector('[data-chart="balance"]'), ms.map(m => (sum += calc.difference(m))))
+    buffer(charts.querySelector('.buffer'), ms.map(calc.difference))
   }
 
   form.addEventListener('input', recalc)
