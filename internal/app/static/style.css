@@ -316,10 +316,10 @@ button.icon.link.broken { opacity: 1; filter: grayscale(1); text-decoration: lin
 /* Bank page */
 .notice.ok { border-left-color: var(--pos); }
 form.inline input.account-name { width: 16rem; max-width: 100%; }
-.bank-account { display: flex; flex-wrap: wrap; align-items: center; gap: .5rem; }
-.bank-table .pos { color: var(--pos); }
-.bank-table tr.done td { color: var(--muted); }
-.bank-table tr + tr td { border-top: 1px solid color-mix(in srgb, var(--border) 60%, transparent); }
+.import-account { display: flex; flex-wrap: wrap; align-items: center; gap: .5rem; }
+.import-table .pos { color: var(--pos); }
+.import-table tr.done td { color: var(--muted); }
+.import-table tr + tr td { border-top: 1px solid color-mix(in srgb, var(--border) 60%, transparent); }
 .tabs { display: flex; flex-wrap: wrap; gap: .25rem; margin: .5rem 0 1rem; border-bottom: 1px solid var(--border); }
 .tabs a { padding: .4rem .8rem; text-decoration: none; color: var(--muted); border-bottom: 2px solid transparent; margin-bottom: -1px; }
 .tabs a:hover { color: var(--text); }
@@ -333,9 +333,9 @@ input[type="file"]::file-selector-button { font: inherit; font-size: 1rem; margi
 input[type="file"]::file-selector-button:hover { border-color: var(--muted); }
 input[type="file"]:focus-visible { outline: none; }
 input[type="file"]:focus-visible::file-selector-button { outline: 2px solid var(--accent); outline-offset: 1px; }
-.card.bank-list { max-width: none; }
-.bank-table td.text { white-space: normal; min-width: 14rem; }
-.bank-table select { min-width: 16rem; max-width: 24rem; }
+.card.import-list { max-width: none; }
+.import-table td.text { white-space: normal; min-width: 14rem; }
+.import-table select { min-width: 16rem; max-width: 24rem; }
 .hint .tips { margin: .25rem 0 0; padding-left: 1.25rem; }
 .compare-table tr.head th { padding-top: .9rem; }
 .compare-table tr.total th, .compare-table tr.total td { font-weight: 600; border-top: 1px solid var(--border); }
@@ -347,8 +347,8 @@ input[type="file"]:focus-visible::file-selector-button { outline: 2px solid var(
 .actual-in { background: var(--pos); }
 .notice.missing { border-left-color: var(--c-other); }
 .notice.missing summary { cursor: pointer; }
-.bank-table td.split { white-space: normal; }
-.bank-account .default-line { display: flex; align-items: center; gap: .4rem; color: var(--muted); }
+.import-table td.split { white-space: normal; }
+.import-account .default-line { display: flex; align-items: center; gap: .4rem; color: var(--muted); }
 .month-nav { display: flex; gap: 1.5rem; }
 .month-table td.text { white-space: normal; }
 .month-table summary { cursor: pointer; }

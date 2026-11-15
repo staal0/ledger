@@ -1,0 +1,42 @@
+{{define "content"}}{{$L := .L}}{{$t := .Transaction}}
+<p class="hint"><a href="{{.Back}}">← {{$L.T "import.tab_transactions"}}</a></p>
+<h1>{{.Title}}</h1>
+
+<section class="card wide">
+  <p><strong>{{$t.Booked.Format "2006-01-02"}}</strong> · {{$t.Text}} · <span class="{{if lt $t.Amount 0}}neg{{else}}pos{{end}}">{{$L.Money $t.Amount}}</span></p>
+  {{with .Problem}}<p class="notice" role="alert">{{.}}</p>{{end}}
+  <form method="post">
+    <input type="hidden" name="back" value="{{.Back}}">
+    <table class="manage-table import-table">
+      <tr class="head"><th>{{$L.T "import.budget_line"}}</th><th class="num">{{$L.T "import.amount"}}</th></tr>
+      {{range $i, $row := .Rows}}
+      <tr>
+        <td><select name="line_{{$i}}" aria-label="{{$L.T "import.budget_line"}}" autocomplete="off">{{template "import-split-line" (index $.Pickers $i)}}</select></td>
+        <td><input class="num" name="amount_{{$i}}" value="{{$row.Amount}}" inputmode="decimal" pattern="{{$.Pattern}}" aria-label="{{$L.T "import.amount"}}" autocomplete="off"></td>
+      </tr>
+      {{end}}
+    </table>
+    <p class="hint">{{$L.T "import.split_hint"}}</p>
+    <p>
+      <button name="action" value="save">{{$L.T "save"}}</button>
+      {{if $t.Split}}<button class="secondary" name="action" value="undo" data-confirm="{{$L.T "import.split_undo_confirm"}}">{{$L.T "import.split_undo"}}</button>{{end}}
+      <a class="button secondary" href="{{.Back}}">{{$L.T "import.cancel"}}</a>
+    </p>
+  </form>
+</section>
+{{if .Items}}
+<section class="card wide">
+  <h2>{{$L.T "import.receipt_items"}}</h2>
+  <table class="manage-table import-table">
+    {{range .Items}}<tr><td class="text">{{.Name}}</td><td class="num">{{$L.Money .Amount}}</td></tr>{{end}}
+  </table>
+</section>
+{{end}}
+{{end}}
+
+{{/* A part's choices: none, Ignore or a line of the transaction's year. */}}
+{{define "import-split-line"}}{{$c := .Choice}}{{$L := .L}}
+<option value="">–</option>
+<option value="ignore"{{if eq $c "ignore"}} selected{{end}}>{{$L.T "import.ignore"}}</option>
+{{range .Sections}}<optgroup label="{{$L.T (print "section." .Key)}}">{{range .Lines}}<option value="{{.ID}}"{{if eq $c (print .ID)}} selected{{end}}>{{.Name}}</option>{{end}}</optgroup>{{end}}
+{{- end}}

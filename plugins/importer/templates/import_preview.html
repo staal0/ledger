@@ -1,0 +1,57 @@
+{{define "content"}}{{$L := .L}}
+<p class="hint"><a href="{{.Back}}">← {{$L.T "nav.import"}}</a></p>
+<h1>{{.Title}} <span class="hint">{{.Account.Name}}</span></h1>
+
+{{if .Error}}{{with .Error}}
+<div class="notice" role="alert">
+  {{if .Line}}{{$L.T "import.err_line" .Line}} {{end}}{{$L.T .Key}}{{with .Value}} <code>{{.}}</code>{{end}}
+</div>
+{{end}}{{else if .Receipts}}
+<section class="card wide">
+  <p class="hint">{{$L.T "import.read_as" .Format}}</p>
+  <p>{{$L.T "import.receipts_summary" .Added .Skipped}}</p>
+  <form method="post" action="/import/import" class="inline">
+    <input type="hidden" name="account" value="{{.Account.ID}}">
+    <input type="hidden" name="receipts" value="{{.Data}}">
+    <button{{if not .Added}} disabled{{end}}>{{$L.T "import.import_rows" .Added}}</button>
+    <a class="button secondary" href="{{.Back}}">{{$L.T "import.cancel"}}</a>
+  </form>
+  <p class="hint">{{$L.T "import.receipts_hint"}}</p>
+  <div class="scroll">
+  <table class="manage-table import-table">
+    <tr class="head"><th>{{$L.T "import.date"}}</th><th>{{$L.T "import.store"}}</th><th class="num">{{$L.T "import.items"}}</th><th class="num">{{$L.T "import.amount"}}</th><th>{{$L.T "import.status"}}</th></tr>
+    {{range .Receipts}}
+    <tr{{if .Imported}} class="done"{{end}}>
+      <td>{{.Booked.Format "2006-01-02"}}</td><td>{{.Store}}</td><td class="num">{{len .Items}}</td>
+      <td class="num{{if lt .Amount 0}} neg{{else}} pos{{end}}">{{$L.Money .Amount}}</td>
+      <td>{{if .Imported}}<span class="hint">{{$L.T "import.status_imported"}}</span>{{else}}{{$L.T "import.status_new"}}{{with .Covers}} · <span class="hint">{{$L.T "import.status_covers" (.Booked.Format "2006-01-02") .Text}}</span>{{end}}{{end}}</td>
+    </tr>
+    {{end}}
+  </table>
+  </div>
+</section>
+{{else}}
+<section class="card wide">
+  <p class="hint">{{$L.T "import.read_as" .Format}}</p>
+  <p>{{$L.T "import.preview_summary" .Added .Skipped}}</p>
+  <form method="post" action="/import/import" class="inline">
+    <input type="hidden" name="account" value="{{.Account.ID}}">
+    <input type="hidden" name="data" value="{{.Data}}">
+    <button{{if not .Added}} disabled{{end}}>{{$L.T "import.import_rows" .Added}}</button>
+    <a class="button secondary" href="{{.Back}}">{{$L.T "import.cancel"}}</a>
+  </form>
+  <div class="scroll">
+  <table class="manage-table import-table">
+    <tr class="head"><th>{{$L.T "import.line"}}</th><th>{{$L.T "import.date"}}</th><th>{{$L.T "import.text"}}</th><th class="num">{{$L.T "import.amount"}}</th><th>{{$L.T "import.status"}}</th></tr>
+    {{range .Rows}}
+    <tr{{if .Imported}} class="done"{{end}}>
+      <td class="hint">{{.Line}}</td><td>{{.Booked.Format "2006-01-02"}}</td><td>{{.Text}}{{if gt .Seq 1}} <span class="hint">({{$L.T "import.same_again" .Seq}})</span>{{end}}</td>
+      <td class="num{{if lt .Amount 0}} neg{{else}} pos{{end}}">{{$L.Money .Amount}}</td>
+      <td>{{if .Imported}}<span class="hint">{{$L.T "import.status_imported"}}</span>{{else}}{{$L.T "import.status_new"}}{{end}}</td>
+    </tr>
+    {{end}}
+  </table>
+  </div>
+</section>
+{{end}}
+{{end}}
