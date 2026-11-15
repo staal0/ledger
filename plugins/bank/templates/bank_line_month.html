@@ -1,6 +1,7 @@
 {{define "content"}}{{$L := .L}}
 <p class="hint"><a href="{{.Back}}">← {{.Name}}</a></p>
 <h1>{{.Name}} <span class="hint">{{.Month}}</span></h1>
+{{with .Filter}}<p class="hint">{{$L.T "bank.receipts"}} {{.}}</p>{{end}}
 <p class="month-nav">
   {{with .Prev}}<a href="{{.}}">← {{$L.T "bank.month_prev"}}</a>{{end}}
   {{with .Next}}<a href="{{.}}">{{$L.T "bank.month_next"}} →</a>{{end}}
@@ -17,7 +18,7 @@
       <td>{{.Booked.Format "2006-01-02"}}</td>
       <td class="text">{{if .Items}}<details><summary>{{.Text}} <span class="hint">· {{if eq (len .Items) 1}}{{$L.T "bank.items_one"}}{{else}}{{$L.T "bank.items_count" (len .Items)}}{{end}}</span></summary>
         <table class="receipt-items">
-          {{range .Items}}<tr{{if not .Here}} class="elsewhere"{{end}}><td>{{.Name}}</td><td class="num">{{$L.Money .Amount}}</td><td class="hint">{{if not .Here}}{{with .Line}}→ {{.}}{{else}}{{$L.T "bank.ignore"}}{{end}}{{end}}</td></tr>{{end}}
+          {{range .Items}}<tr class="{{if not .Here}}elsewhere{{end}}{{if .Match}} match{{end}}"><td>{{.Name}}</td><td class="num">{{$L.Money .Amount}}</td><td class="hint">{{if not .Here}}{{with .Line}}→ {{.}}{{else}}{{$L.T "bank.ignore"}}{{end}}{{end}}</td></tr>{{end}}
         </table>
       </details>{{else}}{{.Text}}{{end}}</td>
       <td>{{.Account}}</td>

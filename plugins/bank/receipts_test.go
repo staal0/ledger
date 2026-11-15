@@ -151,6 +151,18 @@ func TestBankReceipts(t *testing.T) {
 			}
 		}
 	}
+	// A filtered chart's months keep the filter there and back.
+	if page := filtered("q=milk"); !strings.Contains(page, `year=2031\u0026q=milk\u0026from=2031`) {
+		t.Error("a filtered chart's months do not keep the filter")
+	}
+	w = app.TestRequest(a, "GET", "/bank/line-month?section=allocation&name=Food+account&year=2031&month=3&from=2031&to=2031&q=milk", nil, "")
+	app.MustStatus(t, w, 200)
+	month = html.UnescapeString(w.Body.String())
+	for _, want := range []string{"Receipts with “milk”", "35.50 in all, from 2 purchases", `class=" match"`, "/stats/line?from=2031&name=Food+account&q=milk&section=allocation&to=2031"} {
+		if !strings.Contains(month, want) {
+			t.Errorf("the filtered month page lacks %q", want)
+		}
+	}
 	if !strings.Contains(food, `href="/stats/line?from=2031&name=Food+account&section=allocation&store=Grocer&to=2031"`) {
 		t.Error("the stores do not link to their filter")
 	}

@@ -104,7 +104,7 @@ func (bankPlugin) LinePanel(core *app.App, r *http.Request, b app.BudgetRef, sec
 	filter := readItemFilter(r)
 	sign := actualSign(section)
 	L := core.Locale(r)
-	keep := "&from=" + strconv.Itoa(from) + "&to=" + strconv.Itoa(to)
+	keep := "&from=" + strconv.Itoa(from) + "&to=" + strconv.Itoa(to) + filter.params()
 	top := func(group, count string, limit int, f itemFilter) ([]linePanelRow, error) {
 		where, fargs := f.sql()
 		rows, err := core.DB().QueryContext(ctx, `SELECT `+group+`, `+count+`, SUM(i.amount),

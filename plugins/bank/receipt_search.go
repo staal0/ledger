@@ -41,6 +41,33 @@ func readItemFilter(r *http.Request) itemFilter {
 
 func (f itemFilter) on() bool { return f.Store != "" || f.Query != "" }
 
+// params is the filter for a link's query, after other parameters.
+func (f itemFilter) params() string {
+	q := url.Values{}
+	if f.Store != "" {
+		q.Set("store", f.Store)
+	}
+	if f.Query != "" {
+		q.Set("q", f.Query)
+	}
+	if len(q) == 0 {
+		return ""
+	}
+	return "&" + q.Encode()
+}
+
+// label names what the filter keeps, such as "from Store with “coffee”".
+func (f itemFilter) label(L *app.Locale) string {
+	var parts []string
+	if f.Store != "" {
+		parts = append(parts, L.T("bank.filter_store", f.Store))
+	}
+	if f.Query != "" {
+		parts = append(parts, L.T("bank.filter_query", f.Query))
+	}
+	return strings.Join(parts, " ")
+}
+
 // sql is the filter as conditions on items i of transactions t.
 func (f itemFilter) sql() (string, []any) {
 	where, args := "", []any{}
@@ -92,14 +119,7 @@ func filteredActuals(r *http.Request, core *app.App, lines string, args []any, s
 		out[y][m] = -sum * actualSign(section) // items are positive for a purchase
 	}
 	L := core.Locale(r)
-	var parts []string
-	if f.Store != "" {
-		parts = append(parts, L.T("bank.filter_store", f.Store))
-	}
-	if f.Query != "" {
-		parts = append(parts, L.T("bank.filter_query", f.Query))
-	}
-	return out, L.T("bank.receipts") + " " + strings.Join(parts, " "), rows.Err()
+	return out, L.T("bank.receipts") + " " + f.label(L), rows.Err()
 }
 
 // searchItems finds the items on the lines the query lines selects, by the

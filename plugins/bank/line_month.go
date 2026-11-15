@@ -18,8 +18,8 @@ func lineMonthURL(b app.BudgetRef, section string, names []string, year, month i
 }
 
 // LineMonthURL links a line's stats to what was spent on it in a month.
-func (bankPlugin) LineMonthURL(b app.BudgetRef, section string, names []string, year, month int) string {
-	return lineMonthURL(b, section, names, year, month)
+func (bankPlugin) LineMonthURL(r *http.Request, b app.BudgetRef, section string, names []string, year, month int) string {
+	return lineMonthURL(b, section, names, year, month) + readItemFilter(r).params()
 }
 
 type monthItem struct {
@@ -27,6 +27,7 @@ type monthItem struct {
 	Amount app.Money
 	Line   string // the item's line, when not this one
 	Here   bool
+	Match  bool // found by the search
 }
 
 type monthRow struct {
@@ -78,14 +79,24 @@ func (a handlers) bankLineMonth(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	sign := actualSign(section)
-	rows, err := a.DB().QueryContext(ctx, `SELECT t.id, t.booked, a.name, t.text, t.amount, t.receipt IS NOT NULL, SUM(x.amount) FROM (
-			SELECT id, amount FROM bank_transactions WHERE line_id IN (`+lines+`) AND NOT ignored AND NOT split
+	// What is on the lines: whole transactions and split parts, or with a
+	// filter the receipt items it keeps, as on the chart.
+	on := `SELECT id, amount FROM bank_transactions WHERE line_id IN (` + lines + `) AND NOT ignored AND NOT split
 			UNION ALL
-			SELECT transaction_id, amount FROM bank_splits WHERE line_id IN (`+lines+`) AND NOT ignored
+			SELECT transaction_id, amount FROM bank_splits WHERE line_id IN (` + lines + `) AND NOT ignored`
+	onArgs := append(append([]any{}, args...), args...)
+	filter := readItemFilter(r)
+	if filter.on() {
+		where, fargs := filter.sql()
+		on = `SELECT t.id, -i.amount AS amount FROM bank_receipt_items i JOIN bank_transactions t ON t.id = i.transaction_id
+			WHERE COALESCE(i.line_id, t.line_id) IN (` + lines + `)` + where
+		onArgs = append(append([]any{}, args...), fargs...)
+	}
+	rows, err := a.DB().QueryContext(ctx, `SELECT t.id, t.booked, a.name, t.text, t.amount, t.receipt IS NOT NULL, SUM(x.amount) FROM (`+on+`
 		) x JOIN bank_transactions t ON t.id = x.id JOIN bank_accounts a ON a.id = t.account_id
 		WHERE YEAR(t.booked) = ? AND MONTH(t.booked) = ?
 		GROUP BY t.id, t.booked, a.name, t.text, t.amount, t.receipt ORDER BY t.booked, t.id`,
-		append(append(append([]any{}, args...), args...), year, month)...)
+		append(onArgs, year, month)...)
 	if err != nil {
 		a.Fail(w, err)
 		return
@@ -135,6 +146,7 @@ func (a handlers) bankLineMonth(w http.ResponseWriter, r *http.Request) {
 			}
 			it.Amount *= -sign // items are positive for a purchase
 			it.Here = ids[line]
+			it.Match = filter.Query != "" && patternMatches(it.Name, filter.Query)
 			list[i].Items = append(list[i].Items, it)
 		}
 		items.Close()
@@ -153,8 +165,14 @@ func (a handlers) bankLineMonth(w http.ResponseWriter, r *http.Request) {
 	if _, err := strconv.Atoi(to); err != nil {
 		to = strconv.Itoa(year)
 	}
-	keep := "&from=" + from + "&to=" + to
+	keep := "&from=" + from + "&to=" + to + filter.params()
 	back := url.Values{"section": {section}, "name": names, "from": {from}, "to": {to}}
+	if filter.Store != "" {
+		back.Set("store", filter.Store)
+	}
+	if filter.Query != "" {
+		back.Set("q", filter.Query)
+	}
 	if !current.IsDefault {
 		back.Set("budget", current.Slug)
 	}
@@ -187,6 +205,7 @@ func (a handlers) bankLineMonth(w http.ResponseWriter, r *http.Request) {
 		"Rows":     list,
 		"Sum":      sum,
 		"Receipts": receipts,
+		"Filter":   filter.label(L),
 		"Back":     "/stats/line?" + back.Encode(),
 		"Prev":     prevURL,
 		"Next":     nextURL,
