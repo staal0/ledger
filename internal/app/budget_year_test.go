@@ -266,3 +266,14 @@ func TestDemo(t *testing.T) {
 	}
 	mustStatus(t, request(a, "GET", "/stats", nil, ""), 200)
 }
+
+func TestBalanceChart(t *testing.T) {
+	a := testApp(t, false)
+	setupYear(t, a, 2030, "income/Salary")
+	page := request(a, "GET", "/budget/2030", nil, "").Body.String()
+	for _, want := range []string{`data-chart="balance"`, `data-balance-low="The balance is lowest after %m: %s.`, "Balance through the year"} {
+		if !strings.Contains(page, want) {
+			t.Errorf("budget page lacks %q", want)
+		}
+	}
+}

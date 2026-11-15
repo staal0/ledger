@@ -140,7 +140,7 @@
 </dialog>
 
 {{/* Filled in by app.js from the grid above, so it follows edits live. */}}
-<aside class="charts" data-other="{{$L.T "chart.other"}}" data-empty="{{$L.T "chart.empty"}}">
+<aside class="charts" data-other="{{$L.T "chart.other"}}" data-empty="{{$L.T "chart.empty"}}" data-balance="{{$L.T "chart.balance_month"}}" data-balance-low="{{$L.T "chart.balance_low"}}" data-balance-ok="{{$L.T "chart.balance_ok"}}">
   <h2>{{$L.T "chart.overview" .Year}}</h2>
   <div class="tiles">
     <div class="tile" data-tile="income"><span class="label">{{$L.T "section.income"}}</span><span class="value"></span></div>
@@ -157,6 +157,10 @@
       <span><i class="swatch unallocated"></i>{{$L.T "calc.difference"}}</span>
     </div>
     <div data-chart="monthly" data-income="{{$L.T "section.income"}}" data-expense="{{$L.T "section.expense"}}" data-net="{{$L.T "calc.net"}}" data-allocation="{{$L.T "section.allocation"}}" data-difference="{{$L.T "calc.difference"}}"></div>
+  </figure>
+  <figure class="chart wide">
+    <figcaption>{{$L.T "chart.balance"}}</figcaption>
+    <div data-chart="balance"></div>
   </figure>
   <figure class="chart">
     <figcaption>{{$L.T "chart.expense"}}</figcaption>

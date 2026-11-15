@@ -522,6 +522,33 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   }
 
+  // The running balance by month, with bars above or below zero.
+  function balance(box, values) {
+    const lo = Math.min(0, ...values), hi = Math.max(0, ...values, 100)
+    const step = niceStep((hi - lo) / 4)
+    const top = Math.ceil(hi / step) * step, bottom = Math.floor(lo / step) * step
+    const at = v => (v - bottom) / (top - bottom) * 100 + '%'
+    const plot = el('div', 'plot balance')
+    for (let v = bottom; v <= top; v += step) {
+      const g = el('div', 'grid')
+      g.style.bottom = at(v)
+      g.append(el('span', null, (v < 0 ? '-' : '') + compact(Math.abs(v))))
+      plot.append(g)
+    }
+    values.forEach((v, i) => {
+      const m = el('div', 'month')
+      const b = el('i', 'bar unallocated' + (v < 0 ? ' neg' : ''))
+      b.style.bottom = at(Math.min(v, 0))
+      b.style.height = Math.abs(v) / (top - bottom) * 100 + '%'
+      m.append(b)
+      hover(m, months[i], [['unallocated' + (v < 0 ? ' neg' : ''), kr(v), L.balance]])
+      plot.append(m)
+    })
+    const low = values.indexOf(Math.min(...values))
+    const note = el('p', 'hint', values[low] < 0 ? L.balanceLow.replace('%s', kr(values[low])).replace('%m', months[low]) : L.balanceOk)
+    box.replaceChildren(plot, xaxis(months, months.map(m => m[0])), note)
+  }
+
   function drawCharts(t, lines, calc) {
     for (const tile of charts.querySelectorAll('[data-tile]')) {
       const v = calc[tile.dataset.tile](0)
@@ -533,6 +560,8 @@ document.addEventListener('DOMContentLoaded', () => {
     columns(monthly, months, months.map(m => m[0]), t.income.slice(1), t.expense.slice(1),
       { allocation: t.allocation.slice(1), difference: ms.map(calc.difference) })
     for (const box of document.querySelectorAll('.hbars')) hbars(box, lines[box.dataset.chart])
+    let sum = 0
+    balance(document.querySelector('[data-chart="balance"]'), ms.map(m => (sum += calc.difference(m))))
   }
 
   form.addEventListener('input', recalc)
