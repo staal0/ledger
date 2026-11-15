@@ -64,6 +64,7 @@ func (bankPlugin) Routes(mux *http.ServeMux, core *app.App) {
 	mux.HandleFunc("GET /bank/rules", a.bankRulesPage)
 	mux.HandleFunc("POST /bank/rules", a.Only(app.RoleEditor, a.bankRulesSave))
 	mux.HandleFunc("GET /bank/compare", a.bankComparePage)
+	mux.HandleFunc("GET /bank/line-month", a.bankLineMonth)
 	mux.HandleFunc("GET /bank/fill", a.Only(app.RoleEditor, a.bankFillPage))
 	mux.HandleFunc("POST /bank/fill", a.Only(app.RoleEditor, a.bankFillSave))
 }

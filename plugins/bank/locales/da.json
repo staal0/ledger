@@ -158,5 +158,13 @@
   "bank.item": "Vare",
   "bank.times": "Gange",
   "bank.line_receipts_hint": "Varer tæller på den linje, kvitteringen er opdelt til. Kvitteringer, der er opdelt i hånden, er ikke med.",
-  "bank.receipts": "Kvitteringer"
+  "bank.receipts": "Kvitteringer",
+  "bank.month_prev": "Forrige måned",
+  "bank.month_next": "Næste måned",
+  "bank.month_sum": "%s i alt, fra %d køb, heraf %d med kvittering.",
+  "bank.on_line": "På linjen",
+  "bank.items_count": "%d varer",
+  "bank.of_total": "af %s",
+  "bank.month_empty": "Der er intet på linjen i denne måned.",
+  "bank.items_one": "1 vare"
 }

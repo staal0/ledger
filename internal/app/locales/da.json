@@ -27,6 +27,7 @@
   "stats.budget": "Budget",
   "stats.actual": "Faktisk",
   "stats.difference": "Forskel",
+  "stats.month_detail": "Klik på en måned for at se, hvad pengene gik til.",
   "stats.show_selected": "Vis valgte samlet",
   "stats.select_all": "Vælg alle",
   "nav.logout": "Log ud",

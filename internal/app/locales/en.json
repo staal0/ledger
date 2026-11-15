@@ -27,6 +27,7 @@
   "stats.budget": "Budget",
   "stats.actual": "Actual",
   "stats.difference": "Difference",
+  "stats.month_detail": "Click a month to see what it was spent on.",
   "stats.show_selected": "Show selected together",
   "stats.select_all": "Select all",
   "nav.logout": "Log out",

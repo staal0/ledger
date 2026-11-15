@@ -98,8 +98,22 @@ func TestBankReceipts(t *testing.T) {
 		t.Error("the soap is not on the household line's stats alone")
 	}
 
+	// A month of the chart opens what is on the line then, receipts with their items.
+	if !strings.Contains(food, `/bank/line-month?month=3`) {
+		t.Error("the chart's months do not link to their page")
+	}
+	w := app.TestRequest(a, "GET", "/bank/line-month?section=allocation&name=Food+account&year=2031&month=3", nil, "")
+	app.MustStatus(t, w, 200)
+	month := html.UnescapeString(w.Body.String())
+	for _, want := range []string{"105.50 in all, from 2 purchases, 2 of them with a receipt", "BREAD", "→ Household", "of 120<", "Next month"} {
+		if !strings.Contains(month, want) {
+			t.Errorf("the month page lacks %q", want)
+		}
+	}
+	app.MustStatus(t, app.TestRequest(a, "GET", "/bank/line-month?section=allocation&name=Food+account&year=2031&month=13", nil, ""), 404)
+
 	// The export grows: imported again, nothing is added and the split stays.
-	w := uploadBank(t, a, receipts, receiptsSample)
+	w = uploadBank(t, a, receipts, receiptsSample)
 	app.MustStatus(t, w, 200)
 	if !strings.Contains(w.Body.String(), "0 new receipts, 2 imported before") {
 		t.Error("the preview of the same export again does not show both as imported before")

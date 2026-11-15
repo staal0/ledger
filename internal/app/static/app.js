@@ -149,7 +149,8 @@ document.addEventListener('DOMContentLoaded', () => {
   // colour, the first at the bottom, with a legend above the chart. actual, when
   // given, adds the actual next to each bar as the budget (null where a month has
   // none), red for spending and green for income; up is 1 when more is better.
-  function series(box, labels, axis, values, cls, changes, parts, actual, up) {
+  // links, when given, make each month open its page.
+  function series(box, labels, axis, values, cls, changes, parts, actual, up, links) {
     const [plot, top] = grid(Math.max(...values, ...(actual || []).map(v => v ?? 0), 100))
     const tint = i => `color-mix(in srgb, var(--c-${cls}) ${100 - i * 60 / Math.max(1, parts.length - 1)}%, var(--surface))`
     const actualCls = cls === 'income' ? 'actual-in' : 'actual'
@@ -180,6 +181,11 @@ document.addEventListener('DOMContentLoaded', () => {
       }
       if (changes && changes[i] !== '–') rows.push(['', changes[i], box.dataset.change])
       hover(m, name, rows)
+      if (links) {
+        m.classList.add('link')
+        m.addEventListener('click', () => { location.href = links[i] })
+        m.addEventListener('keydown', e => { if (e.key === 'Enter') location.href = links[i] })
+      }
       plot.append(m)
     })
     box.replaceChildren(plot, xaxis(axis, axis))
@@ -230,7 +236,7 @@ document.addEventListener('DOMContentLoaded', () => {
   const lineChart = document.querySelector('[data-chart="line"]')
   if (lineChart) {
     const d = JSON.parse(document.getElementById('line-data').textContent)
-    series(lineChart, d.Labels, d.Axis, d.Values, lineChart.dataset.section, d.Changes, d.Parts, d.Actual, d.Up)
+    series(lineChart, d.Labels, d.Axis, d.Values, lineChart.dataset.section, d.Changes, d.Parts, d.Actual, d.Up, d.Links)
   }
 
   // Budget against actual for one line: a pair of bars per month.

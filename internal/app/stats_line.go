@@ -135,7 +135,8 @@ func (a *App) statsLinePage(w http.ResponseWriter, r *http.Request) {
 		Values                []Money
 		Parts                 []part
 		Actual                []*Money
-		Up                    int // 1 when more is better
+		Links                 []string // a page for each month, when a plugin has one
+		Up                    int      // 1 when more is better
 	}{Up: map[bool]int{true: 1, false: -1}[section == "income"]}
 	actual, actualName, err := a.lineActuals(r, current, section, names, from, to)
 	if actualName == "" {
@@ -171,6 +172,14 @@ func (a *App) statsLinePage(w http.ResponseWriter, r *http.Request) {
 			chart.Values = append(chart.Values, y.Months[m])
 			chart.Changes = append(chart.Changes, y.Deltas[m].Text)
 			if actual != nil {
+				link, err := a.lineMonthURL(r, current, section, names, y.Year, m)
+				if err != nil {
+					a.Fail(w, err)
+					return
+				}
+				if link != "" {
+					chart.Links = append(chart.Links, link)
+				}
 				var v *Money
 				if got, found := actual[y.Year][m]; found {
 					v = &got

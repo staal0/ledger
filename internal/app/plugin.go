@@ -104,6 +104,28 @@ func (a *App) lineActuals(r *http.Request, budget BudgetRef, section string, nam
 	return out, name, nil
 }
 
+// LineMonths is a plugin with a page for one month of lines, which their stats
+// page links each month of the chart to.
+type LineMonths interface {
+	LineMonthURL(budget BudgetRef, section string, names []string, year, month int) string
+}
+
+// lineMonthURL is the first plugin's page for the month, or "" when none is on.
+func (a *App) lineMonthURL(r *http.Request, budget BudgetRef, section string, names []string, year, month int) (string, error) {
+	for _, p := range plugins {
+		lm, ok := p.(LineMonths)
+		if !ok {
+			continue
+		}
+		on, err := a.pluginOn(r.Context(), p.ID())
+		if err != nil || !on {
+			return "", err
+		}
+		return lm.LineMonthURL(budget, section, names, year, month), nil
+	}
+	return "", nil
+}
+
 // NavItem is a menu entry. Label is a locale key.
 type NavItem struct {
 	Path  string

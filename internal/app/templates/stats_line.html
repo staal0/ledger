@@ -25,6 +25,7 @@
     <div data-chart="line" data-section="{{.Section}}" data-label="{{.Name}}" data-total="{{$L.T "stats.total"}}" data-change="{{$L.T "stats.vs_year_before"}}"
       data-budget="{{$L.T "stats.budget"}}" data-actual="{{.Actual}}" data-difference="{{$L.T "stats.difference"}}"></div>
     <script type="application/json" id="line-data">{{.Chart}}</script>
+    {{if .Chart.Links}}<p class="hint">{{$L.T "stats.month_detail"}}</p>{{end}}
   </figure>
 
   <figure class="chart">
