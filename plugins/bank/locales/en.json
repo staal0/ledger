@@ -168,5 +168,10 @@
   "bank.month_empty": "Nothing is on the line this month.",
   "bank.items_one": "1 item",
   "bank.months": "Months",
-  "bank.months_more": "+%d more"
+  "bank.months_more": "+%d more",
+  "bank.search": "Search",
+  "bank.search_placeholder": "Find an item, e.g. coffee*",
+  "bank.search_count": "%d purchases, newest first. The date opens the month.",
+  "bank.search_more": "The newest %d purchases. Search more precisely to see older ones.",
+  "bank.search_none": "No items on the line match “%s”."
 }

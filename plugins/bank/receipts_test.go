@@ -112,6 +112,27 @@ func TestBankReceipts(t *testing.T) {
 	}
 	app.MustStatus(t, app.TestRequest(a, "GET", "/bank/line-month?section=allocation&name=Food+account&year=2031&month=13", nil, ""), 404)
 
+	// The line's items can be searched, each purchase with its date opening the month.
+	search := func(q string) string {
+		w := app.TestRequest(a, "GET", "/stats/line?section=allocation&name=Food+account&from=2031&to=2031&q="+url.QueryEscape(q), nil, "")
+		app.MustStatus(t, w, 200)
+		return html.UnescapeString(w.Body.String())
+	}
+	milk := search("milk")
+	for _, want := range []string{"2 purchases, newest first", ">2031-03-06</a>", ">2031-03-05</a>", "/bank/line-month?month=3&name=Food+account&section=allocation&year=2031&from=2031&to=2031"} {
+		if !strings.Contains(milk, want) {
+			t.Errorf("the search for milk lacks %q", want)
+		}
+	}
+	if strings.Index(milk, ">2031-03-06<") > strings.Index(milk, ">2031-03-05<") {
+		t.Error("the search does not list the newest first")
+	}
+	for q, want := range map[string]string{"soap": "No items on the line match", "%": "No items on the line match", "m*1l": "2 purchases"} {
+		if !strings.Contains(search(q), want) {
+			t.Errorf("searching %q: want %q", q, want)
+		}
+	}
+
 	// The export grows: imported again, nothing is added and the split stays.
 	w = uploadBank(t, a, receipts, receiptsSample)
 	app.MustStatus(t, w, 200)

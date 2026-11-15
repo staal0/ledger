@@ -168,5 +168,10 @@
   "bank.month_empty": "Der er intet på linjen i denne måned.",
   "bank.items_one": "1 vare",
   "bank.months": "Måneder",
-  "bank.months_more": "+%d flere"
+  "bank.months_more": "+%d flere",
+  "bank.search": "Søg",
+  "bank.search_placeholder": "Find en vare, fx kaffe*",
+  "bank.search_count": "%d køb, nyeste først. Datoen åbner måneden.",
+  "bank.search_more": "De nyeste %d køb. Søg mere præcist for at se ældre.",
+  "bank.search_none": "Ingen varer på linjen matcher “%s”."
 }

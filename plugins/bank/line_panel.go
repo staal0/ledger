@@ -139,5 +139,20 @@ func (bankPlugin) LinePanel(core *app.App, r *http.Request, b app.BudgetRef, sec
 	if err != nil {
 		return "", err
 	}
-	return core.RenderPart(r, "bank_line", map[string]any{"Stores": stores, "Items": items})
+	// A search lists each purchase of the matching items, with its date.
+	search := strings.Join(strings.Fields(r.FormValue("q")), " ")
+	var found []foundItem
+	more := false
+	if specificity(search) > 0 {
+		if found, more, err = searchItems(ctx, core.DB(), lines, args, search); err != nil {
+			return "", err
+		}
+		for i := range found {
+			found[i].Amount *= -sign
+			found[i].URL = lineMonthURL(b, section, names, found[i].Booked.Year(), int(found[i].Booked.Month())) + keep
+		}
+	}
+	return core.RenderPart(r, "bank_line", map[string]any{"Stores": stores, "Items": items,
+		"Current": b, "Section": section, "Names": names, "From": from, "To": to,
+		"Query": search, "Found": found, "More": more, "Max": maxFound})
 }

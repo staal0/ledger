@@ -9,14 +9,36 @@
   </table>
   </div>
 </figure>
-<figure class="chart">
+<figure class="chart" id="receipt-items">
   <figcaption>{{$L.T "bank.line_items"}}</figcaption>
+  <form class="filters receipt-search" action="/stats/line#receipt-items" role="search">
+    {{if not .Current.IsDefault}}<input type="hidden" name="budget" value="{{.Current.Slug}}">{{end}}
+    <input type="hidden" name="section" value="{{.Section}}">
+    {{range .Names}}<input type="hidden" name="name" value="{{.}}">{{end}}
+    <input type="hidden" name="from" value="{{.From}}"><input type="hidden" name="to" value="{{.To}}">
+    <input type="search" name="q" value="{{.Query}}" placeholder="{{$L.T "bank.search_placeholder"}}" aria-label="{{$L.T "bank.search"}}" autocomplete="off">
+    <button class="secondary">{{$L.T "bank.search"}}</button>
+  </form>
+  {{if .Query}}
+  {{if .Found}}
+  <p class="hint">{{if .More}}{{$L.T "bank.search_more" .Max}}{{else}}{{$L.T "bank.search_count" (len .Found)}}{{end}}</p>
+  <div class="scroll">
+  <table class="stats-table">
+    <tr class="head"><th>{{$L.T "bank.date"}}</th><th>{{$L.T "bank.item"}}</th><th>{{$L.T "bank.store"}}</th><th class="num">{{$L.T "bank.amount"}}</th></tr>
+    {{range .Found}}<tr><th><a href="{{.URL}}">{{.Booked.Format "2006-01-02"}}</a></th><td>{{.Name}}</td><td>{{.Store}}</td><td class="num">{{$L.Money .Amount}}</td></tr>{{end}}
+  </table>
+  </div>
+  {{else}}
+  <p class="hint">{{$L.T "bank.search_none" .Query}}</p>
+  {{end}}
+  {{else}}
   <div class="scroll">
   <table class="stats-table">
     <tr class="head"><th>{{$L.T "bank.item"}}</th><th class="num">{{$L.T "bank.times"}}</th><th class="num">{{$L.T "bank.amount"}}</th><th>{{$L.T "bank.months"}}</th></tr>
     {{range .Items}}<tr><th>{{.Name}}</th><td class="num">{{.Count}}</td><td class="num">{{$L.Money .Amount}}</td><td class="months">{{template "bank-months" .}}</td></tr>{{end}}
   </table>
   </div>
+  {{end}}
   <p class="hint">{{$L.T "bank.line_receipts_hint"}}</p>
 </figure>
 {{end}}
