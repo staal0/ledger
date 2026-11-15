@@ -149,5 +149,6 @@
   "bank.err_receipts": "The file is not a receipt export.",
   "bank.by_receipt": "by receipt",
   "bank.by_receipt_hint": "Split by the receipt's items, or ignored because a receipt covers it. Changing it here sets it by hand.",
-  "bank.receipt_items": "Receipt"
+  "bank.receipt_items": "Receipt",
+  "bank.err_receipts_account": "This is a receipt export. Choose a receipt format for the account %s on the Import tab, or import it into a receipts account."
 }

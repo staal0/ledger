@@ -149,5 +149,6 @@
   "bank.err_receipts": "Filen er ikke en kvitteringseksport.",
   "bank.by_receipt": "via kvittering",
   "bank.by_receipt_hint": "Opdelt efter kvitteringens varer, eller ignoreret fordi en kvittering dækker den. Ændres den her, er den sat i hånden.",
-  "bank.receipt_items": "Kvittering"
+  "bank.receipt_items": "Kvittering",
+  "bank.err_receipts_account": "Det er en kvitteringseksport. Vælg et kvitteringsformat for kontoen %s på fanen Import, eller importér den til en kvitteringskonto."
 }

@@ -385,20 +385,25 @@ func (a handlers) bankPreview(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	defer file.Close()
-	limit := maxBankFile
-	if f, _ := bankFormatByID(acc.Format); f.Receipts {
-		limit = maxReceiptFile
-	}
-	data, err := io.ReadAll(io.LimitReader(file, int64(limit)+1))
+	data, err := io.ReadAll(io.LimitReader(file, maxReceiptFile+1))
 	if err != nil {
 		a.Fail(w, err)
 		return
 	}
-	if limit == maxReceiptFile && len(data) <= limit {
+	if len(data) > maxReceiptFile {
+		http.Error(w, L.T("bank.err_too_large"), http.StatusRequestEntityTooLarge)
+		return
+	}
+	if f, _ := bankFormatByID(acc.Format); f.Receipts {
 		a.receiptImport(w, r, acc, b, data) // no preview: receipts imported before are skipped by their id
 		return
 	}
-	if len(data) > limit {
+	// A receipt export sent to a bank account: say which format it needs.
+	if _, err := parseReceipts(data); err == nil {
+		http.Error(w, L.T("bank.err_receipts_account", acc.Name), http.StatusBadRequest)
+		return
+	}
+	if len(data) > maxBankFile {
 		http.Error(w, L.T("bank.err_too_large"), http.StatusRequestEntityTooLarge)
 		return
 	}

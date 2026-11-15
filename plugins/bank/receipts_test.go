@@ -99,6 +99,9 @@ func TestBankReceipts(t *testing.T) {
 		t.Error("the receipt did not follow its item rule going")
 	}
 
+	if w := uploadBank(t, a, bank, receiptsSample); w.Code != 400 || !strings.Contains(w.Body.String(), "receipt export") {
+		t.Errorf("a receipt export to a bank account: status %d, %s", w.Code, w.Body.String())
+	}
 	if w := uploadBank(t, a, receipts, "not json"); w.Code != 400 {
 		t.Errorf("a file that is no export: status %d, want 400", w.Code)
 	}
