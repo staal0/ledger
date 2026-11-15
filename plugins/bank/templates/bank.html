@@ -18,7 +18,6 @@
     {{if $.User.CanEdit}}
     <form method="post" action="/bank/accounts/{{.ID}}" class="inline">
       <input class="account-name" name="name" value="{{.Name}}" required maxlength="100" aria-label="{{$L.T "bank.account_name"}}">
-      {{if gt (len $.Formats) 1}}<select name="format" aria-label="{{$L.T "bank.format"}}">{{$f := .Format}}{{range $.Formats}}<option value="{{.ID}}"{{if eq .ID $f}} selected{{end}}>{{.Name}}</option>{{end}}</select>{{else}}<input type="hidden" name="format" value="{{.Format}}">{{end}}
       <label class="default-line" title="{{$L.T "bank.default_line_hint"}}">{{$L.T "bank.default_line"}}
         <select name="default" autocomplete="off">{{$d := .Default}}
           <option value="">–</option>
@@ -30,7 +29,7 @@
     <form method="post" action="/bank/accounts/{{.ID}}/delete" class="inline">
       <button class="secondary" data-confirm="{{$L.T "bank.delete_account_confirm" .Name .Transactions}}">{{$L.T "bank.delete_account"}}</button>
     </form>
-    {{else}}<strong>{{.Name}}</strong>{{if gt (len $.Formats) 1}} <span class="hint">{{.FormatName}}</span>{{end}}{{end}}
+    {{else}}<strong>{{.Name}}</strong>{{end}}
     <a class="hint" href="/bank/transactions?{{with $budget}}budget={{.}}&amp;{{end}}account={{.ID}}&amp;show=all">{{$L.T "bank.transactions_count" .Transactions}}</a>
   </div>
   {{else}}
@@ -40,7 +39,6 @@
   <form method="post" action="/bank/accounts" class="inline">
     {{with $budget}}<input type="hidden" name="budget" value="{{.}}">{{end}}
     <input class="account-name" name="name" required maxlength="100" placeholder="{{$L.T "bank.new_account"}}" aria-label="{{$L.T "bank.new_account"}}">
-    {{if gt (len .Formats) 1}}<select name="format" aria-label="{{$L.T "bank.format"}}">{{range .Formats}}<option value="{{.ID}}">{{.Name}}</option>{{end}}</select>{{else}}{{with index .Formats 0}}<input type="hidden" name="format" value="{{.ID}}">{{end}}{{end}}
     <button>{{$L.T "bank.add_account"}}</button>
   </form>
   {{end}}
@@ -51,7 +49,7 @@
   <h2>{{$L.T "bank.import"}}</h2>
   <form method="post" action="/bank/preview" enctype="multipart/form-data" class="inline">
     <select name="account" aria-label="{{$L.T "bank.account"}}">{{range .Accounts}}<option value="{{.ID}}">{{.Name}}</option>{{end}}</select>
-    <input type="file" name="file" accept=".csv,text/csv" required aria-label="{{$L.T "bank.file"}}">
+    <input type="file" name="file" accept=".csv,text/csv,.zip,.json" required aria-label="{{$L.T "bank.file"}}">
     <button>{{$L.T "bank.read"}}</button>
   </form>
   <p class="hint">{{$L.T "bank.import_hint"}}</p>

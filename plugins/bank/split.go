@@ -130,8 +130,14 @@ func (a handlers) renderSplit(w http.ResponseWriter, r *http.Request, t splitTra
 	for _, row := range rows {
 		pickers = append(pickers, picker{row.Choice, a.Locale(r), groupLines(lines)})
 	}
+	items, err := receiptItems(r.Context(), a.DB(), t.ID)
+	if err != nil {
+		a.Fail(w, err)
+		return
+	}
 	L := a.Locale(r)
 	a.Render(w, r, "bank_split", map[string]any{
+		"Items":       items,
 		"Title":       L.T("bank.split_title"),
 		"Transaction": t,
 		"Rows":        rows,
@@ -167,7 +173,7 @@ func (a handlers) bankSplitSave(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if r.FormValue("action") == "undo" {
-		_, err = tx.ExecContext(ctx, `UPDATE bank_transactions SET split = FALSE, line_id = NULL, ignored = FALSE, rule_id = NULL, by_default = FALSE WHERE id = ?`, t.ID)
+		_, err = tx.ExecContext(ctx, `UPDATE bank_transactions SET split = FALSE, line_id = NULL, ignored = FALSE, rule_id = NULL, by_default = FALSE, by_receipt = FALSE WHERE id = ?`, t.ID)
 		if err == nil {
 			_, err = applyBankRules(ctx, tx, t.budget.ID)
 		}
@@ -242,7 +248,7 @@ func (a handlers) bankSplitSave(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	}
-	if _, err := tx.ExecContext(ctx, `UPDATE bank_transactions SET split = TRUE, line_id = NULL, ignored = FALSE, rule_id = NULL, by_default = FALSE WHERE id = ?`, t.ID); err != nil {
+	if _, err := tx.ExecContext(ctx, `UPDATE bank_transactions SET split = TRUE, line_id = NULL, ignored = FALSE, rule_id = NULL, by_default = FALSE, by_receipt = FALSE WHERE id = ?`, t.ID); err != nil {
 		a.Fail(w, err)
 		return
 	}

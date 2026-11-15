@@ -16,7 +16,7 @@ func TestBankCompare(t *testing.T) {
 	lines := app.TestSetupYear(t, a, 2031, "income/Salary", "expense/Food")
 	form := app.TestSaveForm(t, a, 2031, "save", map[int64]map[int]string{lines["income/Salary"]: {2: "30000", 3: "30000"}, lines["expense/Food"]: {2: "1000", 3: "1000"}})
 	app.MustStatus(t, app.TestRequest(a, "POST", "/budget/2031", form, ""), 303)
-	app.MustStatus(t, app.TestRequest(a, "POST", "/bank/accounts", url.Values{"name": {"Budget account"}, "format": {"laanspar"}}, ""), 303)
+	app.MustStatus(t, app.TestRequest(a, "POST", "/bank/accounts", url.Values{"name": {"Budget account"}}, ""), 303)
 	account := strconv.FormatInt(app.TestQueryInt(t, "SELECT id FROM bank_accounts"), 10)
 	previewAndImport(t, a, account, laanSparSample)
 
@@ -68,7 +68,7 @@ func TestBankMissingAndLineChart(t *testing.T) {
 	form := app.TestSaveForm(t, a, 2031, "save", map[int64]map[int]string{
 		lines["income/Salary"]: {2: "30000"}, lines["expense/Food"]: {2: "1000", 3: "1000"}, lines["expense/Water"]: {2: "300", 3: "300"}})
 	app.MustStatus(t, app.TestRequest(a, "POST", "/budget/2031", form, ""), 303)
-	app.MustStatus(t, app.TestRequest(a, "POST", "/bank/accounts", url.Values{"name": {"Budget account"}, "format": {"laanspar"}}, ""), 303)
+	app.MustStatus(t, app.TestRequest(a, "POST", "/bank/accounts", url.Values{"name": {"Budget account"}}, ""), 303)
 	previewAndImport(t, a, strconv.FormatInt(app.TestQueryInt(t, "SELECT id FROM bank_accounts"), 10), laanSparSample)
 	assign := url.Values{"year": {"2031"}}
 	for text, line := range map[string]string{"Netto Butik 123": "expense/Food", "Bager Hansen": "expense/Food", "Løn": "income/Salary"} {

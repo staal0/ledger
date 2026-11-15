@@ -16,7 +16,7 @@ func TestBankFill(t *testing.T) {
 	lines := app.TestSetupYear(t, a, 2031, "income/Salary", "expense/Food", "expense/Rent")
 	form := app.TestSaveForm(t, a, 2031, "save", map[int64]map[int]string{lines["expense/Food"]: {2: "1000"}, lines["expense/Rent"]: {2: "400"}})
 	app.MustStatus(t, app.TestRequest(a, "POST", "/budget/2031", form, ""), 303)
-	app.MustStatus(t, app.TestRequest(a, "POST", "/bank/accounts", url.Values{"name": {"Budget account"}, "format": {"laanspar"}}, ""), 303)
+	app.MustStatus(t, app.TestRequest(a, "POST", "/bank/accounts", url.Values{"name": {"Budget account"}}, ""), 303)
 	account := strconv.FormatInt(app.TestQueryInt(t, "SELECT id FROM bank_accounts"), 10)
 	previewAndImport(t, a, account, laanSparSample)
 	assign := url.Values{"year": {"2031"}}

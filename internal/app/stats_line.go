@@ -1,6 +1,7 @@
 package app
 
 import (
+	"fmt"
 	"net/http"
 	"slices"
 	"strconv"
@@ -129,11 +130,23 @@ func (a *App) statsLinePage(w http.ResponseWriter, r *http.Request) {
 		Name   string
 		Values []Money
 	}
+	// Actual, when a plugin has it, is drawn against the budget; null where a month has none.
 	chart := struct {
 		Labels, Axis, Changes []string
 		Values                []Money
 		Parts                 []part
-	}{}
+		Actual                []*Money
+		Links                 []string // a page for each month, when a plugin has one
+		Up                    int      // 1 when more is better
+	}{Up: map[bool]int{true: 1, false: -1}[section == "income"]}
+	actual, actualName, err := a.lineActuals(r, current, section, names, from, to)
+	if actualName == "" {
+		actualName = L.T("stats.actual")
+	}
+	if err != nil {
+		a.Fail(w, err)
+		return
+	}
 	if len(names) > 1 {
 		for _, n := range names {
 			p := part{Name: n}
@@ -159,10 +172,33 @@ func (a *App) statsLinePage(w http.ResponseWriter, r *http.Request) {
 			chart.Axis = append(chart.Axis, axis)
 			chart.Values = append(chart.Values, y.Months[m])
 			chart.Changes = append(chart.Changes, y.Deltas[m].Text)
+			if actual != nil {
+				link, err := a.lineMonthURL(r, current, section, names, y.Year, m)
+				if err != nil {
+					a.Fail(w, err)
+					return
+				}
+				if link != "" {
+					// The page links back to this range.
+					chart.Links = append(chart.Links, link+fmt.Sprintf("&from=%d&to=%d", from, to))
+				}
+				var v *Money
+				if got, found := actual[y.Year][m]; found {
+					v = &got
+				}
+				chart.Actual = append(chart.Actual, v)
+			}
 		}
 	}
 
+	panels, err := a.linePanels(r, current, section, names, from, to)
+	if err != nil {
+		a.Fail(w, err)
+		return
+	}
 	a.Render(w, r, "stats_line", map[string]any{
+		"Panels":   panels,
+		"Actual":   actualName,
 		"Title":    name,
 		"Name":     name,
 		"Names":    names,

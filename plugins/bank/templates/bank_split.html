@@ -24,6 +24,14 @@
     </p>
   </form>
 </section>
+{{if .Items}}
+<section class="card wide">
+  <h2>{{$L.T "bank.receipt_items"}}</h2>
+  <table class="manage-table bank-table">
+    {{range .Items}}<tr><td class="text">{{.Name}}</td><td class="num">{{$L.Money .Amount}}</td></tr>{{end}}
+  </table>
+</section>
+{{end}}
 {{end}}
 
 {{/* A part's choices: none, Ignore or a line of the transaction's year. */}}

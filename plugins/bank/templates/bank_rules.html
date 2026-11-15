@@ -32,7 +32,7 @@
     {{range .Matches}}
     <tr{{if not .Takes}} class="done"{{end}}>
       <td>{{.Booked.Format "2006-01-02"}}</td><td>{{.Text}}</td><td class="num{{if lt .Amount 0}} neg{{else}} pos{{end}}">{{$L.Money .Amount}}</td>
-      <td>{{if eq .State "hand"}}{{if .Ignored}}{{$L.T "bank.ignore"}}{{else}}{{.Line}}{{end}} ({{$L.T "bank.rule_by_hand"}}){{else if eq .State "split"}}{{$L.T "bank.split_state"}}{{else if eq .State "default"}}{{$L.T "bank.by_default"}}: {{.Line}}{{else if eq .State "rule"}}{{$L.T "bank.by_rule"}}: {{.Line}}{{else}}–{{end}}</td>
+      <td>{{if eq .State "hand"}}{{if .Ignored}}{{$L.T "bank.ignore"}}{{else}}{{.Line}}{{end}} ({{$L.T "bank.rule_by_hand"}}){{else if eq .State "split"}}{{$L.T "bank.split_state"}}{{else if eq .State "receipt"}}{{$L.T "bank.by_receipt"}}{{else if eq .State "default"}}{{$L.T "bank.by_default"}}: {{.Line}}{{else if eq .State "rule"}}{{$L.T "bank.by_rule"}}: {{.Line}}{{else}}–{{end}}</td>
       <td>{{if .Takes}}{{$L.T "bank.rule_takes"}}{{else}}<span class="hint">{{$L.T "bank.rule_keeps"}}</span>{{end}}</td>
     </tr>
     {{else}}

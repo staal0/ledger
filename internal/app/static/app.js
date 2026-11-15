@@ -146,14 +146,18 @@ document.addEventListener('DOMContentLoaded', () => {
   // One bar per label in a single colour. axis holds the x-axis text, which may
   // skip labels. changes, when given, add a tooltip row each; "–" is left out.
   // parts, when given, split each bar into stacked lines in lighter tints of the
-  // colour, the first at the bottom, with a legend above the chart.
-  function series(box, labels, axis, values, cls, changes, parts) {
-    const [plot, top] = grid(Math.max(...values, 100))
+  // colour, the first at the bottom, with a legend above the chart. actual, when
+  // given, adds the actual next to each bar as the budget (null where a month has
+  // none), red for spending and green for income; up is 1 when more is better.
+  // links, when given, make each month open its page.
+  function series(box, labels, axis, values, cls, changes, parts, actual, up, links) {
+    const [plot, top] = grid(Math.max(...values, ...(actual || []).map(v => v ?? 0), 100))
     const tint = i => `color-mix(in srgb, var(--c-${cls}) ${100 - i * 60 / Math.max(1, parts.length - 1)}%, var(--surface))`
+    const actualCls = cls === 'income' ? 'actual-in' : 'actual'
     labels.forEach((name, i) => {
       const m = el('div', 'month')
-      const bar = (v, color) => {
-        const b = el('i', 'bar ' + cls)
+      const bar = (v, color, c = cls) => {
+        const b = el('i', 'bar ' + c)
         b.style.height = Math.max(0, v) / top * 100 + '%'
         if (color) b.style.background = color
         return b
@@ -166,13 +170,22 @@ document.addEventListener('DOMContentLoaded', () => {
           rows.unshift([cls, kr(p.Values[i]), p.Name, tint(j)]) // top to bottom, as in the bar
         })
         m.append(s)
-        rows.push(['', kr(values[i]), box.dataset.total])
+        rows.push(['', kr(values[i]), actual ? box.dataset.budget : box.dataset.total])
       } else {
         m.append(bar(values[i]))
-        rows.push([cls, kr(values[i]), box.dataset.label])
+        rows.push([cls, kr(values[i]), actual ? box.dataset.budget : box.dataset.label])
+      }
+      if (actual && actual[i] !== null) {
+        m.append(bar(actual[i], null, actualCls))
+        rows.push([actualCls, kr(actual[i]), box.dataset.actual], ['', kr(up * (actual[i] - values[i])), box.dataset.difference])
       }
       if (changes && changes[i] !== '–') rows.push(['', changes[i], box.dataset.change])
       hover(m, name, rows)
+      if (links) {
+        m.classList.add('link')
+        m.addEventListener('click', () => { location.href = links[i] })
+        m.addEventListener('keydown', e => { if (e.key === 'Enter') location.href = links[i] })
+      }
       plot.append(m)
     })
     box.replaceChildren(plot, xaxis(axis, axis))
@@ -223,7 +236,7 @@ document.addEventListener('DOMContentLoaded', () => {
   const lineChart = document.querySelector('[data-chart="line"]')
   if (lineChart) {
     const d = JSON.parse(document.getElementById('line-data').textContent)
-    series(lineChart, d.Labels, d.Axis, d.Values, lineChart.dataset.section, d.Changes, d.Parts)
+    series(lineChart, d.Labels, d.Axis, d.Values, lineChart.dataset.section, d.Changes, d.Parts, d.Actual, d.Up, d.Links)
   }
 
   // Budget against actual for one line: a pair of bars per month.

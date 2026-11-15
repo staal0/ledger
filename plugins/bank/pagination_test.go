@@ -14,7 +14,7 @@ func TestPagination(t *testing.T) {
 	a := app.TestApp(t, false)
 	app.TestExec(t, "INSERT INTO settings (name, value) VALUES ('plugin.bank', '1')")
 	lines := app.TestSetupYear(t, a, 2031, "expense/Food")
-	app.MustStatus(t, app.TestRequest(a, "POST", "/bank/accounts", url.Values{"name": {"Budget account"}, "format": {"laanspar"}}, ""), 303)
+	app.MustStatus(t, app.TestRequest(a, "POST", "/bank/accounts", url.Values{"name": {"Budget account"}}, ""), 303)
 	account := app.TestQueryInt(t, "SELECT id FROM bank_accounts")
 
 	// 60 imports, the last with 130 transactions.

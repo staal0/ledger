@@ -18,8 +18,14 @@
 <div class="stats">
   <figure class="chart">
     <figcaption>{{$L.T "stats.per_month"}}</figcaption>
-    <div data-chart="line" data-section="{{.Section}}" data-label="{{.Name}}" data-total="{{$L.T "stats.total"}}" data-change="{{$L.T "stats.vs_year_before"}}"></div>
+    {{if .Chart.Actual}}<div class="legend">
+      <span><i class="swatch {{.Section}}"></i>{{$L.T "stats.budget"}}</span>
+      <span><i class="swatch {{if eq .Section "income"}}actual-in{{else}}actual{{end}}"></i>{{.Actual}}</span>
+    </div>{{end}}
+    <div data-chart="line" data-section="{{.Section}}" data-label="{{.Name}}" data-total="{{$L.T "stats.total"}}" data-change="{{$L.T "stats.vs_year_before"}}"
+      data-budget="{{$L.T "stats.budget"}}" data-actual="{{.Actual}}" data-difference="{{$L.T "stats.difference"}}"></div>
     <script type="application/json" id="line-data">{{.Chart}}</script>
+    {{if .Chart.Links}}<p class="hint">{{$L.T "stats.month_detail"}}</p>{{end}}
   </figure>
 
   <figure class="chart">
@@ -43,5 +49,6 @@
     </div>
     <p class="hint">{{$L.T "stats.delta_hint"}}</p>
   </figure>
+  {{range .Panels}}{{.}}{{end}}
 </div>
 {{end}}

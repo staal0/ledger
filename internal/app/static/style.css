@@ -214,6 +214,7 @@ tr.calc.difference > * { border-top: 1.25rem solid var(--bg); }
 .plot .grid span { position: absolute; right: 100%; margin-right: .4rem; transform: translateY(-50%); font-size: .7rem; color: var(--muted); font-variant-numeric: tabular-nums; }
 .month { position: relative; flex: 1; height: 100%; display: flex; align-items: flex-end; justify-content: center; gap: 2px; border-radius: 4px 4px 0 0; outline: none; }
 .month:hover, .month:focus-visible { background: color-mix(in srgb, var(--text) 6%, transparent); }
+.month.link { cursor: pointer; }
 .month .bar { width: min(24px, 40%); border-radius: 4px 4px 0 0; }
 .month .stack { width: min(24px, 40%); height: 100%; display: flex; flex-direction: column; justify-content: flex-end; }
 .month .stack .bar { width: 100%; border-radius: 0; }
@@ -342,7 +343,20 @@ input[type="file"]:focus-visible::file-selector-button { outline: 2px solid var(
 .pager-size label { display: flex; align-items: center; gap: .4rem; color: var(--muted); font-size: .9em; }
 .pager a { text-decoration: none; }
 .planned { background: color-mix(in srgb, var(--muted) 45%, transparent); }
+.actual { background: var(--neg); } /* actual against a budget */
+.actual-in { background: var(--pos); }
 .notice.missing { border-left-color: var(--c-other); }
 .notice.missing summary { cursor: pointer; }
 .bank-table td.split { white-space: normal; }
 .bank-account .default-line { display: flex; align-items: center; gap: .4rem; color: var(--muted); }
+.month-nav { display: flex; gap: 1.5rem; }
+.month-table td.text { white-space: normal; }
+.month-table summary { cursor: pointer; }
+.receipt-items { margin: .4rem 0 .2rem 1rem; font-size: .9rem; }
+.month-table .receipt-items td { padding: .1rem .8rem .1rem 0; border: 0; background: none; box-shadow: none; position: static; }
+.month-table .receipt-items td.num { text-align: right; }
+.receipt-items .elsewhere td:not(.hint) { color: var(--muted); }
+.stats-table td.months { font-size: .85rem; }
+.stats-table tr.chosen > * { font-weight: 600; background: color-mix(in srgb, var(--accent) 10%, var(--surface)); }
+.receipt-search input[type="search"] { width: min(18rem, 100%); }
+.receipt-items .match td { font-weight: 600; }

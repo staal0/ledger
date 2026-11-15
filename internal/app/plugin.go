@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"errors"
+	"html/template"
 	"io/fs"
 	"net/http"
 )
@@ -20,6 +21,109 @@ type Plugin interface {
 	Locales() fs.FS                      // <code>.json texts, added to the core's languages, or nil
 	Routes(mux *http.ServeMux, app *App) // handlers, served behind login
 	Nav() []NavItem                      // menu entries
+}
+
+// LinePanels is a plugin that adds sections to a line's stats page, for the
+// lines named names in section and the years from to to. Empty adds nothing.
+type LinePanels interface {
+	LinePanel(a *App, r *http.Request, budget BudgetRef, section string, names []string, from, to int) (template.HTML, error)
+}
+
+// linePanels are the sections the plugins that are on add to a line's stats page.
+func (a *App) linePanels(r *http.Request, budget BudgetRef, section string, names []string, from, to int) ([]template.HTML, error) {
+	var out []template.HTML
+	for _, p := range plugins {
+		lp, ok := p.(LinePanels)
+		if !ok {
+			continue
+		}
+		on, err := a.pluginOn(r.Context(), p.ID())
+		if err != nil {
+			return nil, err
+		}
+		if !on {
+			continue
+		}
+		h, err := lp.LinePanel(a, r, budget, section, names, from, to)
+		if err != nil {
+			return nil, err
+		}
+		if h != "" {
+			out = append(out, h)
+		}
+	}
+	return out, nil
+}
+
+// LineActuals is a plugin that knows what was actually spent or earned on
+// lines: year → month → amount, signed like the budget, and a name for them
+// when "Actual" says too little. A line's stats page shows it against the budget.
+type LineActuals interface {
+	LineActuals(a *App, r *http.Request, budget BudgetRef, section string, names []string, from, to int) (map[int]map[int]Money, string, error)
+}
+
+// lineActuals are the actual amounts of the plugins that are on, added up,
+// nil when none has any, and their name when only one plugin has them.
+func (a *App) lineActuals(r *http.Request, budget BudgetRef, section string, names []string, from, to int) (out map[int]map[int]Money, name string, err error) {
+	sources := 0
+	for _, p := range plugins {
+		la, ok := p.(LineActuals)
+		if !ok {
+			continue
+		}
+		on, err := a.pluginOn(r.Context(), p.ID())
+		if err != nil {
+			return nil, "", err
+		}
+		if !on {
+			continue
+		}
+		got, label, err := la.LineActuals(a, r, budget, section, names, from, to)
+		if err != nil {
+			return nil, "", err
+		}
+		if len(got) > 0 {
+			sources++
+			name = label
+		}
+		for y, months := range got {
+			for m, v := range months {
+				if out == nil {
+					out = map[int]map[int]Money{}
+				}
+				if out[y] == nil {
+					out[y] = map[int]Money{}
+				}
+				out[y][m] += v
+			}
+		}
+	}
+	if sources > 1 {
+		name = ""
+	}
+	return out, name, nil
+}
+
+// LineMonths is a plugin with a page for one month of lines, which their stats
+// page links each month of the chart to.
+type LineMonths interface {
+	LineMonthURL(r *http.Request, budget BudgetRef, section string, names []string, year, month int) string
+}
+
+// lineMonthURL is the first plugin's page for the month, or "" when none is on.
+func (a *App) lineMonthURL(r *http.Request, budget BudgetRef, section string, names []string, year, month int) (string, error) {
+	for _, p := range plugins {
+		lm, ok := p.(LineMonths)
+		if !ok {
+			continue
+		}
+		on, err := a.pluginOn(r.Context(), p.ID())
+		if err != nil || !on {
+			return "", err
+		}
+		return lm.LineMonthURL(r, budget, section, names, year, month), nil
+	}
+	return "", nil
 }
 
 // NavItem is a menu entry. Label is a locale key.

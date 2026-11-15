@@ -12,11 +12,13 @@ import (
 	"database/sql"
 	"embed"
 	"encoding/base64"
+	"encoding/json"
 	"errors"
 	"io"
 	"io/fs"
 	"net/http"
 	"net/url"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -62,6 +64,7 @@ func (bankPlugin) Routes(mux *http.ServeMux, core *app.App) {
 	mux.HandleFunc("GET /bank/rules", a.bankRulesPage)
 	mux.HandleFunc("POST /bank/rules", a.Only(app.RoleEditor, a.bankRulesSave))
 	mux.HandleFunc("GET /bank/compare", a.bankComparePage)
+	mux.HandleFunc("GET /bank/line-month", a.bankLineMonth)
 	mux.HandleFunc("GET /bank/fill", a.Only(app.RoleEditor, a.bankFillPage))
 	mux.HandleFunc("POST /bank/fill", a.Only(app.RoleEditor, a.bankFillSave))
 }
@@ -74,14 +77,9 @@ type bankAccount struct {
 	ID           int64
 	BudgetID     int64
 	Name         string
-	Format       string
+	Format       string // the bank format its last file had
 	Transactions int
 	Default      string // the default line as "section:name", or ""
-}
-
-func (b bankAccount) FormatName() string {
-	f, _ := bankFormatByID(b.Format)
-	return f.Name
 }
 
 // bankURL is the plugin's page at path for budget b, with query q.
@@ -152,12 +150,10 @@ func (a handlers) bankAccountFor(r *http.Request, id string) (acc bankAccount, b
 	return acc, b, false, err
 }
 
-// bankAccountForm reads and checks an account's name and format.
-func bankAccountForm(r *http.Request) (name, format string, ok bool) {
+// bankAccountForm reads and checks an account's name.
+func bankAccountForm(r *http.Request) (name string, ok bool) {
 	name = strings.TrimSpace(r.FormValue("name"))
-	format = r.FormValue("format")
-	_, known := bankFormatByID(format)
-	return name, format, known && name != "" && utf8.RuneCountInString(name) <= 100
+	return name, name != "" && utf8.RuneCountInString(name) <= 100
 }
 
 type bankImportRow struct {
@@ -232,7 +228,6 @@ func (a handlers) bankPage(w http.ResponseWriter, r *http.Request) {
 		"Budgets":  app.Pickable(visible),
 		"Accounts": accounts,
 		"Sections": groupLines(names),
-		"Formats":  bankFormats,
 		"Imports":  imports,
 		"Pages":    pages,
 		"Imported": r.Form.Has("added"),
@@ -252,12 +247,12 @@ func (a handlers) bankAccountCreate(w http.ResponseWriter, r *http.Request) {
 		http.NotFound(w, r)
 		return
 	}
-	name, format, valid := bankAccountForm(r)
+	name, valid := bankAccountForm(r)
 	if !valid {
 		http.Error(w, "invalid account", http.StatusBadRequest)
 		return
 	}
-	if _, err := a.DB().ExecContext(r.Context(), `INSERT INTO bank_accounts (budget_id, name, format) VALUES (?, ?, ?)`, b.ID, name, format); err != nil {
+	if _, err := a.DB().ExecContext(r.Context(), `INSERT INTO bank_accounts (budget_id, name, format) VALUES (?, ?, '')`, b.ID, name); err != nil {
 		a.Fail(w, err)
 		return
 	}
@@ -274,7 +269,7 @@ func (a handlers) bankAccountUpdate(w http.ResponseWriter, r *http.Request) {
 		http.NotFound(w, r)
 		return
 	}
-	name, format, valid := bankAccountForm(r)
+	name, valid := bankAccountForm(r)
 	if !valid {
 		http.Error(w, "invalid account", http.StatusBadRequest)
 		return
@@ -294,8 +289,8 @@ func (a handlers) bankAccountUpdate(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	defer tx.Rollback()
-	_, err = tx.ExecContext(ctx, `UPDATE bank_accounts SET name = ?, format = ?, default_section = NULLIF(?, ''), default_line_name = NULLIF(?, '')
-		WHERE id = ?`, name, format, section, line, acc.ID)
+	_, err = tx.ExecContext(ctx, `UPDATE bank_accounts SET name = ?, default_section = NULLIF(?, ''), default_line_name = NULLIF(?, '')
+		WHERE id = ?`, name, section, line, acc.ID)
 	if err == nil {
 		_, err = applyBankRules(ctx, tx, b.ID)
 	}
@@ -327,11 +322,17 @@ func (a handlers) bankAccountDelete(w http.ResponseWriter, r *http.Request) {
 	http.Redirect(w, r, bankURL("/bank", b, nil), http.StatusSeeOther)
 }
 
-// bankFileRows reads the file for acc and marks which rows are imported already.
-func (a handlers) bankFileRows(ctx context.Context, q app.Querier, acc bankAccount, data []byte) (rows []bankRow, imported []bool, err error) {
-	f, _ := bankFormatByID(acc.Format)
+// bankFileRows reads the file for acc in the bank format that fits it, the
+// account's last one first, and marks which rows are imported already.
+func (a handlers) bankFileRows(ctx context.Context, q app.Querier, acc bankAccount, data []byte) (format string, rows []bankRow, imported []bool, err error) {
+	f, known := bankFormatByID(acc.Format)
+	if fits := bankFormatsFor(data); len(fits) > 0 && !slices.Contains(fits, f) {
+		f = fits[0]
+	} else if !known {
+		f = bankFormats[0] // none fits: its errors explain why
+	}
 	if rows, err = parseBankCSV(data, f); err != nil {
-		return nil, nil, err
+		return "", nil, nil, err
 	}
 	from, to := rows[0].Booked, rows[0].Booked
 	for _, r := range rows {
@@ -346,26 +347,26 @@ func (a handlers) bankFileRows(ctx context.Context, q app.Querier, acc bankAccou
 	res, err := q.QueryContext(ctx, `SELECT booked, text, amount, seq FROM bank_transactions
 		WHERE account_id = ? AND booked BETWEEN ? AND ?`, acc.ID, from, to)
 	if err != nil {
-		return nil, nil, err
+		return "", nil, nil, err
 	}
 	defer res.Close()
 	for res.Next() {
 		var r bankRow
 		if err := res.Scan(&r.Booked, &r.Text, &r.Amount, &r.Seq); err != nil {
-			return nil, nil, err
+			return "", nil, nil, err
 		}
 		have[r.key()+"\x00"+strconv.Itoa(r.Seq)] = true
 	}
 	for _, r := range rows {
 		imported = append(imported, have[r.key()+"\x00"+strconv.Itoa(r.Seq)])
 	}
-	return rows, imported, res.Err()
+	return f.ID, rows, imported, res.Err()
 }
 
 // bankPreview reads an uploaded file and shows its rows before anything is imported.
 func (a handlers) bankPreview(w http.ResponseWriter, r *http.Request) {
 	L := a.Locale(r)
-	r.Body = http.MaxBytesReader(w, r.Body, maxBankFile+64<<10)
+	r.Body = http.MaxBytesReader(w, r.Body, maxReceiptFile+64<<10)
 	if err := r.ParseMultipartForm(maxBankFile); err != nil {
 		http.Error(w, L.T("bank.err_too_large"), http.StatusRequestEntityTooLarge)
 		return
@@ -385,9 +386,17 @@ func (a handlers) bankPreview(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	defer file.Close()
-	data, err := io.ReadAll(io.LimitReader(file, maxBankFile+1))
+	data, err := io.ReadAll(io.LimitReader(file, maxReceiptFile+1))
 	if err != nil {
 		a.Fail(w, err)
+		return
+	}
+	if len(data) > maxReceiptFile {
+		http.Error(w, L.T("bank.err_too_large"), http.StatusRequestEntityTooLarge)
+		return
+	}
+	if receipts, err := parseReceipts(data); err == nil {
+		a.receiptPreview(w, r, acc, b, receipts)
 		return
 	}
 	if len(data) > maxBankFile {
@@ -401,11 +410,10 @@ func (a handlers) bankPreview(w http.ResponseWriter, r *http.Request) {
 		"Account": acc,
 		"Back":    bankURL("/bank", b, nil),
 	}
-	rows, imported, err := a.bankFileRows(r.Context(), a.DB(), acc, data)
+	_, rows, imported, err := a.bankFileRows(r.Context(), a.DB(), acc, data)
 	var pe *bankParseError
 	if errors.As(err, &pe) {
 		page["Error"] = pe
-		page["Fits"] = bankFormatsFor(data)
 		a.Render(w, r, "bank_preview", page)
 		return
 	}
@@ -444,6 +452,15 @@ func (a handlers) bankImport(w http.ResponseWriter, r *http.Request) {
 		http.NotFound(w, r)
 		return
 	}
+	if r.Form.Has("receipts") {
+		var receipts []receipt
+		if json.Unmarshal([]byte(r.FormValue("receipts")), &receipts) != nil || slices.ContainsFunc(receipts, func(rc receipt) bool { return !rc.valid() }) {
+			http.Error(w, "invalid receipts", http.StatusBadRequest)
+			return
+		}
+		a.receiptImport(w, r, acc, b, receipts)
+		return
+	}
 	data, err := base64.StdEncoding.DecodeString(r.FormValue("data"))
 	if err != nil || len(data) > maxBankFile {
 		http.Error(w, "invalid file", http.StatusBadRequest)
@@ -461,9 +478,13 @@ func (a handlers) bankImport(w http.ResponseWriter, r *http.Request) {
 		a.Fail(w, err)
 		return
 	}
-	rows, imported, err := a.bankFileRows(ctx, tx, acc, data)
+	format, rows, imported, err := a.bankFileRows(ctx, tx, acc, data)
 	if err != nil {
 		http.Error(w, "invalid file", http.StatusBadRequest)
+		return
+	}
+	if _, err := tx.ExecContext(ctx, `UPDATE bank_accounts SET format = ? WHERE id = ?`, format, acc.ID); err != nil {
+		a.Fail(w, err)
 		return
 	}
 	added := 0
