@@ -112,5 +112,8 @@
   "bank.filled": "Filled %s amounts from the bank.",
   "bank.fill_update": "update from the bank",
   "bank.fill_months": "Months filled:",
-  "bank.fill_untouched": "Lines without transactions in a month, and linked lines, are not changed."
+  "bank.fill_untouched": "Lines without transactions in a month, and linked lines, are not changed.",
+  "bank.missing": "%d budget lines have no transaction yet in the imported months, %s in all.",
+  "bank.chart_close": "Close",
+  "bank.missing_hint": "A forgotten bill, a payment from another account, or a transaction not assigned yet."
 }

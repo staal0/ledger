@@ -112,5 +112,8 @@
   "bank.filled": "Udfyldte %s beløb fra banken.",
   "bank.fill_update": "opdatering fra banken",
   "bank.fill_months": "Måneder, der udfyldes:",
-  "bank.fill_untouched": "Linjer uden posteringer i en måned og forbundne linjer ændres ikke."
+  "bank.fill_untouched": "Linjer uden posteringer i en måned og forbundne linjer ændres ikke.",
+  "bank.missing": "%d budgetlinjer har endnu ingen postering i de importerede måneder, i alt %s.",
+  "bank.chart_close": "Luk",
+  "bank.missing_hint": "En glemt regning, en betaling fra en anden konto eller en postering, der endnu ikke er tildelt."
 }
