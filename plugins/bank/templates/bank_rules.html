@@ -48,7 +48,7 @@
     {{if .User.CanEdit}}<p><button name="action" value="save">{{$L.T "save"}}</button></p>{{end}}
     <div class="scroll">
     <table class="manage-table bank-table">
-      <tr class="head"><th>{{$L.T "bank.rule_text"}}</th><th>{{$L.T "bank.rule_display"}}</th><th>{{$L.T "bank.budget_line"}}</th><th class="num">{{$L.T "bank.rule_assigned"}}</th><th></th>{{if .User.CanEdit}}<th></th>{{end}}</tr>
+      <tr class="head"><th>{{$L.T "bank.rule_text"}}</th><th title="{{$L.T "bank.rule_display_title"}}">{{$L.T "bank.rule_display"}}</th><th>{{$L.T "bank.budget_line"}}</th><th class="num">{{$L.T "bank.rule_assigned"}}</th><th></th>{{if .User.CanEdit}}<th></th>{{end}}</tr>
       {{range .Rules}}
       <tr>
         {{if $.User.CanEdit}}

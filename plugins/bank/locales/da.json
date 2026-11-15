@@ -115,11 +115,11 @@
   "bank.fill_untouched": "Linjer uden posteringer i en måned og forbundne linjer ændres ikke.",
   "bank.missing": "%d budgetlinjer har endnu ingen postering i de importerede måneder, i alt %s.",
   "bank.chart_close": "Luk",
-  "bank.rule_display": "Vis som",
+  "bank.rule_display": "Visningsnavn",
   "bank.rule_display_hint": "fx Varme",
   "bank.rule_test": "Test en tekst",
   "bank.rule_test_hint": "fx apotek*gade",
-  "bank.rule_test_show": "Vis træffere",
+  "bank.rule_test_show": "Find posteringer",
   "bank.rule_test_link": "Test",
   "bank.rule_now": "Nu",
   "bank.rule_by_hand": "i hånden",
@@ -127,5 +127,6 @@
   "bank.rule_keeps": "Forbliver som den er",
   "bank.rule_no_matches": "Ingen posteringer passer.",
   "bank.rule_test_note": "Testen ændrer intet. En regel tager kun posteringer, der ikke er tildelt i hånden, og en mere præcis regel vinder. Højst 50 vises, nyeste først.",
-  "bank.missing_hint": "En glemt regning, en betaling fra en anden konto eller en postering, der endnu ikke er tildelt."
+  "bank.missing_hint": "En glemt regning, en betaling fra en anden konto eller en postering, der endnu ikke er tildelt.",
+  "bank.rule_display_title": "Vises i posteringslisten i stedet for bankens tekst. Reglen matcher stadig på bankens tekst."
 }

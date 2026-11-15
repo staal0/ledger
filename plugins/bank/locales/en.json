@@ -115,11 +115,11 @@
   "bank.fill_untouched": "Lines without transactions in a month, and linked lines, are not changed.",
   "bank.missing": "%d budget lines have no transaction yet in the imported months, %s in all.",
   "bank.chart_close": "Close",
-  "bank.rule_display": "Show as",
+  "bank.rule_display": "Display name",
   "bank.rule_display_hint": "e.g. Heating",
   "bank.rule_test": "Test a text",
   "bank.rule_test_hint": "e.g. pharmacy*street",
-  "bank.rule_test_show": "Show matches",
+  "bank.rule_test_show": "Find transactions",
   "bank.rule_test_link": "Test",
   "bank.rule_now": "Now",
   "bank.rule_by_hand": "by hand",
@@ -127,5 +127,6 @@
   "bank.rule_keeps": "Stays as it is",
   "bank.rule_no_matches": "No transactions match.",
   "bank.rule_test_note": "Testing changes nothing. A rule only takes transactions that are not assigned by hand, and a more specific rule wins. At most 50 are shown, newest first.",
-  "bank.missing_hint": "A forgotten bill, a payment from another account, or a transaction not assigned yet."
+  "bank.missing_hint": "A forgotten bill, a payment from another account, or a transaction not assigned yet.",
+  "bank.rule_display_title": "Shown in the transaction list instead of the bank's text. Matching still uses the bank's text."
 }
