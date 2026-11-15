@@ -82,7 +82,8 @@ func TestBankMissingAndLineChart(t *testing.T) {
 
 	// Only Water lacks a transaction, and only February is imported.
 	page := html.UnescapeString(app.TestRequest(a, "GET", "/bank/compare?year=2031", nil, "").Body.String())
-	if !strings.Contains(page, "<li>Expenses › Water, Feb: 300</li>") || strings.Contains(page, "› Food, Feb") || strings.Contains(page, ", Mar:") {
+	if !strings.Contains(page, "1 budget lines have no transaction yet") || !strings.Contains(page, "<li>Expenses › Water: Feb (300)</li>") ||
+		strings.Contains(page, "› Food:") || strings.Contains(page, "Water: Feb, Mar") {
 		t.Errorf("missing payments: %s", page)
 	}
 

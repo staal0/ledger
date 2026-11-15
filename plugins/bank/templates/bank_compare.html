@@ -28,10 +28,11 @@
   <p>{{if .In}}{{$L.T "bank.compared"}} {{range $i, $m := .In}}{{if $i}}, {{end}}{{$L.T (print "month." $m)}}{{end}}{{else}}{{$L.T "bank.compared_none"}}{{end}}</p>
   {{if .Unassigned}}<p class="notice" role="status">{{$L.T "bank.compare_unassigned" .Unassigned ($L.Money .UnassignedSum)}} <a href="{{.UnassignedURL}}">{{$L.T "bank.compare_assign"}}</a></p>{{end}}
   {{with .Missing}}
-  <div class="notice missing" role="status">
-    {{$L.T "bank.missing"}}
-    <ul>{{range .}}<li>{{$L.T (print "section." .Section)}} › {{.Name}}, {{$L.T (print "month." .Month)}}: {{$L.Money .Budget}}</li>{{end}}</ul>
-  </div>
+  <details class="notice missing">
+    <summary>{{$L.T "bank.missing" (len .) ($L.Money $.MissingSum)}}</summary>
+    <ul>{{range .}}<li>{{$L.T (print "section." .Section)}} › {{.Name}}: {{range $i, $m := .Months}}{{if $i}}, {{end}}{{$L.T (print "month." $m)}}{{end}} ({{$L.Money .Budget}})</li>{{end}}</ul>
+    <p class="hint">{{$L.T "bank.missing_hint"}}</p>
+  </details>
   {{end}}
   {{with .Chart}}
   <figure class="chart" id="line">
