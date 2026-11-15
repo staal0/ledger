@@ -1,0 +1,90 @@
+{{define "content"}}{{$L := .L}}{{$budget := ""}}{{if not .Current.IsDefault}}{{$budget = .Current.Slug}}{{end}}
+<h1>{{.Title}}</h1>
+{{template "tabs" .Tabs}}
+
+{{if .Budgets}}
+<form class="filters" action="/import/rules">
+  {{- template "budget-picker" .}}
+  <noscript><button class="secondary">{{$L.T "budget.go"}}</button></noscript>
+</form>
+{{end}}
+
+{{with .Error}}<p class="notice" role="alert">{{$L.T (print "import.rule_err_" .)}}</p>{{end}}
+
+<section class="card wide import-list">
+  <p class="hint">{{$L.T "import.rules_hint"}}</p>
+  <div class="hint">{{$L.T "import.rules_tips"}}
+    <ul class="tips">
+      <li>{{$L.T "import.rules_tip_contains"}}</li>
+      <li>{{$L.T "import.rules_tip_star"}}</li>
+      <li>{{$L.T "import.rules_tip_keep"}}</li>
+    </ul>
+  </div>
+  <form action="/import/rules#test" class="filters" id="test">
+    {{with $budget}}<input type="hidden" name="budget" value="{{.}}">{{end}}
+    <label>{{$L.T "import.rule_test"}} <input class="rule-pattern" name="test" value="{{.Test}}" maxlength="255" placeholder="{{$L.T "import.rule_test_hint"}}"></label>
+    <button class="secondary">{{$L.T "import.rule_test_show"}}</button>
+  </form>
+  {{if .Test}}
+  <div class="scroll">
+  <table class="manage-table import-table">
+    <tr class="head"><th>{{$L.T "import.date"}}</th><th>{{$L.T "import.text"}}</th><th class="num">{{$L.T "import.amount"}}</th><th>{{$L.T "import.rule_now"}}</th><th></th></tr>
+    {{range .Matches}}
+    <tr{{if not .Takes}} class="done"{{end}}>
+      <td>{{.Booked.Format "2006-01-02"}}</td><td>{{.Text}}</td><td class="num{{if lt .Amount 0}} neg{{else}} pos{{end}}">{{$L.Money .Amount}}</td>
+      <td>{{if eq .State "hand"}}{{if .Ignored}}{{$L.T "import.ignore"}}{{else}}{{.Line}}{{end}} ({{$L.T "import.rule_by_hand"}}){{else if eq .State "split"}}{{$L.T "import.split_state"}}{{else if eq .State "receipt"}}{{$L.T "import.by_receipt"}}{{else if eq .State "default"}}{{$L.T "import.by_default"}}: {{.Line}}{{else if eq .State "rule"}}{{$L.T "import.by_rule"}}: {{.Line}}{{else}}–{{end}}</td>
+      <td>{{if .Takes}}{{$L.T "import.rule_takes"}}{{else}}<span class="hint">{{$L.T "import.rule_keeps"}}</span>{{end}}</td>
+    </tr>
+    {{else}}
+    <tr><td colspan="5" class="hint">{{$L.T "import.rule_no_matches"}}</td></tr>
+    {{end}}
+  </table>
+  </div>
+  <p class="hint">{{$L.T "import.rule_test_note"}}</p>
+  {{end}}
+
+  <form method="post" action="/import/rules">
+    {{with $budget}}<input type="hidden" name="budget" value="{{.}}">{{end}}
+    {{if .User.CanEdit}}<p><button name="action" value="save">{{$L.T "save"}}</button></p>{{end}}
+    <div class="scroll">
+    <table class="manage-table import-table">
+      <tr class="head"><th>{{$L.T "import.rule_text"}}</th><th title="{{$L.T "import.rule_display_title"}}">{{$L.T "import.rule_display"}}</th><th>{{$L.T "import.budget_line"}}</th><th class="num">{{$L.T "import.rule_assigned"}}</th><th></th>{{if .User.CanEdit}}<th></th>{{end}}</tr>
+      {{range .Rules}}
+      <tr>
+        {{if $.User.CanEdit}}
+        <td><input class="rule-pattern" name="pattern_{{.ID}}" value="{{.Pattern}}" required maxlength="255" aria-label="{{$L.T "import.rule_text"}}"></td>
+        <td><input class="rule-display" name="display_{{.ID}}" value="{{.Display}}" maxlength="255" aria-label="{{$L.T "import.rule_display"}}"></td>
+        <td><select name="target_{{.ID}}" aria-label="{{$L.T "import.budget_line"}}" autocomplete="off">
+          {{if and (not .Ignored) (not (index $.Known .Target))}}<option value="{{.Target}}" selected>{{.LineName}} ({{$L.T "import.rule_missing_line"}})</option>{{end}}
+          {{template "import-rule-target" (index $.Pickers .ID)}}
+        </select></td>
+        {{else}}
+        <td>{{.Pattern}}</td><td>{{.Display}}</td><td>{{if .Ignored}}{{$L.T "import.ignore"}}{{else}}{{$L.T (print "section." .Section)}} › {{.LineName}}{{end}}</td>
+        {{end}}
+        <td class="num">{{.Assigned}}</td>
+        <td><a class="hint" href="?{{with $budget}}budget={{.}}&amp;{{end}}test={{.Pattern}}#test">{{$L.T "import.rule_test_link"}}</a></td>
+        {{if $.User.CanEdit}}<td><button class="icon" name="action" value="delete:{{.ID}}" title="{{$L.T "import.rule_delete"}}" aria-label="{{$L.T "import.rule_delete"}}" data-confirm="{{$L.T "import.rule_delete_confirm" .Pattern .Assigned}}">×</button></td>{{end}}
+      </tr>
+      {{else}}
+      <tr><td colspan="6" class="hint">{{$L.T "import.no_rules"}}</td></tr>
+      {{end}}
+      {{if .User.CanEdit}}
+      <tr>
+        <td><input class="rule-pattern" name="new_pattern" maxlength="255" placeholder="{{$L.T "import.rule_new"}}" aria-label="{{$L.T "import.rule_new"}}"></td>
+        <td><input class="rule-display" name="new_display" maxlength="255" placeholder="{{$L.T "import.rule_display_hint"}}" aria-label="{{$L.T "import.rule_display"}}"></td>
+        <td><select name="new_target" aria-label="{{$L.T "import.budget_line"}}" autocomplete="off"><option value="">–</option>{{template "import-rule-target" .NewPicker}}</select></td>
+        <td></td><td></td><td></td>
+      </tr>
+      {{end}}
+    </table>
+    </div>
+    {{if .User.CanEdit}}<p><button name="action" value="save">{{$L.T "save"}}</button></p>{{end}}
+  </form>
+</section>
+{{end}}
+
+{{/* The choices of a rule: Ignore or a line by name, with .Target selected. */}}
+{{define "import-rule-target"}}{{$t := .Target}}{{$L := .L}}
+<option value="ignore"{{if eq $t "ignore"}} selected{{end}}>{{$L.T "import.ignore"}}</option>
+{{range .Sections}}<optgroup label="{{$L.T (print "section." .Key)}}">{{range .Lines}}<option value="{{.Target}}"{{if eq $t .Target}} selected{{end}}>{{.Name}}</option>{{end}}</optgroup>{{end}}
+{{- end}}

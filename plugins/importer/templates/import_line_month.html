@@ -1,0 +1,34 @@
+{{define "content"}}{{$L := .L}}
+<p class="hint"><a href="{{.Back}}">← {{.Name}}</a></p>
+<h1>{{.Name}} <span class="hint">{{.Month}}</span></h1>
+{{with .Filter}}<p class="hint">{{$L.T "import.receipts"}} {{.}}</p>{{end}}
+<p class="month-nav">
+  {{with .Prev}}<a href="{{.}}">← {{$L.T "import.month_prev"}}</a>{{end}}
+  {{with .Next}}<a href="{{.}}">{{$L.T "import.month_next"}} →</a>{{end}}
+</p>
+
+<section class="card wide">
+  {{if .Rows}}
+  <p>{{$L.T "import.month_sum" ($L.Money .Sum) (len .Rows) .Receipts}}</p>
+  <div class="scroll">
+  <table class="manage-table import-table month-table">
+    <tr class="head"><th>{{$L.T "import.date"}}</th><th>{{$L.T "import.text"}}</th><th>{{$L.T "import.account"}}</th><th class="num">{{$L.T "import.on_line"}}</th></tr>
+    {{range .Rows}}
+    <tr>
+      <td>{{.Booked.Format "2006-01-02"}}</td>
+      <td class="text">{{if .Items}}<details><summary>{{.Text}} <span class="hint">· {{if eq (len .Items) 1}}{{$L.T "import.items_one"}}{{else}}{{$L.T "import.items_count" (len .Items)}}{{end}}</span></summary>
+        <table class="receipt-items">
+          {{range .Items}}<tr class="{{if not .Here}}elsewhere{{end}}{{if .Match}} match{{end}}"><td>{{.Name}}</td><td class="num">{{$L.Money .Amount}}</td><td class="hint">{{if not .Here}}{{with .Line}}→ {{.}}{{else}}{{$L.T "import.ignore"}}{{end}}{{end}}</td></tr>{{end}}
+        </table>
+      </details>{{else}}{{.Text}}{{end}}</td>
+      <td>{{.Account}}</td>
+      <td class="num">{{$L.Money .Amount}}{{if ne .Amount .Total}} <span class="hint">{{$L.T "import.of_total" ($L.Money .Total)}}</span>{{end}}</td>
+    </tr>
+    {{end}}
+  </table>
+  </div>
+  {{else}}
+  <p class="hint">{{$L.T "import.month_empty"}}</p>
+  {{end}}
+</section>
+{{end}}

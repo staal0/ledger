@@ -4,7 +4,7 @@ package main
 
 import (
 	"github.com/staal0/ledger/internal/app"
-	_ "github.com/staal0/ledger/plugins/bank"
+	_ "github.com/staal0/ledger/plugins/importer"
 )
 
 // version is set at build time with -ldflags "-X main.version=...".
