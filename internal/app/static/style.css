@@ -356,3 +356,4 @@ input[type="file"]:focus-visible::file-selector-button { outline: 2px solid var(
 .month-table .receipt-items td { padding: .1rem .8rem .1rem 0; border: 0; background: none; box-shadow: none; position: static; }
 .month-table .receipt-items td.num { text-align: right; }
 .receipt-items .elsewhere td:not(.hint) { color: var(--muted); }
+.stats-table td.months { font-size: .85rem; }

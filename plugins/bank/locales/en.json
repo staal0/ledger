@@ -166,5 +166,7 @@
   "bank.items_count": "%d items",
   "bank.of_total": "of %s",
   "bank.month_empty": "Nothing is on the line this month.",
-  "bank.items_one": "1 item"
+  "bank.items_one": "1 item",
+  "bank.months": "Months",
+  "bank.months_more": "+%d more"
 }

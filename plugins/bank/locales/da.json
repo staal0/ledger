@@ -166,5 +166,7 @@
   "bank.items_count": "%d varer",
   "bank.of_total": "af %s",
   "bank.month_empty": "Der er intet på linjen i denne måned.",
-  "bank.items_one": "1 vare"
+  "bank.items_one": "1 vare",
+  "bank.months": "Måneder",
+  "bank.months_more": "+%d flere"
 }

@@ -14,7 +14,14 @@ type linePanelRow struct {
 	Name   string
 	Count  int
 	Amount app.Money
+	Months []monthLink // newest first
+	More   string      // how many months are left out
 }
+
+// monthLink is a month a row was bought in, linking to the line's month page.
+type monthLink struct{ Label, URL string }
+
+const shownMonths = 6
 
 // lineQuery selects the ids of the lines named names in section, in the years from to to.
 func lineQuery(b app.BudgetRef, section string, names []string, from, to int) (string, []any) {
@@ -92,8 +99,11 @@ func (bankPlugin) LinePanel(core *app.App, r *http.Request, b app.BudgetRef, sec
 	onLine := ` FROM bank_receipt_items i JOIN bank_transactions t ON t.id = i.transaction_id
 		WHERE COALESCE(i.line_id, t.line_id) IN (` + lines + `)`
 	sign := actualSign(section)
+	L := core.Locale(r)
+	keep := "&from=" + strconv.Itoa(from) + "&to=" + strconv.Itoa(to)
 	top := func(group, count string, limit int) ([]linePanelRow, error) {
-		rows, err := core.DB().QueryContext(ctx, `SELECT `+group+`, `+count+`, SUM(i.amount)`+onLine+`
+		rows, err := core.DB().QueryContext(ctx, `SELECT `+group+`, `+count+`, SUM(i.amount),
+				GROUP_CONCAT(DISTINCT DATE_FORMAT(t.booked, '%Y-%m') ORDER BY DATE_FORMAT(t.booked, '%Y-%m') DESC)`+onLine+`
 			GROUP BY `+group+` ORDER BY SUM(i.amount) DESC LIMIT `+strconv.Itoa(limit), args...)
 		if err != nil {
 			return nil, err
@@ -102,8 +112,19 @@ func (bankPlugin) LinePanel(core *app.App, r *http.Request, b app.BudgetRef, sec
 		var out []linePanelRow
 		for rows.Next() {
 			var row linePanelRow
-			if err := rows.Scan(&row.Name, &row.Count, &row.Amount); err != nil {
+			var months string
+			if err := rows.Scan(&row.Name, &row.Count, &row.Amount, &months); err != nil {
 				return nil, err
+			}
+			for i, ym := range strings.Split(months, ",") {
+				if i == shownMonths {
+					row.More = L.T("bank.months_more", len(strings.Split(months, ","))-shownMonths)
+					break
+				}
+				y, _ := strconv.Atoi(ym[:4])
+				m, _ := strconv.Atoi(ym[5:])
+				row.Months = append(row.Months, monthLink{L.T("month."+strconv.Itoa(m)) + " " + ym[:4],
+					lineMonthURL(b, section, names, y, m) + keep})
 			}
 			row.Amount *= -sign // items are positive for a purchase
 			out = append(out, row)

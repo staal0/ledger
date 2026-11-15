@@ -4,8 +4,8 @@
   <figcaption>{{$L.T "bank.line_stores"}}</figcaption>
   <div class="scroll">
   <table class="stats-table">
-    <tr class="head"><th>{{$L.T "bank.store"}}</th><th class="num">{{$L.T "bank.receipts_count"}}</th><th class="num">{{$L.T "bank.amount"}}</th></tr>
-    {{range .Stores}}<tr><th>{{.Name}}</th><td class="num">{{.Count}}</td><td class="num">{{$L.Money .Amount}}</td></tr>{{end}}
+    <tr class="head"><th>{{$L.T "bank.store"}}</th><th class="num">{{$L.T "bank.receipts_count"}}</th><th class="num">{{$L.T "bank.amount"}}</th><th>{{$L.T "bank.months"}}</th></tr>
+    {{range .Stores}}<tr><th>{{.Name}}</th><td class="num">{{.Count}}</td><td class="num">{{$L.Money .Amount}}</td><td class="months">{{template "bank-months" .}}</td></tr>{{end}}
   </table>
   </div>
 </figure>
@@ -13,10 +13,13 @@
   <figcaption>{{$L.T "bank.line_items"}}</figcaption>
   <div class="scroll">
   <table class="stats-table">
-    <tr class="head"><th>{{$L.T "bank.item"}}</th><th class="num">{{$L.T "bank.times"}}</th><th class="num">{{$L.T "bank.amount"}}</th></tr>
-    {{range .Items}}<tr><th>{{.Name}}</th><td class="num">{{.Count}}</td><td class="num">{{$L.Money .Amount}}</td></tr>{{end}}
+    <tr class="head"><th>{{$L.T "bank.item"}}</th><th class="num">{{$L.T "bank.times"}}</th><th class="num">{{$L.T "bank.amount"}}</th><th>{{$L.T "bank.months"}}</th></tr>
+    {{range .Items}}<tr><th>{{.Name}}</th><td class="num">{{.Count}}</td><td class="num">{{$L.Money .Amount}}</td><td class="months">{{template "bank-months" .}}</td></tr>{{end}}
   </table>
   </div>
   <p class="hint">{{$L.T "bank.line_receipts_hint"}}</p>
 </figure>
 {{end}}
+
+{{/* The months a row was bought in, each opening the line's month. */}}
+{{define "bank-months"}}{{range $i, $m := .Months}}{{if $i}} · {{end}}<a href="{{$m.URL}}">{{$m.Label}}</a>{{end}}{{with .More}} <span class="hint">{{.}}</span>{{end}}{{end}}
