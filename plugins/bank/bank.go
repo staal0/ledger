@@ -12,6 +12,7 @@ import (
 	"database/sql"
 	"embed"
 	"encoding/base64"
+	"encoding/json"
 	"errors"
 	"io"
 	"io/fs"
@@ -394,7 +395,7 @@ func (a handlers) bankPreview(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if receipts, err := parseReceipts(data); err == nil {
-		a.receiptImport(w, r, acc, b, receipts) // no preview: receipts imported before are skipped by their id
+		a.receiptPreview(w, r, acc, b, receipts)
 		return
 	}
 	if len(data) > maxBankFile {
@@ -448,6 +449,15 @@ func (a handlers) bankImport(w http.ResponseWriter, r *http.Request) {
 	}
 	if !ok {
 		http.NotFound(w, r)
+		return
+	}
+	if r.Form.Has("receipts") {
+		var receipts []receipt
+		if json.Unmarshal([]byte(r.FormValue("receipts")), &receipts) != nil || slices.ContainsFunc(receipts, func(rc receipt) bool { return !rc.valid() }) {
+			http.Error(w, "invalid receipts", http.StatusBadRequest)
+			return
+		}
+		a.receiptImport(w, r, acc, b, receipts)
 		return
 	}
 	data, err := base64.StdEncoding.DecodeString(r.FormValue("data"))

@@ -12,7 +12,7 @@
   "bank.import": "Import",
   "bank.file": "CSV file",
   "bank.read": "Read file",
-  "bank.import_hint": "The file is read first and shown, so you can check it before anything is imported. Rows imported before are skipped. A receipt export (zip or JSON) is imported right away; receipts imported before are skipped.",
+  "bank.import_hint": "The file is read first and shown, so you can check it before anything is imported. Rows and receipts imported before are skipped.",
   "bank.imported": "Imported %d new transactions; %s were imported before.",
   "bank.imports": "Imports",
   "bank.imported_at": "Imported",
@@ -146,5 +146,10 @@
   "bank.by_default_hint": "Assigned by the account's default line. Changing it here assigns it by hand.",
   "bank.by_receipt": "by receipt",
   "bank.by_receipt_hint": "Split by the receipt's items, or ignored because a receipt covers it. Changing it here sets it by hand.",
-  "bank.receipt_items": "Receipt"
+  "bank.receipt_items": "Receipt",
+  "bank.receipts_summary": "%d new receipts, %d imported before.",
+  "bank.receipts_hint": "Receipts imported before, or twice in the file, are skipped. A bank row a new receipt covers is ignored, so the purchase is not counted twice.",
+  "bank.store": "Store",
+  "bank.items": "Items",
+  "bank.status_covers": "covers %s %s"
 }

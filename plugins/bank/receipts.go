@@ -12,6 +12,7 @@ import (
 	"net/http"
 	"net/url"
 	"path"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -31,6 +32,9 @@ type receipt struct {
 	Total  app.Money
 	Items  []receiptItem
 }
+
+// Amount is the receipt as the bank has it: negative for a purchase.
+func (rc receipt) Amount() app.Money { return -rc.Total }
 
 type receiptItem struct {
 	Name   string
@@ -107,6 +111,115 @@ func parseReceipts(data []byte) ([]receipt, error) {
 	return out, nil
 }
 
+// receiptsSeen marks the receipts imported into the account before, or met earlier in the file.
+func receiptsSeen(ctx context.Context, q app.Querier, account int64, receipts []receipt) ([]bool, error) {
+	have := map[string]bool{}
+	rows, err := q.QueryContext(ctx, `SELECT receipt FROM bank_transactions WHERE account_id = ? AND receipt IS NOT NULL`, account)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var id string
+		if err := rows.Scan(&id); err != nil {
+			return nil, err
+		}
+		have[id] = true
+	}
+	seen := make([]bool, len(receipts))
+	for i, rc := range receipts {
+		seen[i] = have[rc.ID]
+		have[rc.ID] = true
+	}
+	return seen, rows.Err()
+}
+
+// receiptPreview shows a receipt export before it is imported: which receipts
+// are new, and which bank rows they cover and so will be ignored.
+func (a handlers) receiptPreview(w http.ResponseWriter, r *http.Request, acc bankAccount, b app.BudgetRef, receipts []receipt) {
+	ctx := r.Context()
+	seen, err := receiptsSeen(ctx, a.DB(), acc.ID, receipts)
+	if err != nil {
+		a.Fail(w, err)
+		return
+	}
+	// The bank rows no receipt or choice by hand has yet.
+	bank := map[app.Money][]*bankCandidate{}
+	rows, err := a.DB().QueryContext(ctx, `SELECT t.id, t.booked, t.amount, CONCAT(a.name, ': ', t.text) FROM bank_transactions t
+		JOIN bank_accounts a ON a.id = t.account_id
+		WHERE a.budget_id = ? AND t.receipt IS NULL AND NOT t.split AND NOT t.by_receipt
+			AND (t.rule_id IS NOT NULL AND NOT t.ignored OR t.by_default OR t.line_id IS NULL AND NOT t.ignored)
+		ORDER BY t.booked, t.id`, acc.BudgetID)
+	if err != nil {
+		a.Fail(w, err)
+		return
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var c bankCandidate
+		var amount app.Money
+		if err := rows.Scan(&c.ID, &c.Booked, &amount, &c.Text); err != nil {
+			a.Fail(w, err)
+			return
+		}
+		bank[amount] = append(bank[amount], &c)
+	}
+	if err := rows.Err(); err != nil {
+		a.Fail(w, err)
+		return
+	}
+	type previewReceipt struct {
+		receipt
+		Imported bool
+		Covers   *bankCandidate
+	}
+	list := make([]previewReceipt, len(receipts))
+	order := make([]int, 0, len(receipts))
+	added := 0
+	for i, rc := range receipts {
+		list[i] = previewReceipt{receipt: rc, Imported: seen[i]}
+		if !seen[i] {
+			added++
+			order = append(order, i)
+		}
+	}
+	// Matched in date order, as the import does.
+	slices.SortStableFunc(order, func(x, y int) int { return receipts[x].Booked.Compare(receipts[y].Booked) })
+	for _, i := range order {
+		list[i].Covers = coverFor(bank, receipts[i].Booked, -receipts[i].Total)
+	}
+	slices.SortStableFunc(list, func(x, y previewReceipt) int { return y.Booked.Compare(x.Booked) })
+	data, err := json.Marshal(receipts)
+	if err != nil {
+		a.Fail(w, err)
+		return
+	}
+	L := a.Locale(r)
+	a.Render(w, r, "bank_preview", map[string]any{
+		"Title":    L.T("bank.preview"),
+		"Current":  b,
+		"Account":  acc,
+		"Back":     bankURL("/bank", b, nil),
+		"Receipts": list,
+		"Added":    added,
+		"Skipped":  len(receipts) - added,
+		"Data":     string(data),
+	})
+}
+
+// valid checks a receipt sent back from the preview.
+func (rc receipt) valid() bool {
+	if rc.ID == "" || len(rc.ID) > 64 || rc.Store == "" || utf8.RuneCountInString(rc.Store) > maxBankText || rc.Booked.IsZero() {
+		return false
+	}
+	for _, it := range rc.Items {
+		if utf8.RuneCountInString(it.Name) > 255 {
+			return false
+		}
+	}
+	return true
+}
+
 // receiptImport adds the receipts of an export that are not imported yet; the export holds them all.
 func (a handlers) receiptImport(w http.ResponseWriter, r *http.Request, acc bankAccount, b app.BudgetRef, receipts []receipt) {
 	ctx := r.Context()
@@ -120,29 +233,14 @@ func (a handlers) receiptImport(w http.ResponseWriter, r *http.Request, acc bank
 		a.Fail(w, err)
 		return
 	}
-	have := map[string]bool{}
-	rows, err := tx.QueryContext(ctx, `SELECT receipt FROM bank_transactions WHERE account_id = ? AND receipt IS NOT NULL`, acc.ID)
+	seen, err := receiptsSeen(ctx, tx, acc.ID, receipts)
 	if err != nil {
 		a.Fail(w, err)
 		return
 	}
-	defer rows.Close()
-	for rows.Next() {
-		var id string
-		if err := rows.Scan(&id); err != nil {
-			a.Fail(w, err)
-			return
-		}
-		have[id] = true
-	}
-	if err := rows.Err(); err != nil {
-		a.Fail(w, err)
-		return
-	}
 	var todo []receipt
-	for _, rc := range receipts {
-		if !have[rc.ID] {
-			have[rc.ID] = true // twice in one file counts once
+	for i, rc := range receipts {
+		if !seen[i] {
 			todo = append(todo, rc)
 		}
 	}
@@ -247,6 +345,34 @@ func resetByReceipt(ctx context.Context, tx *sql.Tx, budget int64) (map[int64]bo
 	return ids, err
 }
 
+// bankCandidate is a bank row a receipt may cover.
+type bankCandidate struct {
+	ID     int64
+	Booked time.Time
+	Text   string
+	taken  bool
+}
+
+// coverFor takes the bank row a receipt from day covers, by amount: the bank
+// books a purchase from a day before to five days after, the nearest first.
+func coverFor(bank map[app.Money][]*bankCandidate, day time.Time, amount app.Money) *bankCandidate {
+	var best *bankCandidate
+	off := func(c *bankCandidate) float64 { return math.Abs(c.Booked.Sub(day).Hours() / 24) }
+	for _, c := range bank[amount] {
+		days := c.Booked.Sub(day).Hours() / 24
+		if days < -1 || days > 5 || c.taken {
+			continue
+		}
+		if best == nil || off(c) < off(best) {
+			best = c
+		}
+	}
+	if best != nil {
+		best.taken = true
+	}
+	return best
+}
+
 // applyReceipts lets receipts take over from rules and default lines: a bank
 // transaction a receipt covers (same amount, a few days later at most) is
 // ignored, and a receipt is split by rules for its items, the rest staying on
@@ -270,7 +396,7 @@ func applyReceipts(ctx context.Context, tx *sql.Tx, budget int64, rules []bankRu
 	}
 	defer rows.Close()
 	var receipts []row
-	bank := map[app.Money][]*row{}
+	bank := map[app.Money][]*bankCandidate{}
 	for rows.Next() {
 		var o row
 		if err := rows.Scan(&o.id, &o.booked, &o.amount, &o.line, &o.ignored, &o.receipt, &o.free); err != nil {
@@ -279,32 +405,20 @@ func applyReceipts(ctx context.Context, tx *sql.Tx, budget int64, rules []bankRu
 		if o.receipt {
 			receipts = append(receipts, o)
 		} else if o.free {
-			bank[o.amount] = append(bank[o.amount], &o)
+			bank[o.amount] = append(bank[o.amount], &bankCandidate{ID: o.id, Booked: o.booked})
 		}
 	}
 	if err := rows.Err(); err != nil || len(receipts) == 0 {
 		return err
 	}
 
-	// The bank books a purchase on the day or a few days later.
 	for _, rc := range receipts {
 		if rc.ignored {
 			continue
 		}
-		var best *row
-		for _, t := range bank[rc.amount] {
-			days := t.booked.Sub(rc.booked).Hours() / 24
-			if days < -1 || days > 5 || t.receipt { // receipt marks one taken
-				continue
-			}
-			if best == nil || math.Abs(days) < math.Abs(best.booked.Sub(rc.booked).Hours()/24) {
-				best = t
-			}
-		}
-		if best != nil {
-			best.receipt = true
+		if c := coverFor(bank, rc.booked, rc.amount); c != nil {
 			if _, err := tx.ExecContext(ctx, `UPDATE bank_transactions SET line_id = NULL, ignored = TRUE, rule_id = NULL, by_default = FALSE, by_receipt = TRUE
-				WHERE id = ?`, best.id); err != nil {
+				WHERE id = ?`, c.ID); err != nil {
 				return err
 			}
 		}

@@ -54,10 +54,15 @@ func TestBankReceipts(t *testing.T) {
 	app.MustStatus(t, app.TestRequest(a, "POST", "/bank/rules", url.Values{"new_pattern": {"soap"}, "new_target": {"expense:Household"}}, ""), 303)
 	previewAndImport(t, a, bank, "07-03-2031;Card Grocer;-120,00;DKK;\r\n20-03-2031;Card Kiosk;-15,50;DKK;\r\n")
 
-	w := uploadBank(t, a, receipts, zipped(t, "storebox/receipts.json", receiptsSample))
-	app.MustStatus(t, w, 303)
-	if loc := w.Header().Get("Location"); !strings.Contains(loc, "added=2") {
-		t.Errorf("import went to %s, want 2 added", loc)
+	// The preview shows the new receipts and the bank row the first covers.
+	page := previewAndImport(t, a, receipts, zipped(t, "storebox/receipts.json", receiptsSample))
+	for _, want := range []string{"2 new receipts, 0 imported before", "covers 2031-03-07 Budget account: Card Grocer"} {
+		if !strings.Contains(page, want) {
+			t.Errorf("preview lacks %q", want)
+		}
+	}
+	if n := count("SELECT COUNT(*) FROM bank_receipt_items"); n != 4 {
+		t.Errorf("%d receipt items imported, want 4", n)
 	}
 
 	// The bank's row for the first receipt is ignored; the receipt is split by its items.
@@ -77,11 +82,12 @@ func TestBankReceipts(t *testing.T) {
 	}
 
 	// The export grows: imported again, nothing is added and the split stays.
-	w = uploadBank(t, a, receipts, receiptsSample)
-	app.MustStatus(t, w, 303)
-	if loc := w.Header().Get("Location"); !strings.Contains(loc, "added=0") || !strings.Contains(loc, "skipped=2") {
-		t.Errorf("second import went to %s", loc)
+	w := uploadBank(t, a, receipts, receiptsSample)
+	app.MustStatus(t, w, 200)
+	if !strings.Contains(w.Body.String(), "0 new receipts, 2 imported before") {
+		t.Error("the preview of the same export again does not show both as imported before")
 	}
+	app.MustStatus(t, app.TestRequest(a, "POST", "/bank/import", url.Values{"account": {receipts}, "receipts": {"[{}]"}}, ""), 400)
 	if n := count("SELECT COUNT(*) FROM bank_splits"); n != 2 {
 		t.Errorf("%d split parts after importing again, want 2", n)
 	}

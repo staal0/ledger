@@ -46,11 +46,11 @@ func previewAndImport(t *testing.T, a *app.App, account, data string) string {
 	w := uploadBank(t, a, account, data)
 	app.MustStatus(t, w, 200)
 	page := html.UnescapeString(w.Body.String())
-	m := regexp.MustCompile(`name="data" value="([^"]*)"`).FindStringSubmatch(w.Body.String())
+	m := regexp.MustCompile(`name="(data|receipts)" value="([^"]*)"`).FindStringSubmatch(w.Body.String())
 	if m == nil {
 		t.Fatalf("preview has no import form: %s", page)
 	}
-	app.MustStatus(t, app.TestRequest(a, "POST", "/bank/import", url.Values{"account": {account}, "data": {html.UnescapeString(m[1])}}, ""), 303)
+	app.MustStatus(t, app.TestRequest(a, "POST", "/bank/import", url.Values{"account": {account}, m[1]: {html.UnescapeString(m[2])}}, ""), 303)
 	return page
 }
 
