@@ -15,7 +15,7 @@ func TestBankSplit(t *testing.T) {
 	app.TestExec(t, "INSERT INTO settings (name, value) VALUES ('plugin.bank', '1')")
 	lines := app.TestSetupYear(t, a, 2031, "expense/Food", "expense/Household")
 	food, household := strconv.FormatInt(lines["expense/Food"], 10), strconv.FormatInt(lines["expense/Household"], 10)
-	app.MustStatus(t, app.TestRequest(a, "POST", "/bank/accounts", url.Values{"name": {"Budget account"}, "format": {"laanspar"}}, ""), 303)
+	app.MustStatus(t, app.TestRequest(a, "POST", "/bank/accounts", url.Values{"name": {"Budget account"}}, ""), 303)
 	previewAndImport(t, a, strconv.FormatInt(app.TestQueryInt(t, "SELECT id FROM bank_accounts"), 10), laanSparSample)
 	netto := strconv.FormatInt(app.TestQueryInt(t, "SELECT id FROM bank_transactions WHERE text = 'Netto Butik 123'"), 10)
 	split := func(form url.Values) string {

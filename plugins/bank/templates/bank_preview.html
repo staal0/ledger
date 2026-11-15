@@ -5,7 +5,6 @@
 {{with .Error}}
 <div class="notice" role="alert">
   {{if .Line}}{{$L.T "bank.err_line" .Line}} {{end}}{{$L.T .Key}}{{with .Value}} <code>{{.}}</code>{{end}}
-  {{with $.Fits}}<p>{{$L.T "bank.err_fits"}} {{range $i, $f := .}}{{if $i}}, {{end}}<strong>{{$f.Name}}</strong>{{end}}</p>{{end}}
 </div>
 {{else}}
 <section class="card wide">

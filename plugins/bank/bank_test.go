@@ -57,11 +57,14 @@ func previewAndImport(t *testing.T, a *app.App, account, data string) string {
 func TestBankImport(t *testing.T) {
 	a := app.TestApp(t, false)
 	app.TestExec(t, "INSERT INTO settings (name, value) VALUES ('plugin.bank', '1')")
-	app.MustStatus(t, app.TestRequest(a, "POST", "/bank/accounts", url.Values{"name": {"Budget account"}, "format": {"laanspar"}}, ""), 303)
-	app.MustStatus(t, app.TestRequest(a, "POST", "/bank/accounts", url.Values{"name": {"x"}, "format": {"nope"}}, ""), 400)
+	app.MustStatus(t, app.TestRequest(a, "POST", "/bank/accounts", url.Values{"name": {"Budget account"}}, ""), 303)
+	app.MustStatus(t, app.TestRequest(a, "POST", "/bank/accounts", url.Values{"name": {" "}}, ""), 400)
 	account := strconv.FormatInt(app.TestQueryInt(t, "SELECT id FROM bank_accounts WHERE name = 'Budget account'"), 10)
 
 	page := previewAndImport(t, a, account, laanSparSample)
+	if n := app.TestQueryInt(t, "SELECT COUNT(*) FROM bank_accounts WHERE format = 'laanspar'"); n != 1 {
+		t.Error("the import did not remember the file's bank format")
+	}
 	if !strings.Contains(page, "5 new transactions, 0 imported before.") {
 		t.Errorf("first preview: %s", page)
 	}
@@ -97,7 +100,7 @@ func TestBankImport(t *testing.T) {
 	}
 
 	// A second account's transactions are listed apart when it is chosen.
-	app.MustStatus(t, app.TestRequest(a, "POST", "/bank/accounts", url.Values{"name": {"Savings"}, "format": {"laanspar"}}, ""), 303)
+	app.MustStatus(t, app.TestRequest(a, "POST", "/bank/accounts", url.Values{"name": {"Savings"}}, ""), 303)
 	savings := strconv.FormatInt(app.TestQueryInt(t, "SELECT id FROM bank_accounts WHERE name = 'Savings'"), 10)
 	previewAndImport(t, a, savings, "15-06-2030;Renter;12,34;DKK;\r\n")
 	page = html.UnescapeString(app.TestRequest(a, "GET", "/bank/transactions?show=all&account="+savings+"&year=2031", nil, "").Body.String())

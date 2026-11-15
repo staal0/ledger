@@ -108,13 +108,8 @@ func parseReceipts(data []byte) ([]receipt, error) {
 }
 
 // receiptImport adds the receipts of an export that are not imported yet; the export holds them all.
-func (a handlers) receiptImport(w http.ResponseWriter, r *http.Request, acc bankAccount, b app.BudgetRef, data []byte) {
+func (a handlers) receiptImport(w http.ResponseWriter, r *http.Request, acc bankAccount, b app.BudgetRef, receipts []receipt) {
 	ctx := r.Context()
-	receipts, err := parseReceipts(data)
-	if err != nil {
-		http.Error(w, a.Locale(r).T("bank.err_receipts"), http.StatusBadRequest)
-		return
-	}
 	tx, err := a.DB().BeginTx(ctx, nil)
 	if err != nil {
 		a.Fail(w, err)

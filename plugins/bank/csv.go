@@ -21,15 +21,12 @@ type bankFormat struct {
 	Debit, Credit      int  // instead of Amount, for a bank with two columns; -1 if unused
 	DateLayout         string
 	Decimal, Thousands string
-	Receipts           bool // a receipt export rather than a CSV file
 }
 
 var bankFormats = []bankFormat{
 	// Lån & Spar: date;text;amount;currency; with no header, newest first.
 	{ID: "laanspar", Name: "Lån & Spar", Comma: ';', Date: 0, Text: 1, Amount: 2, Debit: -1, Credit: -1,
 		DateLayout: "02-01-2006", Decimal: ",", Thousands: "."},
-	// Nexi Smart Receipt: the zip of a data export, or its receipts.json.
-	{ID: "nexi", Name: "Nexi Smart Receipt", Receipts: true},
 }
 
 func bankFormatByID(id string) (bankFormat, bool) {
@@ -145,9 +142,6 @@ func bankAmount(rec []string, f bankFormat) (app.Money, error) {
 func bankFormatsFor(data []byte) []bankFormat {
 	var out []bankFormat
 	for _, f := range bankFormats {
-		if f.Receipts {
-			continue
-		}
 		if _, err := parseBankCSV(data, f); err == nil {
 			out = append(out, f)
 		}

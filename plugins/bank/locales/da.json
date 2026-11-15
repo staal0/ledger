@@ -3,7 +3,6 @@
   "bank.accounts": "Bankkonti",
   "bank.account": "Konto",
   "bank.account_name": "Kontonavn",
-  "bank.format": "Bankformat",
   "bank.new_account": "Ny konto, fx Budgetkonto",
   "bank.add_account": "Tilføj konto",
   "bank.no_accounts": "Ingen bankkonti endnu. Tilføj en for at importere dens posteringer.",
@@ -42,7 +41,6 @@
   "bank.err_date": "Ikke en dato i dette bankformat:",
   "bank.err_amount": "Ikke et beløb i dette bankformat:",
   "bank.err_empty": "Filen har ingen posteringer.",
-  "bank.err_fits": "Filen passer til:",
   "bank.err_too_large": "Filen er for stor.",
   "bank.err_no_file": "Vælg en fil.",
   "bank.all_accounts": "Alle konti",
@@ -146,9 +144,7 @@
   "bank.default_line_hint": "Kontoens posteringer tildeles denne linje, når ingen regel passer, fx alle køb på en madkonto.",
   "bank.by_default": "via standard",
   "bank.by_default_hint": "Tildelt af kontoens standardlinje. Ændres den her, er den tildelt i hånden.",
-  "bank.err_receipts": "Filen er ikke en kvitteringseksport.",
   "bank.by_receipt": "via kvittering",
   "bank.by_receipt_hint": "Opdelt efter kvitteringens varer, eller ignoreret fordi en kvittering dækker den. Ændres den her, er den sat i hånden.",
-  "bank.receipt_items": "Kvittering",
-  "bank.err_receipts_account": "Det er en kvitteringseksport. Vælg et kvitteringsformat for kontoen %s på fanen Import, eller importér den til en kvitteringskonto."
+  "bank.receipt_items": "Kvittering"
 }

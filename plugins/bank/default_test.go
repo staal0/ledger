@@ -12,13 +12,13 @@ func TestBankDefaultLine(t *testing.T) {
 	a := app.TestApp(t, false)
 	app.TestExec(t, "INSERT INTO settings (name, value) VALUES ('plugin.bank', '1')")
 	lines := app.TestSetupYear(t, a, 2031, "allocation/Food account", "expense/Household")
-	app.MustStatus(t, app.TestRequest(a, "POST", "/bank/accounts", url.Values{"name": {"Food account"}, "format": {"laanspar"}}, ""), 303)
+	app.MustStatus(t, app.TestRequest(a, "POST", "/bank/accounts", url.Values{"name": {"Food account"}}, ""), 303)
 	account := strconv.FormatInt(app.TestQueryInt(t, "SELECT id FROM bank_accounts"), 10)
 	app.MustStatus(t, app.TestRequest(a, "POST", "/bank/rules", url.Values{"new_pattern": {"overførsel"}, "new_target": {"ignore"}}, ""), 303)
 	previewAndImport(t, a, account, laanSparSample)
 	setDefault := func(target string) {
 		app.MustStatus(t, app.TestRequest(a, "POST", "/bank/accounts/"+account,
-			url.Values{"name": {"Food account"}, "format": {"laanspar"}, "default": {target}}, ""), 303)
+			url.Values{"name": {"Food account"}, "default": {target}}, ""), 303)
 	}
 	count := func(q string, args ...any) int64 { return app.TestQueryInt(t, q, args...) }
 
@@ -58,5 +58,5 @@ func TestBankDefaultLine(t *testing.T) {
 	if n := count("SELECT COUNT(*) FROM bank_transactions WHERE text = 'Grocer Main Street' AND by_default"); n != 1 {
 		t.Error("the new import was not assigned by the default")
 	}
-	app.MustStatus(t, app.TestRequest(a, "POST", "/bank/accounts/"+account, url.Values{"name": {"x"}, "format": {"laanspar"}, "default": {"ignore"}}, ""), 400)
+	app.MustStatus(t, app.TestRequest(a, "POST", "/bank/accounts/"+account, url.Values{"name": {"x"}, "default": {"ignore"}}, ""), 400)
 }

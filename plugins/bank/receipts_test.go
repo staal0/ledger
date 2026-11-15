@@ -45,12 +45,12 @@ func TestBankReceipts(t *testing.T) {
 	app.TestExec(t, "INSERT INTO settings (name, value) VALUES ('plugin.bank', '1')")
 	lines := app.TestSetupYear(t, a, 2031, "allocation/Food account", "expense/Household")
 	count := func(q string, args ...any) int64 { return app.TestQueryInt(t, q, args...) }
-	app.MustStatus(t, app.TestRequest(a, "POST", "/bank/accounts", url.Values{"name": {"Budget account"}, "format": {"laanspar"}}, ""), 303)
-	app.MustStatus(t, app.TestRequest(a, "POST", "/bank/accounts", url.Values{"name": {"Receipts"}, "format": {"nexi"}}, ""), 303)
-	bank := strconv.FormatInt(count("SELECT id FROM bank_accounts WHERE format = 'laanspar'"), 10)
-	receipts := strconv.FormatInt(count("SELECT id FROM bank_accounts WHERE format = 'nexi'"), 10)
+	app.MustStatus(t, app.TestRequest(a, "POST", "/bank/accounts", url.Values{"name": {"Budget account"}}, ""), 303)
+	app.MustStatus(t, app.TestRequest(a, "POST", "/bank/accounts", url.Values{"name": {"Receipts"}}, ""), 303)
+	bank := strconv.FormatInt(count("SELECT id FROM bank_accounts WHERE name = 'Budget account'"), 10)
+	receipts := strconv.FormatInt(count("SELECT id FROM bank_accounts WHERE name = 'Receipts'"), 10)
 	app.MustStatus(t, app.TestRequest(a, "POST", "/bank/accounts/"+receipts,
-		url.Values{"name": {"Receipts"}, "format": {"nexi"}, "default": {"allocation:Food account"}}, ""), 303)
+		url.Values{"name": {"Receipts"}, "default": {"allocation:Food account"}}, ""), 303)
 	app.MustStatus(t, app.TestRequest(a, "POST", "/bank/rules", url.Values{"new_pattern": {"soap"}, "new_target": {"expense:Household"}}, ""), 303)
 	previewAndImport(t, a, bank, "07-03-2031;Card Grocer;-120,00;DKK;\r\n20-03-2031;Card Kiosk;-15,50;DKK;\r\n")
 
@@ -99,10 +99,8 @@ func TestBankReceipts(t *testing.T) {
 		t.Error("the receipt did not follow its item rule going")
 	}
 
-	if w := uploadBank(t, a, bank, receiptsSample); w.Code != 400 || !strings.Contains(w.Body.String(), "receipt export") {
-		t.Errorf("a receipt export to a bank account: status %d, %s", w.Code, w.Body.String())
-	}
-	if w := uploadBank(t, a, receipts, "not json"); w.Code != 400 {
-		t.Errorf("a file that is no export: status %d, want 400", w.Code)
+	// Neither receipts nor a bank file: the preview says why.
+	if w := uploadBank(t, a, receipts, "not a file we know"); w.Code != 200 || !strings.Contains(w.Body.String(), `class="notice"`) {
+		t.Errorf("an unknown file: status %d", w.Code)
 	}
 }

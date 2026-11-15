@@ -3,7 +3,6 @@
   "bank.accounts": "Bank accounts",
   "bank.account": "Account",
   "bank.account_name": "Account name",
-  "bank.format": "Bank format",
   "bank.new_account": "New account, e.g. Budget account",
   "bank.add_account": "Add account",
   "bank.no_accounts": "No bank accounts yet. Add one to import its transactions.",
@@ -42,7 +41,6 @@
   "bank.err_date": "Not a date in this bank format:",
   "bank.err_amount": "Not an amount in this bank format:",
   "bank.err_empty": "The file has no transactions.",
-  "bank.err_fits": "The file does fit:",
   "bank.err_too_large": "The file is too large.",
   "bank.err_no_file": "Choose a file.",
   "bank.all_accounts": "All accounts",
@@ -146,9 +144,7 @@
   "bank.default_line_hint": "The account's transactions go to this line when no rule fits, e.g. all purchases on a food account.",
   "bank.by_default": "by default",
   "bank.by_default_hint": "Assigned by the account's default line. Changing it here assigns it by hand.",
-  "bank.err_receipts": "The file is not a receipt export.",
   "bank.by_receipt": "by receipt",
   "bank.by_receipt_hint": "Split by the receipt's items, or ignored because a receipt covers it. Changing it here sets it by hand.",
-  "bank.receipt_items": "Receipt",
-  "bank.err_receipts_account": "This is a receipt export. Choose a receipt format for the account %s on the Import tab, or import it into a receipts account."
+  "bank.receipt_items": "Receipt"
 }
