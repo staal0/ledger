@@ -345,3 +345,4 @@ input[type="file"]:focus-visible::file-selector-button { outline: 2px solid var(
 .notice.missing { border-left-color: var(--c-other); }
 .notice.missing summary { cursor: pointer; }
 .bank-table td.split { white-space: normal; }
+.bank-account .default-line { display: flex; align-items: center; gap: .4rem; color: var(--muted); }

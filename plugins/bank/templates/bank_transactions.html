@@ -52,7 +52,7 @@
       {{range .Transactions}}{{$choice := .Choice}}
       <tr>
         <td>{{.Booked.Format "2006-01-02"}}</td>{{if $all}}<td>{{.Account}}</td>{{end}}
-        <td class="text">{{if ne .Shown .Text}}<span title="{{.Text}}">{{.Shown}}</span>{{else}}{{.Text}}{{end}}{{if .ByRule}} <span class="hint" title="{{$L.T "bank.by_rule_hint"}}">· {{$L.T "bank.by_rule"}}</span>{{end}}</td>
+        <td class="text">{{if ne .Shown .Text}}<span title="{{.Text}}">{{.Shown}}</span>{{else}}{{.Text}}{{end}}{{if .ByRule}} <span class="hint" title="{{$L.T "bank.by_rule_hint"}}">· {{$L.T "bank.by_rule"}}</span>{{end}}{{if .ByDef}} <span class="hint" title="{{$L.T "bank.by_default_hint"}}">· {{$L.T "bank.by_default"}}</span>{{end}}</td>
         <td class="num{{if lt .Amount 0}} neg{{else}} pos{{end}}">{{$L.Money .Amount}}</td>
         {{if .Split}}
         <td class="split">{{$L.T "bank.split_parts"}} {{range $i, $p := .Split}}{{if $i}} · {{end}}{{if $p.Ignored}}{{$L.T "bank.ignore"}}{{else}}{{$p.Name}}{{end}} {{$L.Money $p.Amount}}{{end}}
