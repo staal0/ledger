@@ -102,10 +102,10 @@ func TestBankReceipts(t *testing.T) {
 	if !strings.Contains(food, `/bank/line-month?month=3`) {
 		t.Error("the chart's months do not link to their page")
 	}
-	w := app.TestRequest(a, "GET", "/bank/line-month?section=allocation&name=Food+account&year=2031&month=3", nil, "")
+	w := app.TestRequest(a, "GET", "/bank/line-month?section=allocation&name=Food+account&year=2031&month=3&from=2029&to=2031", nil, "")
 	app.MustStatus(t, w, 200)
 	month := html.UnescapeString(w.Body.String())
-	for _, want := range []string{"105.50 in all, from 2 purchases, 2 of them with a receipt", "BREAD", "→ Household", "of 120<", "Next month"} {
+	for _, want := range []string{"105.50 in all, from 2 purchases, 2 of them with a receipt", "BREAD", "→ Household", "of 120<", "Next month", "/stats/line?from=2029&name=Food+account&section=allocation&to=2031", "month=4&name=Food+account&section=allocation&year=2031&from=2029&to=2031"} {
 		if !strings.Contains(month, want) {
 			t.Errorf("the month page lacks %q", want)
 		}

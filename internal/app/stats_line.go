@@ -1,6 +1,7 @@
 package app
 
 import (
+	"fmt"
 	"net/http"
 	"slices"
 	"strconv"
@@ -178,7 +179,8 @@ func (a *App) statsLinePage(w http.ResponseWriter, r *http.Request) {
 					return
 				}
 				if link != "" {
-					chart.Links = append(chart.Links, link)
+					// The page links back to this range.
+					chart.Links = append(chart.Links, link+fmt.Sprintf("&from=%d&to=%d", from, to))
 				}
 				var v *Money
 				if got, found := actual[y.Year][m]; found {

@@ -145,7 +145,16 @@ func (a handlers) bankLineMonth(w http.ResponseWriter, r *http.Request) {
 	}
 
 	prev, next := time.Date(year, time.Month(month)-1, 1, 0, 0, 0, 0, time.UTC), time.Date(year, time.Month(month)+1, 1, 0, 0, 0, 0, time.UTC)
-	back := url.Values{"section": {section}, "name": names, "from": {strconv.Itoa(year)}, "to": {strconv.Itoa(year)}}
+	// Back to the stats' range of years, which the month links keep.
+	from, to := r.FormValue("from"), r.FormValue("to")
+	if _, err := strconv.Atoi(from); err != nil {
+		from = strconv.Itoa(year)
+	}
+	if _, err := strconv.Atoi(to); err != nil {
+		to = strconv.Itoa(year)
+	}
+	keep := "&from=" + from + "&to=" + to
+	back := url.Values{"section": {section}, "name": names, "from": {from}, "to": {to}}
 	if !current.IsDefault {
 		back.Set("budget", current.Slug)
 	}
@@ -157,7 +166,7 @@ func (a handlers) bankLineMonth(w http.ResponseWriter, r *http.Request) {
 				return "", err
 			}
 		}
-		return lineMonthURL(current, section, names, t.Year(), int(t.Month())), nil
+		return lineMonthURL(current, section, names, t.Year(), int(t.Month())) + keep, nil
 	}
 	prevURL, err := around(prev)
 	if err != nil {
