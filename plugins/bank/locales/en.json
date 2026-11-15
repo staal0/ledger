@@ -141,5 +141,9 @@
   "bank.split_err_line": "Choose a budget line or Ignore for each part.",
   "bank.split_err_rest": "Only one part can be left empty to take the rest.",
   "bank.split_err_amount": "Not an amount: %s",
-  "bank.split_err_sum": "The parts add up to %s, but the transaction is %s."
+  "bank.split_err_sum": "The parts add up to %s, but the transaction is %s.",
+  "bank.default_line": "Default line",
+  "bank.default_line_hint": "The account's transactions go to this line when no rule fits, e.g. all purchases on a food account.",
+  "bank.by_default": "by default",
+  "bank.by_default_hint": "Assigned by the account's default line. Changing it here assigns it by hand."
 }

@@ -76,6 +76,7 @@ type bankAccount struct {
 	Name         string
 	Format       string
 	Transactions int
+	Default      string // the default line as "section:name", or ""
 }
 
 func (b bankAccount) FormatName() string {
@@ -113,7 +114,8 @@ func bankTabs(L *app.Locale, b app.BudgetRef, active string) []bankTab {
 
 func (a handlers) bankAccounts(ctx context.Context, budget int64) ([]bankAccount, error) {
 	rows, err := a.DB().QueryContext(ctx, `SELECT a.id, a.budget_id, a.name, a.format,
-			(SELECT COUNT(*) FROM bank_transactions t WHERE t.account_id = a.id)
+			(SELECT COUNT(*) FROM bank_transactions t WHERE t.account_id = a.id),
+			COALESCE(CONCAT(a.default_section, ':', a.default_line_name), '')
 		FROM bank_accounts a WHERE a.budget_id = ? ORDER BY a.name`, budget)
 	if err != nil {
 		return nil, err
@@ -122,7 +124,7 @@ func (a handlers) bankAccounts(ctx context.Context, budget int64) ([]bankAccount
 	var out []bankAccount
 	for rows.Next() {
 		var b bankAccount
-		if err := rows.Scan(&b.ID, &b.BudgetID, &b.Name, &b.Format, &b.Transactions); err != nil {
+		if err := rows.Scan(&b.ID, &b.BudgetID, &b.Name, &b.Format, &b.Transactions, &b.Default); err != nil {
 			return nil, err
 		}
 		out = append(out, b)
@@ -216,6 +218,11 @@ func (a handlers) bankPage(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	names, err := lineNames(ctx, a.DB(), current.ID)
+	if err != nil {
+		a.Fail(w, err)
+		return
+	}
 	added, _ := strconv.Atoi(r.FormValue("added"))
 	L := a.Locale(r)
 	a.Render(w, r, "bank", map[string]any{
@@ -224,6 +231,7 @@ func (a handlers) bankPage(w http.ResponseWriter, r *http.Request) {
 		"Current":  current,
 		"Budgets":  app.Pickable(visible),
 		"Accounts": accounts,
+		"Sections": groupLines(names),
 		"Formats":  bankFormats,
 		"Imports":  imports,
 		"Pages":    pages,
@@ -271,7 +279,30 @@ func (a handlers) bankAccountUpdate(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "invalid account", http.StatusBadRequest)
 		return
 	}
-	if _, err := a.DB().ExecContext(r.Context(), `UPDATE bank_accounts SET name = ?, format = ? WHERE id = ?`, name, format, acc.ID); err != nil {
+	section, line := "", ""
+	if d := r.FormValue("default"); d != "" {
+		var ignored, ok bool
+		if section, line, ignored, ok = parseRuleTarget(d); !ok || ignored {
+			http.Error(w, "invalid default line", http.StatusBadRequest)
+			return
+		}
+	}
+	ctx := r.Context()
+	tx, err := a.DB().BeginTx(ctx, nil)
+	if err != nil {
+		a.Fail(w, err)
+		return
+	}
+	defer tx.Rollback()
+	_, err = tx.ExecContext(ctx, `UPDATE bank_accounts SET name = ?, format = ?, default_section = NULLIF(?, ''), default_line_name = NULLIF(?, '')
+		WHERE id = ?`, name, format, section, line, acc.ID)
+	if err == nil {
+		_, err = applyBankRules(ctx, tx, b.ID)
+	}
+	if err == nil {
+		err = tx.Commit()
+	}
+	if err != nil {
 		a.Fail(w, err)
 		return
 	}

@@ -19,6 +19,12 @@
     <form method="post" action="/bank/accounts/{{.ID}}" class="inline">
       <input class="account-name" name="name" value="{{.Name}}" required maxlength="100" aria-label="{{$L.T "bank.account_name"}}">
       {{if gt (len $.Formats) 1}}<select name="format" aria-label="{{$L.T "bank.format"}}">{{$f := .Format}}{{range $.Formats}}<option value="{{.ID}}"{{if eq .ID $f}} selected{{end}}>{{.Name}}</option>{{end}}</select>{{else}}<input type="hidden" name="format" value="{{.Format}}">{{end}}
+      <label class="default-line" title="{{$L.T "bank.default_line_hint"}}">{{$L.T "bank.default_line"}}
+        <select name="default" autocomplete="off">{{$d := .Default}}
+          <option value="">–</option>
+          {{range $.Sections}}<optgroup label="{{$L.T (print "section." .Key)}}">{{range .Lines}}<option value="{{.Target}}"{{if eq $d .Target}} selected{{end}}>{{.Name}}</option>{{end}}</optgroup>{{end}}
+        </select>
+      </label>
       <button class="secondary">{{$L.T "save"}}</button>
     </form>
     <form method="post" action="/bank/accounts/{{.ID}}/delete" class="inline">

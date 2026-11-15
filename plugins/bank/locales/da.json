@@ -141,5 +141,9 @@
   "bank.split_err_line": "Vælg en budgetlinje eller Ignorér for hver del.",
   "bank.split_err_rest": "Kun én del kan stå tom og få resten.",
   "bank.split_err_amount": "Ikke et beløb: %s",
-  "bank.split_err_sum": "Delene giver %s, men posteringen er %s."
+  "bank.split_err_sum": "Delene giver %s, men posteringen er %s.",
+  "bank.default_line": "Standardlinje",
+  "bank.default_line_hint": "Kontoens posteringer tildeles denne linje, når ingen regel passer, fx alle køb på en madkonto.",
+  "bank.by_default": "via standard",
+  "bank.by_default_hint": "Tildelt af kontoens standardlinje. Ændres den her, er den tildelt i hånden."
 }

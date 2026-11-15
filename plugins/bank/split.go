@@ -167,7 +167,7 @@ func (a handlers) bankSplitSave(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if r.FormValue("action") == "undo" {
-		_, err = tx.ExecContext(ctx, `UPDATE bank_transactions SET split = FALSE, line_id = NULL, ignored = FALSE, rule_id = NULL WHERE id = ?`, t.ID)
+		_, err = tx.ExecContext(ctx, `UPDATE bank_transactions SET split = FALSE, line_id = NULL, ignored = FALSE, rule_id = NULL, by_default = FALSE WHERE id = ?`, t.ID)
 		if err == nil {
 			_, err = applyBankRules(ctx, tx, t.budget.ID)
 		}
@@ -242,7 +242,7 @@ func (a handlers) bankSplitSave(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	}
-	if _, err := tx.ExecContext(ctx, `UPDATE bank_transactions SET split = TRUE, line_id = NULL, ignored = FALSE, rule_id = NULL WHERE id = ?`, t.ID); err != nil {
+	if _, err := tx.ExecContext(ctx, `UPDATE bank_transactions SET split = TRUE, line_id = NULL, ignored = FALSE, rule_id = NULL, by_default = FALSE WHERE id = ?`, t.ID); err != nil {
 		a.Fail(w, err)
 		return
 	}

@@ -23,6 +23,7 @@ type bankTransaction struct {
 	LineID  int64
 	Ignored bool
 	ByRule  bool
+	ByDef   bool            // assigned by the account's default line
 	Split   []bankSplitPart // the parts, when the transaction is split
 }
 
@@ -140,7 +141,7 @@ func (a handlers) bankTransactionsPage(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	var list []bankTransaction
-	rows, err = a.DB().QueryContext(ctx, `SELECT t.id, t.booked, a.name, t.text, t.amount, COALESCE(t.line_id, 0), t.ignored, t.rule_id IS NOT NULL`+
+	rows, err = a.DB().QueryContext(ctx, `SELECT t.id, t.booked, a.name, t.text, t.amount, COALESCE(t.line_id, 0), t.ignored, t.rule_id IS NOT NULL, t.by_default`+
 		from+` ORDER BY t.booked DESC, t.id DESC LIMIT ? OFFSET ?`, append(args, pages.Size, pages.Offset())...)
 	if err != nil {
 		a.Fail(w, err)
@@ -149,7 +150,7 @@ func (a handlers) bankTransactionsPage(w http.ResponseWriter, r *http.Request) {
 	defer rows.Close()
 	for rows.Next() {
 		var t bankTransaction
-		if err := rows.Scan(&t.ID, &t.Booked, &t.Account, &t.Text, &t.Amount, &t.LineID, &t.Ignored, &t.ByRule); err != nil {
+		if err := rows.Scan(&t.ID, &t.Booked, &t.Account, &t.Text, &t.Amount, &t.LineID, &t.Ignored, &t.ByRule, &t.ByDef); err != nil {
 			a.Fail(w, err)
 			return
 		}
@@ -298,7 +299,7 @@ func (a handlers) bankTransactionsSave(w http.ResponseWriter, r *http.Request) {
 			line, section, name = lid, l.section, l.name
 		}
 		if choice != t.Choice() {
-			if _, err := tx.ExecContext(ctx, `UPDATE bank_transactions SET line_id = ?, ignored = ?, rule_id = NULL WHERE id = ?`, line, ignored, t.ID); err != nil {
+			if _, err := tx.ExecContext(ctx, `UPDATE bank_transactions SET line_id = ?, ignored = ?, rule_id = NULL, by_default = FALSE WHERE id = ?`, line, ignored, t.ID); err != nil {
 				a.Fail(w, err)
 				return
 			}
