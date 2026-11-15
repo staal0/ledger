@@ -10,22 +10,22 @@ import (
 	"strconv"
 )
 
-// bankFillChange is an amount the fill sets: a line's month to what its
+// fillChange is an amount the fill sets: a line's month to what its
 // transactions add up to.
-type bankFillChange struct {
+type fillChange struct {
 	Line     *app.Line
 	Month    int
 	Old, New app.Money
 	Update   bool // Old was filled from the bank and is updated without overwrite
 }
 
-// bankFill plans filling year b from the bank: for each line and imported
+// fillBudget plans filling year b from the bank: for each line and imported
 // month with assigned transactions, the amount becomes their sum. Without
 // overwrite only empty amounts are set, and those an earlier fill wrote and
 // nobody changed since, so a month imported in parts is updated as it fills
 // up; kept counts the amounts left alone. Linked lines are skipped, as their
 // amounts come from their source.
-func bankFill(ctx context.Context, q app.Querier, b *app.BudgetYear, overwrite bool) (changes []bankFillChange, kept int, err error) {
+func fillBudget(ctx context.Context, q app.Querier, b *app.BudgetYear, overwrite bool) (changes []fillChange, kept int, err error) {
 	imported, err := importedMonths(ctx, q, b.BudgetID, b.Year)
 	if err != nil {
 		return nil, 0, err
@@ -66,7 +66,7 @@ func bankFill(ctx context.Context, q app.Querier, b *app.BudgetYear, overwrite b
 				if !has {
 					continue
 				}
-				c := bankFillChange{Line: l, Month: m, Old: l.Amounts[m], New: sum * actualSign(s)}
+				c := fillChange{Line: l, Month: m, Old: l.Amounts[m], New: sum * actualSign(s)}
 				was, fromBank := filled[cell{l.ID, m}]
 				c.Update = fromBank && was == c.Old && c.Old != 0
 				switch {
@@ -82,14 +82,14 @@ func bankFill(ctx context.Context, q app.Querier, b *app.BudgetYear, overwrite b
 	return changes, kept, nil
 }
 
-// bankFillYear is the year a fill request is for, when the budget has it.
-func bankFillYear(r *http.Request, years []int) (int, bool) {
+// fillYear is the year a fill request is for, when the budget has it.
+func fillYear(r *http.Request, years []int) (int, bool) {
 	y, err := strconv.Atoi(r.FormValue("year"))
 	return y, err == nil && slices.Contains(years, y)
 }
 
-// bankFillPage shows what filling a year from the bank would change.
-func (a handlers) bankFillPage(w http.ResponseWriter, r *http.Request) {
+// fillPage shows what filling a year from the bank would change.
+func (a handlers) fillPage(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	L := a.Locale(r)
 	current, visible, ok, err := a.ChosenBudget(r)
@@ -102,7 +102,7 @@ func (a handlers) bankFillPage(w http.ResponseWriter, r *http.Request) {
 		a.Fail(w, err)
 		return
 	}
-	year, hasYear := bankFillYear(r, years)
+	year, hasYear := fillYear(r, years)
 	if !ok || !hasYear {
 		http.NotFound(w, r)
 		return
@@ -113,7 +113,7 @@ func (a handlers) bankFillPage(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	overwrite := r.FormValue("mode") == "overwrite"
-	changes, kept, err := bankFill(ctx, a.DB(), b, overwrite)
+	changes, kept, err := fillBudget(ctx, a.DB(), b, overwrite)
 	if err != nil {
 		a.Fail(w, err)
 		return
@@ -125,7 +125,7 @@ func (a handlers) bankFillPage(w http.ResponseWriter, r *http.Request) {
 	}
 	a.Render(w, r, "import_fill", map[string]any{
 		"Title":     L.T("import.fill_title", year),
-		"Tabs":      bankTabs(L, current, "compare"),
+		"Tabs":      importTabs(L, current, "compare"),
 		"Current":   current,
 		"Budgets":   app.Pickable(visible),
 		"Year":      year,
@@ -133,13 +133,13 @@ func (a handlers) bankFillPage(w http.ResponseWriter, r *http.Request) {
 		"Changes":   changes,
 		"Kept":      kept,
 		"In":        imported,
-		"Back":      bankURL("/import/compare", current, url.Values{"year": {strconv.Itoa(year)}}),
+		"Back":      importURL("/import/compare", current, url.Values{"year": {strconv.Itoa(year)}}),
 	})
 }
 
-// bankFillSave fills the year as the preview showed, planned again under a
+// fillSave fills the year as the preview showed, planned again under a
 // lock. Each amount is saved like an edit on the budget page, with history.
-func (a handlers) bankFillSave(w http.ResponseWriter, r *http.Request) {
+func (a handlers) fillSave(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	current, _, ok, err := a.BudgetFor(r)
 	if err != nil {
@@ -151,7 +151,7 @@ func (a handlers) bankFillSave(w http.ResponseWriter, r *http.Request) {
 		a.Fail(w, err)
 		return
 	}
-	year, hasYear := bankFillYear(r, years)
+	year, hasYear := fillYear(r, years)
 	if !ok || !hasYear {
 		http.NotFound(w, r)
 		return
@@ -166,9 +166,9 @@ func (a handlers) bankFillSave(w http.ResponseWriter, r *http.Request) {
 	if err == nil && b == nil {
 		err = sql.ErrNoRows
 	}
-	var changes []bankFillChange
+	var changes []fillChange
 	if err == nil {
-		changes, _, err = bankFill(ctx, tx, b, r.FormValue("mode") == "overwrite")
+		changes, _, err = fillBudget(ctx, tx, b, r.FormValue("mode") == "overwrite")
 	}
 	// The amounts are saved like an edit on the budget page; the fill notes what it wrote.
 	var amounts []app.AmountChange
@@ -189,5 +189,5 @@ func (a handlers) bankFillSave(w http.ResponseWriter, r *http.Request) {
 		a.Fail(w, err)
 		return
 	}
-	http.Redirect(w, r, bankURL("/import/compare", current, url.Values{"year": {strconv.Itoa(year)}, "filled": {strconv.Itoa(len(changes))}}), http.StatusSeeOther)
+	http.Redirect(w, r, importURL("/import/compare", current, url.Values{"year": {strconv.Itoa(year)}, "filled": {strconv.Itoa(len(changes))}}), http.StatusSeeOther)
 }

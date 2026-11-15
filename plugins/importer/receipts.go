@@ -76,7 +76,7 @@ func receiptsSeen(ctx context.Context, q app.Querier, account int64, receipts []
 
 // receiptPreview shows a receipt export before it is imported: which receipts
 // are new, and which bank rows they cover and so will be ignored.
-func (a handlers) receiptPreview(w http.ResponseWriter, r *http.Request, acc bankAccount, b app.BudgetRef, f receiptFormat, receipts []receipt) {
+func (a handlers) receiptPreview(w http.ResponseWriter, r *http.Request, acc account, b app.BudgetRef, f receiptFormat, receipts []receipt) {
 	ctx := r.Context()
 	seen, err := receiptsSeen(ctx, a.DB(), acc.ID, receipts)
 	if err != nil {
@@ -139,7 +139,7 @@ func (a handlers) receiptPreview(w http.ResponseWriter, r *http.Request, acc ban
 		"Title":    L.T("import.preview"),
 		"Current":  b,
 		"Account":  acc,
-		"Back":     bankURL("/import", b, nil),
+		"Back":     importURL("/import", b, nil),
 		"Receipts": list,
 		"Format":   f.Name,
 		"Added":    added,
@@ -162,7 +162,7 @@ func (rc receipt) valid() bool {
 }
 
 // receiptImport adds the receipts of an export that are not imported yet; the export holds them all.
-func (a handlers) receiptImport(w http.ResponseWriter, r *http.Request, acc bankAccount, b app.BudgetRef, receipts []receipt) {
+func (a handlers) receiptImport(w http.ResponseWriter, r *http.Request, acc account, b app.BudgetRef, receipts []receipt) {
 	ctx := r.Context()
 	tx, err := a.DB().BeginTx(ctx, nil)
 	if err != nil {
@@ -208,7 +208,7 @@ func (a handlers) receiptImport(w http.ResponseWriter, r *http.Request, acc bank
 			}
 		}
 	}
-	assigned, err := applyBankRules(ctx, tx, acc.BudgetID)
+	assigned, err := applyRules(ctx, tx, acc.BudgetID)
 	if err == nil {
 		err = tx.Commit()
 	}
@@ -216,7 +216,7 @@ func (a handlers) receiptImport(w http.ResponseWriter, r *http.Request, acc bank
 		a.Fail(w, err)
 		return
 	}
-	http.Redirect(w, r, bankURL("/import", b, url.Values{"added": {strconv.Itoa(len(todo))}, "skipped": {strconv.Itoa(len(receipts) - len(todo))},
+	http.Redirect(w, r, importURL("/import", b, url.Values{"added": {strconv.Itoa(len(todo))}, "skipped": {strconv.Itoa(len(receipts) - len(todo))},
 		"assigned": {strconv.Itoa(assigned)}}), http.StatusSeeOther)
 }
 
@@ -322,7 +322,7 @@ func coverFor(bank map[app.Money][]*bankCandidate, day time.Time, amount app.Mon
 // transaction a receipt covers (same amount, a few days later at most) is
 // ignored, and a receipt is split by rules for its items, the rest staying on
 // the receipt's own line.
-func applyReceipts(ctx context.Context, tx *sql.Tx, budget int64, rules []bankRule, lines map[lineKey]int64) error {
+func applyReceipts(ctx context.Context, tx *sql.Tx, budget int64, rules []textRule, lines map[lineKey]int64) error {
 	type row struct {
 		id      int64
 		booked  time.Time

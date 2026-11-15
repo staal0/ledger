@@ -12,8 +12,8 @@ import (
 	"time"
 )
 
-// bankTransaction is a row of the transactions list.
-type bankTransaction struct {
+// listRow is a row of the transactions list.
+type listRow struct {
 	ID      int64
 	Booked  time.Time
 	Account string
@@ -23,13 +23,13 @@ type bankTransaction struct {
 	LineID  int64
 	Ignored bool
 	ByRule  bool
-	ByDef   bool            // assigned by the account's default line
-	ByRcpt  bool            // split or ignored by a receipt
-	Split   []bankSplitPart // the parts, when the transaction is split
+	ByDef   bool        // assigned by the account's default line
+	ByRcpt  bool        // split or ignored by a receipt
+	Split   []splitPart // the parts, when the transaction is split
 }
 
 // Choice is the transaction's line in the picker: a line id, "ignore" or "".
-func (t bankTransaction) Choice() string {
+func (t listRow) Choice() string {
 	switch {
 	case t.Ignored:
 		return "ignore"
@@ -39,17 +39,17 @@ func (t bankTransaction) Choice() string {
 	return ""
 }
 
-// bankListFilter is what the transactions list shows: one account or all
+// listFilter is what the transactions list shows: one account or all
 // (Account 0), one year, only the unassigned unless All, and which page of
 // what size.
-type bankListFilter struct {
+type listFilter struct {
 	Account    int64
 	Year       int
 	All        bool
 	Page, Size int
 }
 
-func (f bankListFilter) query() url.Values {
+func (f listFilter) query() url.Values {
 	q := url.Values{"year": {strconv.Itoa(f.Year)}}
 	if f.Account != 0 {
 		q.Set("account", strconv.FormatInt(f.Account, 10))
@@ -66,8 +66,8 @@ func (f bankListFilter) query() url.Values {
 	return q
 }
 
-// bankTransactionsPage lists one year's transactions with a line picker each.
-func (a handlers) bankTransactionsPage(w http.ResponseWriter, r *http.Request) {
+// transactionsPage lists one year's transactions with a line picker each.
+func (a handlers) transactionsPage(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	L := a.Locale(r)
 	current, visible, ok, err := a.ChosenBudget(r)
@@ -79,12 +79,12 @@ func (a handlers) bankTransactionsPage(w http.ResponseWriter, r *http.Request) {
 		http.NotFound(w, r)
 		return
 	}
-	accounts, err := a.bankAccounts(ctx, current.ID)
+	accounts, err := a.listAccounts(ctx, current.ID)
 	if err != nil {
 		a.Fail(w, err)
 		return
 	}
-	f := bankListFilter{All: r.FormValue("show") == "all"}
+	f := listFilter{All: r.FormValue("show") == "all"}
 	for _, acc := range accounts {
 		if r.FormValue("account") == strconv.FormatInt(acc.ID, 10) {
 			f.Account = acc.ID
@@ -136,12 +136,12 @@ func (a handlers) bankTransactionsPage(w http.ResponseWriter, r *http.Request) {
 	pages := app.NewPager(r, L, "page", total, "")
 	f.Page, f.Size = pages.Page, pages.Size
 
-	rules, err := loadBankRules(ctx, a.DB(), current.ID)
+	rules, err := loadRules(ctx, a.DB(), current.ID)
 	if err != nil {
 		a.Fail(w, err)
 		return
 	}
-	var list []bankTransaction
+	var list []listRow
 	rows, err = a.DB().QueryContext(ctx, `SELECT t.id, t.booked, a.name, t.text, t.amount, COALESCE(t.line_id, 0), t.ignored, t.rule_id IS NOT NULL, t.by_default, t.by_receipt`+
 		from+` ORDER BY t.booked DESC, t.id DESC LIMIT ? OFFSET ?`, append(args, pages.Size, pages.Offset())...)
 	if err != nil {
@@ -150,7 +150,7 @@ func (a handlers) bankTransactionsPage(w http.ResponseWriter, r *http.Request) {
 	}
 	defer rows.Close()
 	for rows.Next() {
-		var t bankTransaction
+		var t listRow
 		if err := rows.Scan(&t.ID, &t.Booked, &t.Account, &t.Text, &t.Amount, &t.LineID, &t.Ignored, &t.ByRule, &t.ByDef, &t.ByRcpt); err != nil {
 			a.Fail(w, err)
 			return
@@ -169,14 +169,14 @@ func (a handlers) bankTransactionsPage(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	lines, hasYear, err := a.bankYearLines(r, current.ID, f.Year)
+	lines, hasYear, err := a.yearLines(r, current.ID, f.Year)
 	if err != nil {
 		a.Fail(w, err)
 		return
 	}
 	a.Render(w, r, "import_transactions", map[string]any{
 		"Title":        L.T("nav.import"),
-		"Tabs":         bankTabs(L, current, "transactions"),
+		"Tabs":         importTabs(L, current, "transactions"),
 		"Current":      current,
 		"Budgets":      app.Pickable(visible),
 		"Accounts":     accounts,
@@ -185,33 +185,33 @@ func (a handlers) bankTransactionsPage(w http.ResponseWriter, r *http.Request) {
 		"Transactions": list,
 		"Unassigned":   unassigned,
 		"Pages":        pages,
-		"Back":         bankURL("/import/transactions", current, f.query()),
+		"Back":         importURL("/import/transactions", current, f.query()),
 		"Sections":     groupLines(lines),
 		"HasYear":      hasYear,
 		"YearURL":      current.YearURL(f.Year),
 	})
 }
 
-// bankYearLines lists the lines of the budget's year, in the budget's order;
+// yearLines lists the lines of the budget's year, in the budget's order;
 // hasYear is false when the budget has no such year.
-func (a handlers) bankYearLines(r *http.Request, budget int64, year int) (lines []bankLineChoice, hasYear bool, err error) {
+func (a handlers) yearLines(r *http.Request, budget int64, year int) (lines []lineChoice, hasYear bool, err error) {
 	b, err := app.LoadBudget(r.Context(), a.DB(), budget, year, "")
 	if err != nil || b == nil {
 		return nil, false, err
 	}
 	for _, s := range app.Sections {
 		for _, l := range b.Lines[s] {
-			lines = append(lines, bankLineChoice{ID: l.ID, Section: s, Name: l.Name})
+			lines = append(lines, lineChoice{ID: l.ID, Section: s, Name: l.Name})
 		}
 	}
 	return lines, true, nil
 }
 
-// bankTransactionsSave stores the line picked for each transaction of the
+// transactionsSave stores the line picked for each transaction of the
 // list. A transaction with "remember" ticked teaches a rule from its text,
 // which is then applied to the unassigned ones. The delete button of a row
 // saves the list too, and then deletes that transaction.
-func (a handlers) bankTransactionsSave(w http.ResponseWriter, r *http.Request) {
+func (a handlers) transactionsSave(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	b, _, ok, err := a.BudgetFor(r)
 	if err != nil {
@@ -222,7 +222,7 @@ func (a handlers) bankTransactionsSave(w http.ResponseWriter, r *http.Request) {
 		http.NotFound(w, r)
 		return
 	}
-	f := bankListFilter{All: r.FormValue("show") == "all"}
+	f := listFilter{All: r.FormValue("show") == "all"}
 	f.Account, _ = strconv.ParseInt(r.FormValue("account"), 10, 64)
 	f.Year, _ = strconv.Atoi(r.FormValue("year"))
 	f.Page, _ = strconv.Atoi(r.FormValue("page"))
@@ -263,7 +263,7 @@ func (a handlers) bankTransactionsSave(w http.ResponseWriter, r *http.Request) {
 	}
 
 	type posted struct {
-		bankTransaction
+		listRow
 		year int
 	}
 	var list []posted
@@ -333,7 +333,7 @@ func (a handlers) bankTransactionsSave(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	}
-	if _, err := applyBankRules(ctx, tx, b.ID); err != nil {
+	if _, err := applyRules(ctx, tx, b.ID); err != nil {
 		a.Fail(w, err)
 		return
 	}
@@ -341,5 +341,5 @@ func (a handlers) bankTransactionsSave(w http.ResponseWriter, r *http.Request) {
 		a.Fail(w, err)
 		return
 	}
-	http.Redirect(w, r, bankURL("/import/transactions", b, f.query()), http.StatusSeeOther)
+	http.Redirect(w, r, importURL("/import/transactions", b, f.query()), http.StatusSeeOther)
 }

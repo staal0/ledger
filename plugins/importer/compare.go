@@ -10,24 +10,24 @@ import (
 	"time"
 )
 
-// bankCompareRow is a line's budget and actual amount for the period. Diff is
+// compareLine is a line's budget and actual amount for the period. Diff is
 // positive when the line did better than budgeted: spent less, or earned more.
-type bankCompareRow struct {
+type compareLine struct {
 	Name                 string
 	Budget, Actual, Diff app.Money
 	URL                  string // the line's chart over the year
 }
 
-// bankMissing is a line with budgeted months that have no transaction.
-type bankMissing struct {
+// missingPayment is a line with budgeted months that have no transaction.
+type missingPayment struct {
 	Section, Name string
 	Months        []int
 	Budget        app.Money
 }
 
-// bankLineChart is one line's budget and actual by month; Actual is nil for
+// compareChart is one line's budget and actual by month; Actual is nil for
 // months without imports. Up is 1 when more is better (income), else -1.
-type bankLineChart struct {
+type compareChart struct {
 	Title   string
 	Section string
 	Up      int
@@ -36,10 +36,10 @@ type bankLineChart struct {
 	Actual  []*app.Money
 }
 
-type bankCompareSection struct {
+type compareSection struct {
 	Key   string
-	Rows  []bankCompareRow
-	Total bankCompareRow
+	Rows  []compareLine
+	Total compareLine
 }
 
 // actualSign turns a sum of transactions into the line's actual amount: money
@@ -51,17 +51,17 @@ func actualSign(section string) app.Money {
 	return -1
 }
 
-func compareRow(section, name string, budget, actual app.Money) bankCompareRow {
+func compareRow(section, name string, budget, actual app.Money) compareLine {
 	diff := budget - actual
 	if section == "income" {
 		diff = actual - budget
 	}
-	return bankCompareRow{Name: name, Budget: budget, Actual: actual, Diff: diff}
+	return compareLine{Name: name, Budget: budget, Actual: actual, Diff: diff}
 }
 
-// bankComparePage shows each line's budget beside what the assigned
+// comparePage shows each line's budget beside what the assigned
 // transactions add up to, for the whole year, the year to date or one month.
-func (a handlers) bankComparePage(w http.ResponseWriter, r *http.Request) {
+func (a handlers) comparePage(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	L := a.Locale(r)
 	current, visible, ok, err := a.ChosenBudget(r)
@@ -122,7 +122,7 @@ func (a handlers) bankComparePage(w http.ResponseWriter, r *http.Request) {
 
 	page := map[string]any{
 		"Title":   L.T("nav.import"),
-		"Tabs":    bankTabs(L, current, "compare"),
+		"Tabs":    importTabs(L, current, "compare"),
 		"Current": current,
 		"Budgets": app.Pickable(visible),
 		"Years":   years,
@@ -184,16 +184,16 @@ func (a handlers) bankComparePage(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var list []bankCompareSection
-	var missing []bankMissing
+	var list []compareSection
+	var missing []missingPayment
 	var missingSum app.Money
-	var chart *bankLineChart
+	var chart *compareChart
 	for _, s := range app.Sections {
-		sec := bankCompareSection{Key: s}
+		sec := compareSection{Key: s}
 		var budgetSum, actualSum app.Money
 		for _, l := range b.Lines[s] {
 			var budget app.Money
-			miss := bankMissing{Section: s, Name: l.Name}
+			miss := missingPayment{Section: s, Name: l.Name}
 			for _, m := range in {
 				budget += l.Amounts[m]
 				if _, paid := sums[l.ID][m]; l.Amounts[m] != 0 && !paid && slices.Contains(imported, m) {
@@ -207,7 +207,7 @@ func (a handlers) bankComparePage(w http.ResponseWriter, r *http.Request) {
 			}
 			act := actual[l.ID] * actualSign(s)
 			row := compareRow(s, l.Name, budget, act)
-			row.URL = bankURL("/import/compare", current, url.Values{"year": {strconv.Itoa(year)}, "period": {period},
+			row.URL = importURL("/import/compare", current, url.Values{"year": {strconv.Itoa(year)}, "period": {period},
 				"line": {strconv.FormatInt(l.ID, 10)}}) + "#line"
 			sec.Rows = append(sec.Rows, row)
 			budgetSum += budget
@@ -226,13 +226,13 @@ func (a handlers) bankComparePage(w http.ResponseWriter, r *http.Request) {
 	page["Missing"] = missing
 	page["MissingSum"] = missingSum
 	page["Chart"] = chart
-	page["CloseURL"] = bankURL("/import/compare", current, url.Values{"year": {strconv.Itoa(year)}, "period": {period}})
+	page["CloseURL"] = importURL("/import/compare", current, url.Values{"year": {strconv.Itoa(year)}, "period": {period}})
 	page["Unassigned"] = unassigned
 	page["UnassignedSum"] = unassignedSum
-	page["UnassignedURL"] = bankURL("/import/transactions", current, map[string][]string{"year": {strconv.Itoa(year)}})
+	page["UnassignedURL"] = importURL("/import/transactions", current, map[string][]string{"year": {strconv.Itoa(year)}})
 	page["YearURL"] = current.YearURL(year)
 	page["Imported"] = imported
-	page["FillURL"] = bankURL("/import/fill", current, url.Values{"year": {strconv.Itoa(year)}})
+	page["FillURL"] = importURL("/import/fill", current, url.Values{"year": {strconv.Itoa(year)}})
 	page["Filled"] = r.FormValue("filled")
 	a.Render(w, r, "import_compare", page)
 }
@@ -288,8 +288,8 @@ func lineActuals(ctx context.Context, q app.Querier, budget int64, year int) (ma
 	return out, rows.Err()
 }
 
-func lineChart(L *app.Locale, section string, l *app.Line, sums map[int]app.Money, imported []int, year int) *bankLineChart {
-	c := &bankLineChart{Title: L.T("section."+section) + " › " + l.Name + ", " + strconv.Itoa(year), Section: section, Up: -1}
+func lineChart(L *app.Locale, section string, l *app.Line, sums map[int]app.Money, imported []int, year int) *compareChart {
+	c := &compareChart{Title: L.T("section."+section) + " › " + l.Name + ", " + strconv.Itoa(year), Section: section, Up: -1}
 	if section == "income" {
 		c.Up = 1
 	}

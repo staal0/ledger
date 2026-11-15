@@ -13,7 +13,7 @@ import (
 
 // lineMonthURL is the month page for the lines named names in section.
 func lineMonthURL(b app.BudgetRef, section string, names []string, year, month int) string {
-	return bankURL("/import/line-month", b, url.Values{"section": {section}, "name": names,
+	return importURL("/import/line-month", b, url.Values{"section": {section}, "name": names,
 		"year": {strconv.Itoa(year)}, "month": {strconv.Itoa(month)}})
 }
 
@@ -40,8 +40,8 @@ type monthRow struct {
 	Items   []monthItem
 }
 
-// bankLineMonth lists what is on lines in one month, receipts with their items.
-func (a handlers) bankLineMonth(w http.ResponseWriter, r *http.Request) {
+// lineMonthPage lists what is on lines in one month, receipts with their items.
+func (a handlers) lineMonthPage(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	L := a.Locale(r)
 	current, _, ok, err := a.ChosenBudget(r)
@@ -73,7 +73,7 @@ func (a handlers) bankLineMonth(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	rules, err := loadBankRules(ctx, a.DB(), current.ID)
+	rules, err := loadRules(ctx, a.DB(), current.ID)
 	if err != nil {
 		a.Fail(w, err)
 		return

@@ -51,7 +51,7 @@ func TestBankFill(t *testing.T) {
 	previewAndImport(t, a, account, "26-02-2031;Løn bonus;1.000,00;DKK;\r\n")
 	bonus := strconv.FormatInt(app.TestQueryInt(t, "SELECT id FROM import_transactions WHERE text = 'Løn bonus'"), 10)
 	app.MustStatus(t, app.TestRequest(a, "POST", "/import/transactions", url.Values{"year": {"2031"}, "t": {bonus}, "line_" + bonus: {strconv.FormatInt(lines["income/Salary"], 10)}}, ""), 303)
-	if page := html.UnescapeString(app.TestRequest(a, "GET", "/import/fill?year=2031", nil, "").Body.String()); !strings.Contains(page, "update from the bank") {
+	if page := html.UnescapeString(app.TestRequest(a, "GET", "/import/fill?year=2031", nil, "").Body.String()); !strings.Contains(page, "update from the imports") {
 		t.Errorf("the second fill does not offer to update the filled amount: %s", page)
 	}
 	app.MustStatus(t, app.TestRequest(a, "POST", "/import/fill", url.Values{"year": {"2031"}}, ""), 303)

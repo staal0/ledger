@@ -21,7 +21,7 @@ func TestRulePattern(t *testing.T) {
 			t.Errorf("rulePattern(%q) = %q, want %q", text, got, want)
 		}
 	}
-	rules := []bankRule{{ID: 1, Pattern: "netto"}, {ID: 2, Pattern: "NETTO BUTIK"}, {ID: 3, Pattern: "løn"}}
+	rules := []textRule{{ID: 1, Pattern: "netto"}, {ID: 2, Pattern: "NETTO BUTIK"}, {ID: 3, Pattern: "løn"}}
 	if r := matchRule(rules, "Netto Butik 123"); r == nil || r.ID != 2 {
 		t.Errorf("matched %+v, want the longest rule", r)
 	}
@@ -42,7 +42,7 @@ func TestRulePattern(t *testing.T) {
 			t.Errorf("patternMatches(%q, %q) = %v, want %v", tc.text, tc.pattern, got, tc.want)
 		}
 	}
-	if r := matchRule([]bankRule{{ID: 1, Pattern: "overførsel*"}, {ID: 2, Pattern: "*lån 1111222233"}}, "Overførsel til lån 1111222233"); r == nil || r.ID != 2 {
+	if r := matchRule([]textRule{{ID: 1, Pattern: "overførsel*"}, {ID: 2, Pattern: "*lån 1111222233"}}, "Overførsel til lån 1111222233"); r == nil || r.ID != 2 {
 		t.Errorf("matched %+v, want the rule with more fixed text", r)
 	}
 }

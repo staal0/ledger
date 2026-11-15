@@ -50,30 +50,30 @@ func (importPlugin) Locales() fs.FS    { return sub("locales") }
 
 func (importPlugin) Routes(mux *http.ServeMux, core *app.App) {
 	a := handlers{core}
-	mux.HandleFunc("GET /import", a.bankPage)
-	mux.HandleFunc("POST /import/accounts", a.Only(app.RoleEditor, a.bankAccountCreate))
-	mux.HandleFunc("POST /import/accounts/{id}", a.Only(app.RoleEditor, a.bankAccountUpdate))
-	mux.HandleFunc("POST /import/accounts/{id}/delete", a.Only(app.RoleEditor, a.bankAccountDelete))
-	mux.HandleFunc("POST /import/preview", a.Only(app.RoleEditor, a.bankPreview))
-	mux.HandleFunc("POST /import/import", a.Only(app.RoleEditor, a.bankImport))
-	mux.HandleFunc("POST /import/imports/{id}/delete", a.Only(app.RoleEditor, a.bankImportDelete))
-	mux.HandleFunc("GET /import/transactions", a.bankTransactionsPage)
-	mux.HandleFunc("POST /import/transactions", a.Only(app.RoleEditor, a.bankTransactionsSave))
-	mux.HandleFunc("GET /import/transactions/{id}/split", a.Only(app.RoleEditor, a.bankSplitPage))
-	mux.HandleFunc("POST /import/transactions/{id}/split", a.Only(app.RoleEditor, a.bankSplitSave))
-	mux.HandleFunc("GET /import/rules", a.bankRulesPage)
-	mux.HandleFunc("POST /import/rules", a.Only(app.RoleEditor, a.bankRulesSave))
-	mux.HandleFunc("GET /import/compare", a.bankComparePage)
-	mux.HandleFunc("GET /import/line-month", a.bankLineMonth)
-	mux.HandleFunc("GET /import/fill", a.Only(app.RoleEditor, a.bankFillPage))
-	mux.HandleFunc("POST /import/fill", a.Only(app.RoleEditor, a.bankFillSave))
+	mux.HandleFunc("GET /import", a.importPage)
+	mux.HandleFunc("POST /import/accounts", a.Only(app.RoleEditor, a.accountCreate))
+	mux.HandleFunc("POST /import/accounts/{id}", a.Only(app.RoleEditor, a.accountUpdate))
+	mux.HandleFunc("POST /import/accounts/{id}/delete", a.Only(app.RoleEditor, a.accountDelete))
+	mux.HandleFunc("POST /import/preview", a.Only(app.RoleEditor, a.previewPage))
+	mux.HandleFunc("POST /import/import", a.Only(app.RoleEditor, a.importConfirm))
+	mux.HandleFunc("POST /import/imports/{id}/delete", a.Only(app.RoleEditor, a.importDelete))
+	mux.HandleFunc("GET /import/transactions", a.transactionsPage)
+	mux.HandleFunc("POST /import/transactions", a.Only(app.RoleEditor, a.transactionsSave))
+	mux.HandleFunc("GET /import/transactions/{id}/split", a.Only(app.RoleEditor, a.splitPage))
+	mux.HandleFunc("POST /import/transactions/{id}/split", a.Only(app.RoleEditor, a.splitSave))
+	mux.HandleFunc("GET /import/rules", a.rulesPage)
+	mux.HandleFunc("POST /import/rules", a.Only(app.RoleEditor, a.rulesSave))
+	mux.HandleFunc("GET /import/compare", a.comparePage)
+	mux.HandleFunc("GET /import/line-month", a.lineMonthPage)
+	mux.HandleFunc("GET /import/fill", a.Only(app.RoleEditor, a.fillPage))
+	mux.HandleFunc("POST /import/fill", a.Only(app.RoleEditor, a.fillSave))
 }
 
 func (importPlugin) Nav() []app.NavItem { return []app.NavItem{{Path: "/import", Label: "nav.import"}} }
 
 const maxBankFile = 2 << 20 // bytes; an export of a year is far smaller
 
-type bankAccount struct {
+type account struct {
 	ID           int64
 	BudgetID     int64
 	Name         string
@@ -82,8 +82,8 @@ type bankAccount struct {
 	Default      string // the default line as "section:name", or ""
 }
 
-// bankURL is the plugin's page at path for budget b, with query q.
-func bankURL(path string, b app.BudgetRef, q url.Values) string {
+// importURL is the plugin's page at path for budget b, with query q.
+func importURL(path string, b app.BudgetRef, q url.Values) string {
 	if q == nil {
 		q = url.Values{}
 	}
@@ -96,21 +96,21 @@ func bankURL(path string, b app.BudgetRef, q url.Values) string {
 	return path + "?" + q.Encode()
 }
 
-type bankTab struct {
+type importTab struct {
 	URL, Label string
 	Active     bool
 }
 
-// bankTabs are the plugin's pages for budget b, with active marked.
-func bankTabs(L *app.Locale, b app.BudgetRef, active string) []bankTab {
-	var tabs []bankTab
+// importTabs are the plugin's pages for budget b, with active marked.
+func importTabs(L *app.Locale, b app.BudgetRef, active string) []importTab {
+	var tabs []importTab
 	for _, t := range []struct{ key, path string }{{"import", "/import"}, {"transactions", "/import/transactions"}, {"rules", "/import/rules"}, {"compare", "/import/compare"}} {
-		tabs = append(tabs, bankTab{bankURL(t.path, b, nil), L.T("import.tab_" + t.key), t.key == active})
+		tabs = append(tabs, importTab{importURL(t.path, b, nil), L.T("import.tab_" + t.key), t.key == active})
 	}
 	return tabs
 }
 
-func (a handlers) bankAccounts(ctx context.Context, budget int64) ([]bankAccount, error) {
+func (a handlers) listAccounts(ctx context.Context, budget int64) ([]account, error) {
 	rows, err := a.DB().QueryContext(ctx, `SELECT a.id, a.budget_id, a.name, a.format,
 			(SELECT COUNT(*) FROM import_transactions t WHERE t.account_id = a.id),
 			COALESCE(CONCAT(a.default_section, ':', a.default_line_name), '')
@@ -119,9 +119,9 @@ func (a handlers) bankAccounts(ctx context.Context, budget int64) ([]bankAccount
 		return nil, err
 	}
 	defer rows.Close()
-	var out []bankAccount
+	var out []account
 	for rows.Next() {
-		var b bankAccount
+		var b account
 		if err := rows.Scan(&b.ID, &b.BudgetID, &b.Name, &b.Format, &b.Transactions, &b.Default); err != nil {
 			return nil, err
 		}
@@ -130,9 +130,9 @@ func (a handlers) bankAccounts(ctx context.Context, budget int64) ([]bankAccount
 	return out, rows.Err()
 }
 
-// bankAccountFor is the account with the given id, and its budget, when the
+// accountFor is the account with the given id, and its budget, when the
 // user may see that budget; ok is false otherwise.
-func (a handlers) bankAccountFor(r *http.Request, id string) (acc bankAccount, b app.BudgetRef, ok bool, err error) {
+func (a handlers) accountFor(r *http.Request, id string) (acc account, b app.BudgetRef, ok bool, err error) {
 	err = a.DB().QueryRowContext(r.Context(), `SELECT id, budget_id, name, format FROM import_accounts WHERE id = ?`, id).
 		Scan(&acc.ID, &acc.BudgetID, &acc.Name, &acc.Format)
 	if errors.Is(err, sql.ErrNoRows) {
@@ -150,13 +150,13 @@ func (a handlers) bankAccountFor(r *http.Request, id string) (acc bankAccount, b
 	return acc, b, false, err
 }
 
-// bankAccountForm reads and checks an account's name.
-func bankAccountForm(r *http.Request) (name string, ok bool) {
+// accountForm reads and checks an account's name.
+func accountForm(r *http.Request) (name string, ok bool) {
 	name = strings.TrimSpace(r.FormValue("name"))
 	return name, name != "" && utf8.RuneCountInString(name) <= 100
 }
 
-type bankImportRow struct {
+type importRow struct {
 	ID         int64
 	Account    string
 	User       string
@@ -166,8 +166,8 @@ type bankImportRow struct {
 	Left       int // of the added, those not deleted since
 }
 
-// bankPage lists the chosen budget's accounts and imports, with the form to import a file.
-func (a handlers) bankPage(w http.ResponseWriter, r *http.Request) {
+// importPage lists the chosen budget's accounts and imports, with the form to import a file.
+func (a handlers) importPage(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	current, visible, ok, err := a.ChosenBudget(r)
 	if err != nil {
@@ -178,7 +178,7 @@ func (a handlers) bankPage(w http.ResponseWriter, r *http.Request) {
 		http.NotFound(w, r)
 		return
 	}
-	accounts, err := a.bankAccounts(ctx, current.ID)
+	accounts, err := a.listAccounts(ctx, current.ID)
 	if err != nil {
 		a.Fail(w, err)
 		return
@@ -191,7 +191,7 @@ func (a handlers) bankPage(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	pages := app.NewPager(r, a.Locale(r), "page", total, "#imports")
-	var imports []bankImportRow
+	var imports []importRow
 	rows, err := a.DB().QueryContext(ctx, `SELECT i.id, a.name, COALESCE(u.name, ''), i.imported_at, i.added, i.skipped,
 			(SELECT COUNT(*) FROM import_transactions t WHERE t.import_id = i.id)
 		FROM import_imports i JOIN import_accounts a ON a.id = i.account_id LEFT JOIN users u ON u.id = i.user_id
@@ -202,7 +202,7 @@ func (a handlers) bankPage(w http.ResponseWriter, r *http.Request) {
 	}
 	defer rows.Close()
 	for rows.Next() {
-		var i bankImportRow
+		var i importRow
 		if err := rows.Scan(&i.ID, &i.Account, &i.User, &i.ImportedAt, &i.Added, &i.Skipped, &i.Left); err != nil {
 			a.Fail(w, err)
 			return
@@ -223,7 +223,7 @@ func (a handlers) bankPage(w http.ResponseWriter, r *http.Request) {
 	L := a.Locale(r)
 	a.Render(w, r, "import", map[string]any{
 		"Title":    L.T("nav.import"),
-		"Tabs":     bankTabs(L, current, "import"),
+		"Tabs":     importTabs(L, current, "import"),
 		"Current":  current,
 		"Budgets":  app.Pickable(visible),
 		"Accounts": accounts,
@@ -237,7 +237,7 @@ func (a handlers) bankPage(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
-func (a handlers) bankAccountCreate(w http.ResponseWriter, r *http.Request) {
+func (a handlers) accountCreate(w http.ResponseWriter, r *http.Request) {
 	b, _, ok, err := a.BudgetFor(r)
 	if err != nil {
 		a.Fail(w, err)
@@ -247,7 +247,7 @@ func (a handlers) bankAccountCreate(w http.ResponseWriter, r *http.Request) {
 		http.NotFound(w, r)
 		return
 	}
-	name, valid := bankAccountForm(r)
+	name, valid := accountForm(r)
 	if !valid {
 		http.Error(w, "invalid account", http.StatusBadRequest)
 		return
@@ -256,11 +256,11 @@ func (a handlers) bankAccountCreate(w http.ResponseWriter, r *http.Request) {
 		a.Fail(w, err)
 		return
 	}
-	http.Redirect(w, r, bankURL("/import", b, nil), http.StatusSeeOther)
+	http.Redirect(w, r, importURL("/import", b, nil), http.StatusSeeOther)
 }
 
-func (a handlers) bankAccountUpdate(w http.ResponseWriter, r *http.Request) {
-	acc, b, ok, err := a.bankAccountFor(r, r.PathValue("id"))
+func (a handlers) accountUpdate(w http.ResponseWriter, r *http.Request) {
+	acc, b, ok, err := a.accountFor(r, r.PathValue("id"))
 	if err != nil {
 		a.Fail(w, err)
 		return
@@ -269,7 +269,7 @@ func (a handlers) bankAccountUpdate(w http.ResponseWriter, r *http.Request) {
 		http.NotFound(w, r)
 		return
 	}
-	name, valid := bankAccountForm(r)
+	name, valid := accountForm(r)
 	if !valid {
 		http.Error(w, "invalid account", http.StatusBadRequest)
 		return
@@ -292,7 +292,7 @@ func (a handlers) bankAccountUpdate(w http.ResponseWriter, r *http.Request) {
 	_, err = tx.ExecContext(ctx, `UPDATE import_accounts SET name = ?, default_section = NULLIF(?, ''), default_line_name = NULLIF(?, '')
 		WHERE id = ?`, name, section, line, acc.ID)
 	if err == nil {
-		_, err = applyBankRules(ctx, tx, b.ID)
+		_, err = applyRules(ctx, tx, b.ID)
 	}
 	if err == nil {
 		err = tx.Commit()
@@ -301,12 +301,12 @@ func (a handlers) bankAccountUpdate(w http.ResponseWriter, r *http.Request) {
 		a.Fail(w, err)
 		return
 	}
-	http.Redirect(w, r, bankURL("/import", b, nil), http.StatusSeeOther)
+	http.Redirect(w, r, importURL("/import", b, nil), http.StatusSeeOther)
 }
 
-// bankAccountDelete deletes the account with its imports and transactions.
-func (a handlers) bankAccountDelete(w http.ResponseWriter, r *http.Request) {
-	acc, b, ok, err := a.bankAccountFor(r, r.PathValue("id"))
+// accountDelete deletes the account with its imports and transactions.
+func (a handlers) accountDelete(w http.ResponseWriter, r *http.Request) {
+	acc, b, ok, err := a.accountFor(r, r.PathValue("id"))
 	if err != nil {
 		a.Fail(w, err)
 		return
@@ -319,12 +319,12 @@ func (a handlers) bankAccountDelete(w http.ResponseWriter, r *http.Request) {
 		a.Fail(w, err)
 		return
 	}
-	http.Redirect(w, r, bankURL("/import", b, nil), http.StatusSeeOther)
+	http.Redirect(w, r, importURL("/import", b, nil), http.StatusSeeOther)
 }
 
 // bankFileRows reads the file for acc in the bank format that fits it, the
 // account's last one first, and marks which rows are imported already.
-func (a handlers) bankFileRows(ctx context.Context, q app.Querier, acc bankAccount, data []byte) (format string, rows []bankRow, imported []bool, err error) {
+func (a handlers) bankFileRows(ctx context.Context, q app.Querier, acc account, data []byte) (format string, rows []bankRow, imported []bool, err error) {
 	f, known := bankFormatByID(acc.Format)
 	if fits := bankFormatsFor(data); len(fits) > 0 && !slices.Contains(fits, f) {
 		f = fits[0]
@@ -363,15 +363,15 @@ func (a handlers) bankFileRows(ctx context.Context, q app.Querier, acc bankAccou
 	return f.ID, rows, imported, res.Err()
 }
 
-// bankPreview reads an uploaded file and shows its rows before anything is imported.
-func (a handlers) bankPreview(w http.ResponseWriter, r *http.Request) {
+// previewPage reads an uploaded file and shows its rows before anything is imported.
+func (a handlers) previewPage(w http.ResponseWriter, r *http.Request) {
 	L := a.Locale(r)
 	r.Body = http.MaxBytesReader(w, r.Body, maxReceiptFile+64<<10)
 	if err := r.ParseMultipartForm(maxBankFile); err != nil {
 		http.Error(w, L.T("import.err_too_large"), http.StatusRequestEntityTooLarge)
 		return
 	}
-	acc, b, ok, err := a.bankAccountFor(r, r.FormValue("account"))
+	acc, b, ok, err := a.accountFor(r, r.FormValue("account"))
 	if err != nil {
 		a.Fail(w, err)
 		return
@@ -408,7 +408,7 @@ func (a handlers) bankPreview(w http.ResponseWriter, r *http.Request) {
 		"Title":   L.T("import.preview"),
 		"Current": b,
 		"Account": acc,
-		"Back":    bankURL("/import", b, nil),
+		"Back":    importURL("/import", b, nil),
 	}
 	format, rows, imported, err := a.bankFileRows(r.Context(), a.DB(), acc, data)
 	var pe *bankParseError
@@ -442,10 +442,10 @@ func (a handlers) bankPreview(w http.ResponseWriter, r *http.Request) {
 	a.Render(w, r, "import_preview", page)
 }
 
-// bankImport adds the rows of a previewed file that are not imported yet.
-func (a handlers) bankImport(w http.ResponseWriter, r *http.Request) {
+// importConfirm adds the rows of a previewed file that are not imported yet.
+func (a handlers) importConfirm(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
-	acc, b, ok, err := a.bankAccountFor(r, r.FormValue("account"))
+	acc, b, ok, err := a.accountFor(r, r.FormValue("account"))
 	if err != nil {
 		a.Fail(w, err)
 		return
@@ -522,7 +522,7 @@ func (a handlers) bankImport(w http.ResponseWriter, r *http.Request) {
 			}
 		}
 	}
-	assigned, err := applyBankRules(ctx, tx, acc.BudgetID)
+	assigned, err := applyRules(ctx, tx, acc.BudgetID)
 	if err != nil {
 		a.Fail(w, err)
 		return
@@ -531,12 +531,12 @@ func (a handlers) bankImport(w http.ResponseWriter, r *http.Request) {
 		a.Fail(w, err)
 		return
 	}
-	http.Redirect(w, r, bankURL("/import", b, url.Values{"added": {strconv.Itoa(added)}, "skipped": {strconv.Itoa(len(rows) - added)},
+	http.Redirect(w, r, importURL("/import", b, url.Values{"added": {strconv.Itoa(added)}, "skipped": {strconv.Itoa(len(rows) - added)},
 		"assigned": {strconv.Itoa(assigned)}}), http.StatusSeeOther)
 }
 
-// bankImportDelete undoes an import: its transactions are deleted with it.
-func (a handlers) bankImportDelete(w http.ResponseWriter, r *http.Request) {
+// importDelete undoes an import: its transactions are deleted with it.
+func (a handlers) importDelete(w http.ResponseWriter, r *http.Request) {
 	var account int64
 	err := a.DB().QueryRowContext(r.Context(), `SELECT account_id FROM import_imports WHERE id = ?`, r.PathValue("id")).Scan(&account)
 	if errors.Is(err, sql.ErrNoRows) {
@@ -547,7 +547,7 @@ func (a handlers) bankImportDelete(w http.ResponseWriter, r *http.Request) {
 		a.Fail(w, err)
 		return
 	}
-	acc, b, ok, err := a.bankAccountFor(r, strconv.FormatInt(account, 10))
+	acc, b, ok, err := a.accountFor(r, strconv.FormatInt(account, 10))
 	if err != nil {
 		a.Fail(w, err)
 		return
@@ -560,5 +560,5 @@ func (a handlers) bankImportDelete(w http.ResponseWriter, r *http.Request) {
 		a.Fail(w, err)
 		return
 	}
-	http.Redirect(w, r, bankURL("/import", b, nil), http.StatusSeeOther)
+	http.Redirect(w, r, importURL("/import", b, nil), http.StatusSeeOther)
 }

@@ -12,25 +12,25 @@ import (
 	"github.com/staal0/ledger/internal/app"
 )
 
-// bankSplitPart is one part of a split transaction, as the bank has it:
+// splitPart is one part of a split transaction, as the bank has it:
 // negative for money going out.
-type bankSplitPart struct {
+type splitPart struct {
 	LineID  int64
 	Ignored bool
 	Amount  app.Money
 	Name    string // the line's name
 }
 
-func splitParts(ctx context.Context, q app.Querier, transaction int64) ([]bankSplitPart, error) {
+func splitParts(ctx context.Context, q app.Querier, transaction int64) ([]splitPart, error) {
 	rows, err := q.QueryContext(ctx, `SELECT COALESCE(s.line_id, 0), s.ignored, s.amount, COALESCE(l.name, '')
 		FROM import_splits s LEFT JOIN budget_lines l ON l.id = s.line_id WHERE s.transaction_id = ? ORDER BY s.id`, transaction)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	var out []bankSplitPart
+	var out []splitPart
 	for rows.Next() {
-		var p bankSplitPart
+		var p splitPart
 		if err := rows.Scan(&p.LineID, &p.Ignored, &p.Amount, &p.Name); err != nil {
 			return nil, err
 		}
@@ -73,7 +73,7 @@ func (a handlers) splitFor(r *http.Request) (t splitTransaction, ok bool, err er
 	if err != nil {
 		return t, false, err
 	}
-	_, t.budget, ok, err = a.bankAccountFor(r, strconv.FormatInt(t.account, 10))
+	_, t.budget, ok, err = a.accountFor(r, strconv.FormatInt(t.account, 10))
 	return t, ok, err
 }
 
@@ -82,10 +82,10 @@ func splitBack(r *http.Request, b app.BudgetRef) string {
 	if back := r.FormValue("back"); strings.HasPrefix(back, "/import/transactions") {
 		return back
 	}
-	return bankURL("/import/transactions", b, nil)
+	return importURL("/import/transactions", b, nil)
 }
 
-func (a handlers) bankSplitPage(w http.ResponseWriter, r *http.Request) {
+func (a handlers) splitPage(w http.ResponseWriter, r *http.Request) {
 	t, ok, err := a.splitFor(r)
 	if err != nil {
 		a.Fail(w, err)
@@ -116,7 +116,7 @@ func (a handlers) renderSplit(w http.ResponseWriter, r *http.Request, t splitTra
 	for len(rows) < 2 || rows[len(rows)-1] != (splitRow{}) {
 		rows = append(rows, splitRow{})
 	}
-	lines, _, err := a.bankYearLines(r, t.budget.ID, t.Booked.Year())
+	lines, _, err := a.yearLines(r, t.budget.ID, t.Booked.Year())
 	if err != nil {
 		a.Fail(w, err)
 		return
@@ -124,7 +124,7 @@ func (a handlers) renderSplit(w http.ResponseWriter, r *http.Request, t splitTra
 	type picker struct {
 		Choice   string
 		L        *app.Locale
-		Sections []bankSection
+		Sections []lineSection
 	}
 	var pickers []picker
 	for _, row := range rows {
@@ -148,8 +148,8 @@ func (a handlers) renderSplit(w http.ResponseWriter, r *http.Request, t splitTra
 	})
 }
 
-// bankSplitSave stores the parts, or with action "undo" makes the transaction whole again.
-func (a handlers) bankSplitSave(w http.ResponseWriter, r *http.Request) {
+// splitSave stores the parts, or with action "undo" makes the transaction whole again.
+func (a handlers) splitSave(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	L := a.Locale(r)
 	t, ok, err := a.splitFor(r)
@@ -175,7 +175,7 @@ func (a handlers) bankSplitSave(w http.ResponseWriter, r *http.Request) {
 	if r.FormValue("action") == "undo" {
 		_, err = tx.ExecContext(ctx, `UPDATE import_transactions SET split = FALSE, line_id = NULL, ignored = FALSE, rule_id = NULL, by_default = FALSE, by_receipt = FALSE WHERE id = ?`, t.ID)
 		if err == nil {
-			_, err = applyBankRules(ctx, tx, t.budget.ID)
+			_, err = applyRules(ctx, tx, t.budget.ID)
 		}
 		if err == nil {
 			err = tx.Commit()
@@ -196,7 +196,7 @@ func (a handlers) bankSplitSave(w http.ResponseWriter, r *http.Request) {
 			rows = append(rows, row)
 		}
 	}
-	lines, _, err := a.bankYearLines(r, t.budget.ID, t.Booked.Year())
+	lines, _, err := a.yearLines(r, t.budget.ID, t.Booked.Year())
 	if err != nil {
 		a.Fail(w, err)
 		return
