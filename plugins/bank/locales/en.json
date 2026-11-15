@@ -112,5 +112,7 @@
   "bank.filled": "Filled %s amounts from the bank.",
   "bank.fill_update": "update from the bank",
   "bank.fill_months": "Months filled:",
-  "bank.fill_untouched": "Lines without transactions in a month, and linked lines, are not changed."
+  "bank.fill_untouched": "Lines without transactions in a month, and linked lines, are not changed.",
+  "bank.missing": "Budgeted, but no transaction in the bank yet:",
+  "bank.chart_close": "Close"
 }

@@ -27,12 +27,29 @@
   {{with .Filled}}<p class="notice ok" role="status">{{$L.T "bank.filled" .}}</p>{{end}}
   <p>{{if .In}}{{$L.T "bank.compared"}} {{range $i, $m := .In}}{{if $i}}, {{end}}{{$L.T (print "month." $m)}}{{end}}{{else}}{{$L.T "bank.compared_none"}}{{end}}</p>
   {{if .Unassigned}}<p class="notice" role="status">{{$L.T "bank.compare_unassigned" .Unassigned ($L.Money .UnassignedSum)}} <a href="{{.UnassignedURL}}">{{$L.T "bank.compare_assign"}}</a></p>{{end}}
+  {{with .Missing}}
+  <div class="notice missing" role="status">
+    {{$L.T "bank.missing"}}
+    <ul>{{range .}}<li>{{$L.T (print "section." .Section)}} › {{.Name}}, {{$L.T (print "month." .Month)}}: {{$L.Money .Budget}}</li>{{end}}</ul>
+  </div>
+  {{end}}
+  {{with .Chart}}
+  <figure class="chart" id="line">
+    <figcaption>{{.Title}} <a class="hint" href="{{$.CloseURL}}">{{$L.T "bank.chart_close"}}</a></figcaption>
+    <div class="legend">
+      <span><i class="swatch planned"></i>{{$L.T "bank.budget"}}</span>
+      <span><i class="swatch {{.Section}}"></i>{{$L.T "bank.actual"}}</span>
+    </div>
+    <div data-chart="compare-line" data-budget="{{$L.T "bank.budget"}}" data-actual="{{$L.T "bank.actual"}}" data-difference="{{$L.T "bank.difference"}}"></div>
+    <script type="application/json" id="compare-data">{{.}}</script>
+  </figure>
+  {{end}}
   <div class="scroll">
   <table class="manage-table bank-table compare-table">
     {{range .Sections}}
     <tr class="head"><th>{{$L.T (print "section." .Key)}}</th><th class="num">{{$L.T "bank.budget"}}</th><th class="num">{{$L.T "bank.actual"}}</th><th class="num">{{$L.T "bank.difference"}}</th></tr>
     {{range .Rows}}
-    <tr><td>{{.Name}}</td><td class="num">{{$L.Money .Budget}}</td><td class="num">{{$L.Money .Actual}}</td><td class="num{{if gt .Diff 0}} pos{{else if lt .Diff 0}} neg{{end}}">{{$L.Money .Diff}}</td></tr>
+    <tr><td><a href="{{.URL}}">{{.Name}}</a></td><td class="num">{{$L.Money .Budget}}</td><td class="num">{{$L.Money .Actual}}</td><td class="num{{if gt .Diff 0}} pos{{else if lt .Diff 0}} neg{{end}}">{{$L.Money .Diff}}</td></tr>
     {{end}}
     {{with .Total}}<tr class="total"><th>{{.Name}}</th><td class="num">{{$L.Money .Budget}}</td><td class="num">{{$L.Money .Actual}}</td><td class="num{{if gt .Diff 0}} pos{{else if lt .Diff 0}} neg{{end}}">{{$L.Money .Diff}}</td></tr>{{end}}
     {{end}}

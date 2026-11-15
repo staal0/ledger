@@ -226,6 +226,31 @@ document.addEventListener('DOMContentLoaded', () => {
     series(lineChart, d.Labels, d.Axis, d.Values, lineChart.dataset.section, d.Changes, d.Parts)
   }
 
+  // Budget against actual for one line: a pair of bars per month.
+  const pairChart = document.querySelector('[data-chart="compare-line"]')
+  if (pairChart) {
+    const d = JSON.parse(document.getElementById('compare-data').textContent)
+    const P = pairChart.dataset
+    const [plot, top] = grid(Math.max(...d.Budget, ...d.Actual.map(v => v ?? 0), 100))
+    const bar = (cls, v) => {
+      const b = el('i', 'bar ' + cls)
+      b.style.height = Math.max(0, v) / top * 100 + '%'
+      return b
+    }
+    d.Labels.forEach((name, i) => {
+      const m = el('div', 'month')
+      const rows = [['planned', kr(d.Budget[i]), P.budget]]
+      m.append(bar('planned', d.Budget[i]))
+      if (d.Actual[i] !== null) {
+        m.append(bar(d.Section, d.Actual[i]))
+        rows.push([d.Section, kr(d.Actual[i]), P.actual], ['', kr(d.Up * (d.Actual[i] - d.Budget[i])), P.difference])
+      }
+      hover(m, name, rows)
+      plot.append(m)
+    })
+    pairChart.replaceChildren(plot, xaxis(d.Labels, d.Labels.map(l => l[0])))
+  }
+
   const form = document.querySelector('form.budget')
   if (!form) return
 
