@@ -128,5 +128,18 @@
   "bank.rule_no_matches": "Ingen posteringer passer.",
   "bank.rule_test_note": "Testen ændrer intet. En regel tager kun posteringer, der ikke er tildelt i hånden, og en mere præcis regel vinder. Højst 50 vises, nyeste først.",
   "bank.missing_hint": "En glemt regning, en betaling fra en anden konto eller en postering, der endnu ikke er tildelt.",
-  "bank.rule_display_title": "Vises i posteringslisten i stedet for bankens tekst. Reglen matcher stadig på bankens tekst."
+  "bank.rule_display_title": "Vises i posteringslisten i stedet for bankens tekst. Reglen matcher stadig på bankens tekst.",
+
+  "bank.split": "Opdel",
+  "bank.split_edit": "Ret opdeling",
+  "bank.split_parts": "Opdelt:",
+  "bank.split_state": "Opdelt i hånden",
+  "bank.split_title": "Opdel postering",
+  "bank.split_hint": "Giv hver del en budgetlinje, eller Ignorér, og et beløb. Beløb tæller i posteringens retning, så et køb på 1.000 opdelt i 600 og 400 skal ikke have minus; et minus tæller den anden vej, fx pant retur. Lad ét beløb stå tomt, så får den del resten.",
+  "bank.split_undo": "Fortryd opdeling",
+  "bank.split_undo_confirm": "Fortryd opdelingen? Posteringen bliver hel og ikke tildelt igen.",
+  "bank.split_err_line": "Vælg en budgetlinje eller Ignorér for hver del.",
+  "bank.split_err_rest": "Kun én del kan stå tom og få resten.",
+  "bank.split_err_amount": "Ikke et beløb: %s",
+  "bank.split_err_sum": "Delene giver %s, men posteringen er %s."
 }

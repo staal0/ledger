@@ -54,6 +54,12 @@
         <td>{{.Booked.Format "2006-01-02"}}</td>{{if $all}}<td>{{.Account}}</td>{{end}}
         <td class="text">{{if ne .Shown .Text}}<span title="{{.Text}}">{{.Shown}}</span>{{else}}{{.Text}}{{end}}{{if .ByRule}} <span class="hint" title="{{$L.T "bank.by_rule_hint"}}">· {{$L.T "bank.by_rule"}}</span>{{end}}</td>
         <td class="num{{if lt .Amount 0}} neg{{else}} pos{{end}}">{{$L.Money .Amount}}</td>
+        {{if .Split}}
+        <td class="split">{{$L.T "bank.split_parts"}} {{range $i, $p := .Split}}{{if $i}} · {{end}}{{if $p.Ignored}}{{$L.T "bank.ignore"}}{{else}}{{$p.Name}}{{end}} {{$L.Money $p.Amount}}{{end}}
+          {{if $.User.CanEdit}}<a class="hint" href="/bank/transactions/{{.ID}}/split?back={{$.Back}}">{{$L.T "bank.split_edit"}}</a>{{end}}</td>
+        {{if $.User.CanEdit}}<td></td>
+        <td><button class="icon" name="action" value="delete:{{.ID}}" title="{{$L.T "bank.delete_transaction"}}" aria-label="{{$L.T "bank.delete_transaction"}}" data-confirm="{{$L.T "bank.delete_transaction_confirm" .Text ($L.Money .Amount)}}">×</button></td>{{end}}
+        {{else}}
         <td>
           <input type="hidden" name="t" value="{{.ID}}">
           <select name="line_{{.ID}}" aria-label="{{$L.T "bank.budget_line"}}" autocomplete="off"{{if not $.User.CanEdit}} disabled{{end}}>
@@ -61,10 +67,12 @@
             <option value="ignore"{{if eq $choice "ignore"}} selected{{end}}>{{$L.T "bank.ignore"}}</option>
             {{range $.Sections}}<optgroup label="{{$L.T (print "section." .Key)}}">{{range .Lines}}<option value="{{.ID}}"{{if eq $choice (print .ID)}} selected{{end}}>{{.Name}}</option>{{end}}</optgroup>{{end}}
           </select>
+          {{if $.User.CanEdit}}<a class="hint" href="/bank/transactions/{{.ID}}/split?back={{$.Back}}">{{$L.T "bank.split"}}</a>{{end}}
         </td>
         {{if $.User.CanEdit}}
         <td><input type="checkbox" name="remember_{{.ID}}" value="1" checked autocomplete="off" aria-label="{{$L.T "bank.remember"}}" title="{{$L.T "bank.remember_hint"}}"></td>
         <td><button class="icon" name="action" value="delete:{{.ID}}" title="{{$L.T "bank.delete_transaction"}}" aria-label="{{$L.T "bank.delete_transaction"}}" data-confirm="{{$L.T "bank.delete_transaction_confirm" .Text ($L.Money .Amount)}}">×</button></td>
+        {{end}}
         {{end}}
       </tr>
       {{end}}
