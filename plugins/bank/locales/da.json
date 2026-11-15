@@ -152,8 +152,6 @@
   "bank.store": "Butik",
   "bank.items": "Varer",
   "bank.status_covers": "dækker %s %s",
-  "bank.line_actual": "Faktisk, fra bank og kvitteringer",
-  "bank.on_receipts": "På kvitteringer",
   "bank.line_stores": "Kvitteringer pr. butik",
   "bank.line_items": "Varer, største beløb først",
   "bank.receipts_count": "Kvitteringer",

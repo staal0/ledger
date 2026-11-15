@@ -1,23 +1,6 @@
 {{/* The bank's part of a line's stats page. */}}
 {{define "content"}}{{$L := .L}}
 <figure class="chart">
-  <figcaption>{{$L.T "bank.line_actual"}}</figcaption>
-  <div class="scroll">
-  <table class="stats-table">
-    <tr class="head"><th>{{$L.T "budget.year"}}</th><th class="num">{{$L.T "bank.budget"}}</th><th class="num">{{$L.T "bank.actual"}}</th>{{if .HasReceipts}}<th class="num">{{$L.T "bank.on_receipts"}}</th>{{end}}<th></th></tr>
-    {{range .Years}}
-    <tr>
-      <th>{{.Year}}</th><td class="num">{{$L.Money .Budget}}</td>
-      <td class="num">{{if .HasActual}}{{$L.Money .Actual}}{{else}}<span class="hint">–</span>{{end}}</td>
-      {{if $.HasReceipts}}<td class="num">{{with .Receipts}}{{$L.Money .}}{{else}}<span class="hint">–</span>{{end}}</td>{{end}}
-      <td>{{if .HasActual}}<a class="hint" href="{{.URL}}">{{$L.T "bank.tab_compare"}}</a>{{end}}</td>
-    </tr>
-    {{end}}
-  </table>
-  </div>
-</figure>
-{{if .HasReceipts}}
-<figure class="chart">
   <figcaption>{{$L.T "bank.line_stores"}}</figcaption>
   <div class="scroll">
   <table class="stats-table">
@@ -36,5 +19,4 @@
   </div>
   <p class="hint">{{$L.T "bank.line_receipts_hint"}}</p>
 </figure>
-{{end}}
 {{end}}

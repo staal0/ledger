@@ -129,11 +129,19 @@ func (a *App) statsLinePage(w http.ResponseWriter, r *http.Request) {
 		Name   string
 		Values []Money
 	}
+	// Actual, when a plugin has it, is drawn against the budget; null where a month has none.
 	chart := struct {
 		Labels, Axis, Changes []string
 		Values                []Money
 		Parts                 []part
-	}{}
+		Actual                []*Money
+		Up                    int // 1 when more is better
+	}{Up: map[bool]int{true: 1, false: -1}[section == "income"]}
+	actual, err := a.lineActuals(r, current, section, names, from, to)
+	if err != nil {
+		a.Fail(w, err)
+		return
+	}
 	if len(names) > 1 {
 		for _, n := range names {
 			p := part{Name: n}
@@ -159,6 +167,13 @@ func (a *App) statsLinePage(w http.ResponseWriter, r *http.Request) {
 			chart.Axis = append(chart.Axis, axis)
 			chart.Values = append(chart.Values, y.Months[m])
 			chart.Changes = append(chart.Changes, y.Deltas[m].Text)
+			if actual != nil {
+				var v *Money
+				if got, found := actual[y.Year][m]; found {
+					v = &got
+				}
+				chart.Actual = append(chart.Actual, v)
+			}
 		}
 	}
 

@@ -55,6 +55,47 @@ func (a *App) linePanels(r *http.Request, budget BudgetRef, section string, name
 	return out, nil
 }
 
+// LineActuals is a plugin that knows what was actually spent or earned on
+// lines: year → month → amount, signed like the budget. A line's stats page
+// shows it against the budget.
+type LineActuals interface {
+	LineActuals(a *App, r *http.Request, budget BudgetRef, section string, names []string, from, to int) (map[int]map[int]Money, error)
+}
+
+// lineActuals are the actual amounts of the plugins that are on, added up; nil when none has any.
+func (a *App) lineActuals(r *http.Request, budget BudgetRef, section string, names []string, from, to int) (map[int]map[int]Money, error) {
+	var out map[int]map[int]Money
+	for _, p := range plugins {
+		la, ok := p.(LineActuals)
+		if !ok {
+			continue
+		}
+		on, err := a.pluginOn(r.Context(), p.ID())
+		if err != nil {
+			return nil, err
+		}
+		if !on {
+			continue
+		}
+		got, err := la.LineActuals(a, r, budget, section, names, from, to)
+		if err != nil {
+			return nil, err
+		}
+		for y, months := range got {
+			for m, v := range months {
+				if out == nil {
+					out = map[int]map[int]Money{}
+				}
+				if out[y] == nil {
+					out[y] = map[int]Money{}
+				}
+				out[y][m] += v
+			}
+		}
+	}
+	return out, nil
+}
+
 // NavItem is a menu entry. Label is a locale key.
 type NavItem struct {
 	Path  string

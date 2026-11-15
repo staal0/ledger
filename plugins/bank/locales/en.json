@@ -152,8 +152,6 @@
   "bank.store": "Store",
   "bank.items": "Items",
   "bank.status_covers": "covers %s %s",
-  "bank.line_actual": "Actual, from bank and receipts",
-  "bank.on_receipts": "On receipts",
   "bank.line_stores": "Receipts by store",
   "bank.line_items": "Items, largest amount first",
   "bank.receipts_count": "Receipts",
