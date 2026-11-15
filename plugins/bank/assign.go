@@ -23,6 +23,7 @@ type bankTransaction struct {
 	LineID  int64
 	Ignored bool
 	ByRule  bool
+	Split   []bankSplitPart // the parts, when the transaction is split
 }
 
 // Choice is the transaction's line in the picker: a line id, "ignore" or "".
@@ -122,12 +123,12 @@ func (a handlers) bankTransactionsPage(w http.ResponseWriter, r *http.Request) {
 		WHERE a.budget_id = ? AND YEAR(t.booked) = ?` + scope
 	args := []any{current.ID, f.Year, f.Account, f.Account}
 	var unassigned, total int
-	if err := a.DB().QueryRowContext(ctx, `SELECT COUNT(*), COALESCE(SUM(t.line_id IS NULL AND NOT t.ignored), 0)`+from, args...).Scan(&total, &unassigned); err != nil {
+	if err := a.DB().QueryRowContext(ctx, `SELECT COUNT(*), COALESCE(SUM(t.line_id IS NULL AND NOT t.ignored AND NOT t.split), 0)`+from, args...).Scan(&total, &unassigned); err != nil {
 		a.Fail(w, err)
 		return
 	}
 	if !f.All {
-		from += ` AND t.line_id IS NULL AND NOT t.ignored`
+		from += ` AND t.line_id IS NULL AND NOT t.ignored AND NOT t.split`
 		total = unassigned
 	}
 	pages := app.NewPager(r, L, "page", total, "")
@@ -159,6 +160,12 @@ func (a handlers) bankTransactionsPage(w http.ResponseWriter, r *http.Request) {
 		a.Fail(w, err)
 		return
 	}
+	for i := range list {
+		if list[i].Split, err = splitParts(ctx, a.DB(), list[i].ID); err != nil {
+			a.Fail(w, err)
+			return
+		}
+	}
 
 	lines, hasYear, err := a.bankYearLines(r, current.ID, f.Year)
 	if err != nil {
@@ -176,6 +183,7 @@ func (a handlers) bankTransactionsPage(w http.ResponseWriter, r *http.Request) {
 		"Transactions": list,
 		"Unassigned":   unassigned,
 		"Pages":        pages,
+		"Back":         bankURL("/bank/transactions", current, f.query()),
 		"Sections":     groupLines(lines),
 		"HasYear":      hasYear,
 		"YearURL":      current.YearURL(f.Year),
@@ -259,11 +267,12 @@ func (a handlers) bankTransactionsSave(w http.ResponseWriter, r *http.Request) {
 	var list []posted
 	for _, s := range r.PostForm["t"] {
 		var t posted
-		err := tx.QueryRowContext(ctx, `SELECT t.id, t.text, YEAR(t.booked), COALESCE(t.line_id, 0), t.ignored
+		var split bool
+		err := tx.QueryRowContext(ctx, `SELECT t.id, t.text, YEAR(t.booked), COALESCE(t.line_id, 0), t.ignored, t.split
 			FROM bank_transactions t JOIN bank_accounts a ON a.id = t.account_id WHERE t.id = ? AND a.budget_id = ?`, s, b.ID).
-			Scan(&t.ID, &t.Text, &t.year, &t.LineID, &t.Ignored)
-		if errors.Is(err, sql.ErrNoRows) {
-			continue // deleted meanwhile
+			Scan(&t.ID, &t.Text, &t.year, &t.LineID, &t.Ignored, &split)
+		if errors.Is(err, sql.ErrNoRows) || split {
+			continue // deleted meanwhile, or split on its own page
 		}
 		if err != nil {
 			a.Fail(w, err)

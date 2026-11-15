@@ -160,7 +160,7 @@ func (a handlers) bankComparePage(w http.ResponseWriter, r *http.Request) {
 	var unassignedSum app.Money
 	rows, err := a.DB().QueryContext(ctx, `SELECT MONTH(t.booked), COUNT(*), SUM(t.amount) FROM bank_transactions t
 		JOIN bank_accounts a ON a.id = t.account_id
-		WHERE a.budget_id = ? AND YEAR(t.booked) = ? AND t.line_id IS NULL AND NOT t.ignored
+		WHERE a.budget_id = ? AND YEAR(t.booked) = ? AND t.line_id IS NULL AND NOT t.ignored AND NOT t.split
 		GROUP BY MONTH(t.booked)`, current.ID, year)
 	if err != nil {
 		a.Fail(w, err)
@@ -256,14 +256,18 @@ func importedMonths(ctx context.Context, q app.Querier, budget int64, year int) 
 	return out, rows.Err()
 }
 
-// lineActuals sums the year's assigned transactions per line and month, as the
-// bank has them: negative for money going out. A month is present when the
-// line has transactions in it, even when they add up to 0.
+// lineActuals sums the year's assigned transactions, and the parts of split ones, per
+// line and month, as the bank has them: negative for money going out. A month
+// is present when the line has any, even when they add up to 0.
 func lineActuals(ctx context.Context, q app.Querier, budget int64, year int) (map[int64]map[int]app.Money, error) {
-	rows, err := q.QueryContext(ctx, `SELECT t.line_id, MONTH(t.booked), SUM(t.amount) FROM bank_transactions t
-		JOIN bank_accounts a ON a.id = t.account_id
-		WHERE a.budget_id = ? AND YEAR(t.booked) = ? AND t.line_id IS NOT NULL AND NOT t.ignored
-		GROUP BY t.line_id, MONTH(t.booked)`, budget, year)
+	rows, err := q.QueryContext(ctx, `SELECT line_id, MONTH(booked), SUM(amount) FROM (
+			SELECT t.line_id, t.booked, t.amount FROM bank_transactions t JOIN bank_accounts a ON a.id = t.account_id
+			WHERE a.budget_id = ? AND YEAR(t.booked) = ? AND t.line_id IS NOT NULL AND NOT t.ignored AND NOT t.split
+			UNION ALL
+			SELECT s.line_id, t.booked, s.amount FROM bank_splits s JOIN bank_transactions t ON t.id = s.transaction_id
+			JOIN bank_accounts a ON a.id = t.account_id
+			WHERE a.budget_id = ? AND YEAR(t.booked) = ? AND s.line_id IS NOT NULL AND NOT s.ignored
+		) x GROUP BY line_id, MONTH(booked)`, budget, year, budget, year)
 	if err != nil {
 		return nil, err
 	}

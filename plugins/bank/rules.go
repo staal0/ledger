@@ -154,7 +154,7 @@ func applyBankRules(ctx context.Context, tx *sql.Tx, budget int64) (int, error) 
 	}
 	var todo []open
 	rows, err = tx.QueryContext(ctx, `SELECT t.id, t.text, YEAR(t.booked) FROM bank_transactions t
-		JOIN bank_accounts a ON a.id = t.account_id WHERE a.budget_id = ? AND t.line_id IS NULL AND NOT t.ignored`, budget)
+		JOIN bank_accounts a ON a.id = t.account_id WHERE a.budget_id = ? AND t.line_id IS NULL AND NOT t.ignored AND NOT t.split`, budget)
 	if err != nil {
 		return 0, err
 	}
@@ -429,14 +429,14 @@ func (a handlers) bankRulesSave(w http.ResponseWriter, r *http.Request) {
 // choice by hand or a more specific rule keeps it from the text.
 type bankRuleMatch struct {
 	bankTransaction
-	State string // "unassigned", "hand" or "rule"
+	State string // "unassigned", "hand", "split" or "rule"
 	Line  string // the line or rule that has it now
 	Takes bool
 }
 
 // ruleMatches lists the budget's newest transactions that test matches.
 func (a handlers) ruleMatches(r *http.Request, budget int64, rules []bankRule, test string) ([]bankRuleMatch, error) {
-	rows, err := a.DB().QueryContext(r.Context(), `SELECT t.id, t.booked, t.text, t.amount, t.ignored, COALESCE(l.name, ''), COALESCE(ru.pattern, '')
+	rows, err := a.DB().QueryContext(r.Context(), `SELECT t.id, t.booked, t.text, t.amount, t.ignored, t.split, COALESCE(l.name, ''), COALESCE(ru.pattern, '')
 		FROM bank_transactions t JOIN bank_accounts a ON a.id = t.account_id
 		LEFT JOIN budget_lines l ON l.id = t.line_id LEFT JOIN bank_rules ru ON ru.id = t.rule_id
 		WHERE a.budget_id = ? ORDER BY t.booked DESC, t.id DESC`, budget)
@@ -448,13 +448,16 @@ func (a handlers) ruleMatches(r *http.Request, budget int64, rules []bankRule, t
 	for rows.Next() && len(out) < 50 {
 		var m bankRuleMatch
 		var rule string
-		if err := rows.Scan(&m.ID, &m.Booked, &m.Text, &m.Amount, &m.Ignored, &m.Line, &rule); err != nil {
+		var split bool
+		if err := rows.Scan(&m.ID, &m.Booked, &m.Text, &m.Amount, &m.Ignored, &split, &m.Line, &rule); err != nil {
 			return nil, err
 		}
 		if !patternMatches(m.Text, test) {
 			continue
 		}
 		switch {
+		case split:
+			m.State = "split"
 		case rule != "":
 			m.State, m.Line = "rule", rule
 		case m.Line != "" || m.Ignored:
@@ -464,7 +467,7 @@ func (a handlers) ruleMatches(r *http.Request, budget int64, rules []bankRule, t
 		}
 		// The text takes what nothing assigned by hand, unless a more specific rule fits.
 		best := matchRule(rules, m.Text)
-		m.Takes = m.State != "hand" && (best == nil || specificity(test) >= specificity(best.Pattern))
+		m.Takes = m.State != "hand" && m.State != "split" && (best == nil || specificity(test) >= specificity(best.Pattern))
 		out = append(out, m)
 	}
 	return out, rows.Err()

@@ -128,5 +128,18 @@
   "bank.rule_no_matches": "No transactions match.",
   "bank.rule_test_note": "Testing changes nothing. A rule only takes transactions that are not assigned by hand, and a more specific rule wins. At most 50 are shown, newest first.",
   "bank.missing_hint": "A forgotten bill, a payment from another account, or a transaction not assigned yet.",
-  "bank.rule_display_title": "Shown in the transaction list instead of the bank's text. Matching still uses the bank's text."
+  "bank.rule_display_title": "Shown in the transaction list instead of the bank's text. Matching still uses the bank's text.",
+
+  "bank.split": "Split",
+  "bank.split_edit": "Edit split",
+  "bank.split_parts": "Split:",
+  "bank.split_state": "Split by hand",
+  "bank.split_title": "Split transaction",
+  "bank.split_hint": "Give each part a budget line, or Ignore, and an amount. Amounts count in the transaction's direction, so a purchase of 1,000 split as 600 and 400 needs no minus; a minus counts the other way, e.g. a deposit refund. Leave one amount empty to give that part the rest.",
+  "bank.split_undo": "Undo split",
+  "bank.split_undo_confirm": "Undo the split? The transaction becomes whole and unassigned again.",
+  "bank.split_err_line": "Choose a budget line or Ignore for each part.",
+  "bank.split_err_rest": "Only one part can be left empty to take the rest.",
+  "bank.split_err_amount": "Not an amount: %s",
+  "bank.split_err_sum": "The parts add up to %s, but the transaction is %s."
 }

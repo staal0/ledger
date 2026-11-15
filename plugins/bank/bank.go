@@ -57,6 +57,8 @@ func (bankPlugin) Routes(mux *http.ServeMux, core *app.App) {
 	mux.HandleFunc("POST /bank/imports/{id}/delete", a.Only(app.RoleEditor, a.bankImportDelete))
 	mux.HandleFunc("GET /bank/transactions", a.bankTransactionsPage)
 	mux.HandleFunc("POST /bank/transactions", a.Only(app.RoleEditor, a.bankTransactionsSave))
+	mux.HandleFunc("GET /bank/transactions/{id}/split", a.Only(app.RoleEditor, a.bankSplitPage))
+	mux.HandleFunc("POST /bank/transactions/{id}/split", a.Only(app.RoleEditor, a.bankSplitSave))
 	mux.HandleFunc("GET /bank/rules", a.bankRulesPage)
 	mux.HandleFunc("POST /bank/rules", a.Only(app.RoleEditor, a.bankRulesSave))
 	mux.HandleFunc("GET /bank/compare", a.bankComparePage)
