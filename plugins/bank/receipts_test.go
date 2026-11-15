@@ -141,7 +141,7 @@ func TestBankReceipts(t *testing.T) {
 	}
 	for q, want := range map[string][]string{
 		"store=Grocer": {`data-actual="Receipts from Grocer"`, `"Actual":[null,null,10550,null`, `class="chosen"`, "Clear filter"},
-		"q=milk":       {`data-actual="Receipts with “milk”"`, `"Actual":[null,null,3550,null`},
+		"q=milk":       {`data-actual="Receipts with “milk”"`, `"Actual":[null,null,3550,null`, "Clear search"},
 		"store=Kiosk":  {`"Actual":null`},
 	} {
 		page := filtered(q)

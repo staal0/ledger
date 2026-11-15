@@ -176,5 +176,6 @@
   "bank.search_none": "Ingen varer på linjen matcher “%s”.",
   "bank.filter_store": "fra %s",
   "bank.filter_query": "med “%s”",
-  "bank.filter_clear": "Ryd filter"
+  "bank.filter_clear": "Ryd filter",
+  "bank.search_clear": "Ryd søgning"
 }

@@ -1,7 +1,7 @@
 {{/* The bank's part of a line's stats page. */}}
 {{define "content"}}{{$L := .L}}
 <figure class="chart">
-  <figcaption>{{$L.T "bank.line_stores"}}{{if or .Store .Query}} <a class="hint" href="{{.AllURL}}">{{$L.T "bank.filter_clear"}}</a>{{end}}</figcaption>
+  <figcaption>{{$L.T "bank.line_stores"}}{{if .Store}} <a class="hint" href="{{.NoStoreURL}}">{{$L.T "bank.filter_clear"}}</a>{{end}}</figcaption>
   <div class="scroll">
   <table class="stats-table">
     <tr class="head"><th>{{$L.T "bank.store"}}</th><th class="num">{{$L.T "bank.receipts_count"}}</th><th class="num">{{$L.T "bank.amount"}}</th><th>{{$L.T "bank.months"}}</th></tr>
@@ -10,7 +10,7 @@
   </div>
 </figure>
 <figure class="chart" id="receipt-items">
-  <figcaption>{{$L.T "bank.line_items"}}</figcaption>
+  <figcaption>{{$L.T "bank.line_items"}}{{if .Query}} <a class="hint" href="{{.NoQueryURL}}">{{$L.T "bank.search_clear"}}</a>{{end}}</figcaption>
   <form class="filters receipt-search" action="/stats/line#receipt-items" role="search">
     {{if not .Current.IsDefault}}<input type="hidden" name="budget" value="{{.Current.Slug}}">{{end}}
     <input type="hidden" name="section" value="{{.Section}}">

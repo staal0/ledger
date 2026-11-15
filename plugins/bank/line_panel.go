@@ -159,6 +159,7 @@ func (bankPlugin) LinePanel(core *app.App, r *http.Request, b app.BudgetRef, sec
 	return core.RenderPart(r, "bank_line", map[string]any{"Stores": stores, "Items": items,
 		"Current": b, "Section": section, "Names": names, "From": from, "To": to,
 		"Query": filter.Query, "Store": filter.Store, "Found": found, "More": more, "Max": maxFound,
-		"StoreURL": func(store string) string { return lineURL(b, section, names, from, to, itemFilter{Store: store}) },
-		"AllURL":   lineURL(b, section, names, from, to, itemFilter{})})
+		"StoreURL":   func(store string) string { return lineURL(b, section, names, from, to, itemFilter{Store: store}) },
+		"NoStoreURL": lineURL(b, section, names, from, to, itemFilter{Query: filter.Query}),
+		"NoQueryURL": lineURL(b, section, names, from, to, itemFilter{Store: filter.Store}) + "#receipt-items"})
 }
