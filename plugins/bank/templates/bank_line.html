@@ -1,11 +1,11 @@
 {{/* The bank's part of a line's stats page. */}}
 {{define "content"}}{{$L := .L}}
 <figure class="chart">
-  <figcaption>{{$L.T "bank.line_stores"}}</figcaption>
+  <figcaption>{{$L.T "bank.line_stores"}}{{if or .Store .Query}} <a class="hint" href="{{.AllURL}}">{{$L.T "bank.filter_clear"}}</a>{{end}}</figcaption>
   <div class="scroll">
   <table class="stats-table">
     <tr class="head"><th>{{$L.T "bank.store"}}</th><th class="num">{{$L.T "bank.receipts_count"}}</th><th class="num">{{$L.T "bank.amount"}}</th><th>{{$L.T "bank.months"}}</th></tr>
-    {{range .Stores}}<tr><th>{{.Name}}</th><td class="num">{{.Count}}</td><td class="num">{{$L.Money .Amount}}</td><td class="months">{{template "bank-months" .}}</td></tr>{{end}}
+    {{range .Stores}}<tr{{if eq .Name $.Store}} class="chosen"{{end}}><th><a href="{{call $.StoreURL .Name}}">{{.Name}}</a></th><td class="num">{{.Count}}</td><td class="num">{{$L.Money .Amount}}</td><td class="months">{{template "bank-months" .}}</td></tr>{{end}}
   </table>
   </div>
 </figure>
@@ -16,6 +16,7 @@
     <input type="hidden" name="section" value="{{.Section}}">
     {{range .Names}}<input type="hidden" name="name" value="{{.}}">{{end}}
     <input type="hidden" name="from" value="{{.From}}"><input type="hidden" name="to" value="{{.To}}">
+    {{with .Store}}<input type="hidden" name="store" value="{{.}}">{{end}}
     <input type="search" name="q" value="{{.Query}}" placeholder="{{$L.T "bank.search_placeholder"}}" aria-label="{{$L.T "bank.search"}}" autocomplete="off">
     <button class="secondary">{{$L.T "bank.search"}}</button>
   </form>

@@ -133,6 +133,28 @@ func TestBankReceipts(t *testing.T) {
 		}
 	}
 
+	// A store or a search trims the chart to the receipt items it keeps.
+	filtered := func(q string) string {
+		w := app.TestRequest(a, "GET", "/stats/line?section=allocation&name=Food+account&from=2031&to=2031&"+q, nil, "")
+		app.MustStatus(t, w, 200)
+		return html.UnescapeString(w.Body.String())
+	}
+	for q, want := range map[string][]string{
+		"store=Grocer": {`data-actual="Receipts from Grocer"`, `"Actual":[null,null,10550,null`, `class="chosen"`, "Clear filter"},
+		"q=milk":       {`data-actual="Receipts with “milk”"`, `"Actual":[null,null,3550,null`},
+		"store=Kiosk":  {`"Actual":null`},
+	} {
+		page := filtered(q)
+		for _, w := range want {
+			if !strings.Contains(page, w) {
+				t.Errorf("filtered by %s: lacks %s", q, w)
+			}
+		}
+	}
+	if !strings.Contains(food, `href="/stats/line?from=2031&name=Food+account&section=allocation&store=Grocer&to=2031"`) {
+		t.Error("the stores do not link to their filter")
+	}
+
 	// The export grows: imported again, nothing is added and the split stays.
 	w = uploadBank(t, a, receipts, receiptsSample)
 	app.MustStatus(t, w, 200)

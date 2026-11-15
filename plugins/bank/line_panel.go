@@ -38,6 +38,9 @@ func lineQuery(b app.BudgetRef, section string, names []string, from, to int) (s
 func (bankPlugin) LineActuals(core *app.App, r *http.Request, b app.BudgetRef, section string, names []string, from, to int) (map[int]map[int]app.Money, string, error) {
 	ctx := r.Context()
 	q, args := lineQuery(b, section, names, from, to)
+	if f := readItemFilter(r); f.on() {
+		return filteredActuals(r, core, q, args, section, f)
+	}
 	ids, err := lineIDs(ctx, core.DB(), q, args)
 	if err != nil || len(ids) == 0 {
 		return nil, "", err
@@ -98,13 +101,15 @@ func (bankPlugin) LinePanel(core *app.App, r *http.Request, b app.BudgetRef, sec
 	// An item counts on the line it was split to, else on its receipt's line.
 	onLine := ` FROM bank_receipt_items i JOIN bank_transactions t ON t.id = i.transaction_id
 		WHERE COALESCE(i.line_id, t.line_id) IN (` + lines + `)`
+	filter := readItemFilter(r)
 	sign := actualSign(section)
 	L := core.Locale(r)
 	keep := "&from=" + strconv.Itoa(from) + "&to=" + strconv.Itoa(to)
-	top := func(group, count string, limit int) ([]linePanelRow, error) {
+	top := func(group, count string, limit int, f itemFilter) ([]linePanelRow, error) {
+		where, fargs := f.sql()
 		rows, err := core.DB().QueryContext(ctx, `SELECT `+group+`, `+count+`, SUM(i.amount),
-				GROUP_CONCAT(DISTINCT DATE_FORMAT(t.booked, '%Y-%m') ORDER BY DATE_FORMAT(t.booked, '%Y-%m') DESC)`+onLine+`
-			GROUP BY `+group+` ORDER BY SUM(i.amount) DESC LIMIT `+strconv.Itoa(limit), args...)
+				GROUP_CONCAT(DISTINCT DATE_FORMAT(t.booked, '%Y-%m') ORDER BY DATE_FORMAT(t.booked, '%Y-%m') DESC)`+onLine+where+`
+			GROUP BY `+group+` ORDER BY SUM(i.amount) DESC LIMIT `+strconv.Itoa(limit), append(append([]any{}, args...), fargs...)...)
 		if err != nil {
 			return nil, err
 		}
@@ -131,20 +136,19 @@ func (bankPlugin) LinePanel(core *app.App, r *http.Request, b app.BudgetRef, sec
 		}
 		return out, rows.Err()
 	}
-	stores, err := top("t.text", "COUNT(DISTINCT t.id)", 10)
+	stores, err := top("t.text", "COUNT(DISTINCT t.id)", 10, itemFilter{})
 	if err != nil || len(stores) == 0 {
 		return "", err
 	}
-	items, err := top("i.name", "COUNT(*)", 20)
+	items, err := top("i.name", "COUNT(*)", 20, itemFilter{Store: filter.Store})
 	if err != nil {
 		return "", err
 	}
 	// A search lists each purchase of the matching items, with its date.
-	search := strings.Join(strings.Fields(r.FormValue("q")), " ")
 	var found []foundItem
 	more := false
-	if specificity(search) > 0 {
-		if found, more, err = searchItems(ctx, core.DB(), lines, args, search); err != nil {
+	if filter.Query != "" {
+		if found, more, err = searchItems(ctx, core.DB(), lines, args, filter); err != nil {
 			return "", err
 		}
 		for i := range found {
@@ -154,5 +158,7 @@ func (bankPlugin) LinePanel(core *app.App, r *http.Request, b app.BudgetRef, sec
 	}
 	return core.RenderPart(r, "bank_line", map[string]any{"Stores": stores, "Items": items,
 		"Current": b, "Section": section, "Names": names, "From": from, "To": to,
-		"Query": search, "Found": found, "More": more, "Max": maxFound})
+		"Query": filter.Query, "Store": filter.Store, "Found": found, "More": more, "Max": maxFound,
+		"StoreURL": func(store string) string { return lineURL(b, section, names, from, to, itemFilter{Store: store}) },
+		"AllURL":   lineURL(b, section, names, from, to, itemFilter{})})
 }

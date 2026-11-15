@@ -357,3 +357,5 @@ input[type="file"]:focus-visible::file-selector-button { outline: 2px solid var(
 .month-table .receipt-items td.num { text-align: right; }
 .receipt-items .elsewhere td:not(.hint) { color: var(--muted); }
 .stats-table td.months { font-size: .85rem; }
+.stats-table tr.chosen > * { font-weight: 600; background: color-mix(in srgb, var(--accent) 10%, var(--surface)); }
+.receipt-search input[type="search"] { width: min(18rem, 100%); }

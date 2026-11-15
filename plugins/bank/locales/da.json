@@ -173,5 +173,8 @@
   "bank.search_placeholder": "Find en vare, fx kaffe*",
   "bank.search_count": "%d køb, nyeste først. Datoen åbner måneden.",
   "bank.search_more": "De nyeste %d køb. Søg mere præcist for at se ældre.",
-  "bank.search_none": "Ingen varer på linjen matcher “%s”."
+  "bank.search_none": "Ingen varer på linjen matcher “%s”.",
+  "bank.filter_store": "fra %s",
+  "bank.filter_query": "med “%s”",
+  "bank.filter_clear": "Ryd filter"
 }

@@ -173,5 +173,8 @@
   "bank.search_placeholder": "Find an item, e.g. coffee*",
   "bank.search_count": "%d purchases, newest first. The date opens the month.",
   "bank.search_more": "The newest %d purchases. Search more precisely to see older ones.",
-  "bank.search_none": "No items on the line match “%s”."
+  "bank.search_none": "No items on the line match “%s”.",
+  "bank.filter_store": "from %s",
+  "bank.filter_query": "with “%s”",
+  "bank.filter_clear": "Clear filter"
 }
