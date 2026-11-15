@@ -395,8 +395,8 @@ func (a handlers) bankPreview(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, L.T("import.err_too_large"), http.StatusRequestEntityTooLarge)
 		return
 	}
-	if receipts, err := parseReceipts(data); err == nil {
-		a.receiptPreview(w, r, acc, b, receipts)
+	if f, receipts, err := parseReceipts(data); err == nil {
+		a.receiptPreview(w, r, acc, b, f, receipts)
 		return
 	}
 	if len(data) > maxBankFile {
@@ -410,7 +410,7 @@ func (a handlers) bankPreview(w http.ResponseWriter, r *http.Request) {
 		"Account": acc,
 		"Back":    bankURL("/import", b, nil),
 	}
-	_, rows, imported, err := a.bankFileRows(r.Context(), a.DB(), acc, data)
+	format, rows, imported, err := a.bankFileRows(r.Context(), a.DB(), acc, data)
 	var pe *bankParseError
 	if errors.As(err, &pe) {
 		page["Error"] = pe
@@ -421,6 +421,8 @@ func (a handlers) bankPreview(w http.ResponseWriter, r *http.Request) {
 		a.Fail(w, err)
 		return
 	}
+	f, _ := bankFormatByID(format)
+	page["Format"] = f.Name
 	type previewRow struct {
 		bankRow
 		Imported bool

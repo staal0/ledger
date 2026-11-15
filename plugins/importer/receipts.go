@@ -1,17 +1,13 @@
 package importer
 
 import (
-	"archive/zip"
-	"bytes"
 	"context"
 	"database/sql"
 	"encoding/json"
 	"errors"
-	"io"
 	"math"
 	"net/http"
 	"net/url"
-	"path"
 	"slices"
 	"strconv"
 	"strings"
@@ -55,63 +51,6 @@ func cut(s string, n int) string {
 	return s
 }
 
-// parseReceipts reads the receipts.json of a receipt export, or the zip it comes in.
-func parseReceipts(data []byte) ([]receipt, error) {
-	if z, err := zip.NewReader(bytes.NewReader(data), int64(len(data))); err == nil {
-		data = nil
-		for _, f := range z.File {
-			if path.Base(f.Name) != "receipts.json" {
-				continue
-			}
-			rc, err := f.Open()
-			if err != nil {
-				return nil, err
-			}
-			data, err = io.ReadAll(io.LimitReader(rc, maxReceiptFile))
-			rc.Close()
-			if err != nil {
-				return nil, err
-			}
-		}
-	}
-	var raw []struct {
-		ReceiptID string `json:"receiptId"`
-		Date      string `json:"purchaseDateTimeString"`
-		Merchant  struct {
-			Name string `json:"name"`
-		} `json:"merchant"`
-		Price struct {
-			Amount float64 `json:"amount"`
-		} `json:"price"`
-		Lines []struct {
-			Name  string `json:"name"`
-			Total struct {
-				Amount float64 `json:"amount"`
-			} `json:"totalPrice"`
-		} `json:"receiptLines"`
-	}
-	if len(data) == 0 || json.Unmarshal(data, &raw) != nil {
-		return nil, errNoReceipts
-	}
-	var out []receipt
-	for _, r := range raw {
-		at, err := time.Parse(time.RFC3339, r.Date)
-		if r.ReceiptID == "" || len(r.ReceiptID) > 64 || err != nil {
-			return nil, errNoReceipts
-		}
-		rc := receipt{ID: r.ReceiptID, Booked: time.Date(at.Year(), at.Month(), at.Day(), 0, 0, 0, 0, time.UTC),
-			Store: cut(r.Merchant.Name, maxBankText), Total: money(r.Price.Amount)}
-		if rc.Store == "" {
-			rc.Store = r.ReceiptID
-		}
-		for _, l := range r.Lines {
-			rc.Items = append(rc.Items, receiptItem{Name: cut(l.Name, 255), Amount: money(l.Total.Amount)})
-		}
-		out = append(out, rc)
-	}
-	return out, nil
-}
-
 // receiptsSeen marks the receipts imported into the account before, or met earlier in the file.
 func receiptsSeen(ctx context.Context, q app.Querier, account int64, receipts []receipt) ([]bool, error) {
 	have := map[string]bool{}
@@ -137,7 +76,7 @@ func receiptsSeen(ctx context.Context, q app.Querier, account int64, receipts []
 
 // receiptPreview shows a receipt export before it is imported: which receipts
 // are new, and which bank rows they cover and so will be ignored.
-func (a handlers) receiptPreview(w http.ResponseWriter, r *http.Request, acc bankAccount, b app.BudgetRef, receipts []receipt) {
+func (a handlers) receiptPreview(w http.ResponseWriter, r *http.Request, acc bankAccount, b app.BudgetRef, f receiptFormat, receipts []receipt) {
 	ctx := r.Context()
 	seen, err := receiptsSeen(ctx, a.DB(), acc.ID, receipts)
 	if err != nil {
@@ -202,6 +141,7 @@ func (a handlers) receiptPreview(w http.ResponseWriter, r *http.Request, acc ban
 		"Account":  acc,
 		"Back":     bankURL("/import", b, nil),
 		"Receipts": list,
+		"Format":   f.Name,
 		"Added":    added,
 		"Skipped":  len(receipts) - added,
 		"Data":     string(data),

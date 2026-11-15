@@ -62,6 +62,9 @@ func TestBankImport(t *testing.T) {
 	account := strconv.FormatInt(app.TestQueryInt(t, "SELECT id FROM import_accounts WHERE name = 'Budget account'"), 10)
 
 	page := previewAndImport(t, a, account, laanSparSample)
+	if !strings.Contains(page, "Read as: Lån & Spar") {
+		t.Error("the preview does not say which bank's layout it read")
+	}
 	if n := app.TestQueryInt(t, "SELECT COUNT(*) FROM import_accounts WHERE format = 'laanspar'"); n != 1 {
 		t.Error("the import did not remember the file's bank format")
 	}

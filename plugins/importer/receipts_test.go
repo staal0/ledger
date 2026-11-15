@@ -57,7 +57,7 @@ func TestBankReceipts(t *testing.T) {
 
 	// The preview shows the new receipts and the bank row the first covers.
 	page := previewAndImport(t, a, receipts, zipped(t, "storebox/receipts.json", receiptsSample))
-	for _, want := range []string{"2 new receipts, 0 imported before", "covers 2031-03-07 Budget account: Card Grocer"} {
+	for _, want := range []string{"Read as: Nexi Smart Receipt", "2 new receipts, 0 imported before", "covers 2031-03-07 Budget account: Card Grocer"} {
 		if !strings.Contains(page, want) {
 			t.Errorf("preview lacks %q", want)
 		}
@@ -189,6 +189,16 @@ func TestBankReceipts(t *testing.T) {
 	app.MustStatus(t, app.TestRequest(a, "POST", "/import/rules", url.Values{"action": {"delete:" + strconv.FormatInt(count("SELECT id FROM import_rules"), 10)}}, ""), 303)
 	if n := count("SELECT COUNT(*) FROM import_transactions WHERE id = ? AND NOT split AND line_id = ?", r1, lines["allocation/Food account"]); n != 1 {
 		t.Error("the receipt did not follow its item rule going")
+	}
+
+	// Nexi's export is known by its layout: elsewhere in a zip, or without receipt lines, it is not one.
+	for name, data := range map[string]string{
+		"another folder": zipped(t, "export/receipts.json", receiptsSample),
+		"no lines":       `[{"receiptId": "r9", "purchaseDateTimeString": "2031-03-05T17:30:00+01:00"}]`,
+	} {
+		if _, _, err := parseReceipts([]byte(data)); err == nil {
+			t.Errorf("%s: read as receipts", name)
+		}
 	}
 
 	// Neither receipts nor a bank file: the preview says why.

@@ -177,5 +177,6 @@
   "import.filter_store": "from %s",
   "import.filter_query": "with “%s”",
   "import.filter_clear": "Clear filter",
-  "import.search_clear": "Clear search"
+  "import.search_clear": "Clear search",
+  "import.read_as": "Read as: %s"
 }

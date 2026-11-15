@@ -177,5 +177,6 @@
   "import.filter_store": "fra %s",
   "import.filter_query": "med “%s”",
   "import.filter_clear": "Ryd filter",
-  "import.search_clear": "Ryd søgning"
+  "import.search_clear": "Ryd søgning",
+  "import.read_as": "Læst som: %s"
 }
