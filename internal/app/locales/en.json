@@ -200,5 +200,10 @@
   "pager.prev": "Previous",
   "pager.next": "Next",
   "pager.page": "Page %d of %d",
-  "pager.size": "Per page"
+  "pager.size": "Per page",
+
+  "chart.buffer": "To get through %d, the account needs at least %%s on 1 January.",
+  "chart.buffer_back": "It is back above zero after %s.",
+  "chart.buffer_never": "It stays below zero all year.",
+  "chart.prev_end": "%d is planned to end with %%s."
 }

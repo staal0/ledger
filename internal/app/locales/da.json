@@ -200,5 +200,10 @@
   "pager.prev": "Forrige",
   "pager.next": "Næste",
   "pager.page": "Side %d af %d",
-  "pager.size": "Pr. side"
+  "pager.size": "Pr. side",
+
+  "chart.buffer": "For at klare %d skal der mindst stå %%s på kontoen 1. januar.",
+  "chart.buffer_back": "Saldoen er over nul igen efter %s.",
+  "chart.buffer_never": "Saldoen er under nul hele året.",
+  "chart.prev_end": "%d forventes at slutte med %%s."
 }

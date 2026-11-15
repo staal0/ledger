@@ -266,3 +266,22 @@ func TestDemo(t *testing.T) {
 	}
 	mustStatus(t, request(a, "GET", "/stats", nil, ""), 200)
 }
+
+func TestBufferNote(t *testing.T) {
+	a := testApp(t, false)
+	ids := setupYear(t, a, 2029, "income/Salary", "expense/Rent")
+	form := saveForm(t, a, 2029, "save", map[int64]map[int]string{ids["income/Salary"]: {1: "1000"}, ids["expense/Rent"]: {1: "400"}})
+	mustStatus(t, request(a, "POST", "/budget/2029", form, ""), 303)
+	setupYear(t, a, 2030, "income/Salary")
+
+	page := request(a, "GET", "/budget/2030", nil, "").Body.String()
+	for _, want := range []string{`data-buffer="To get through 2030, the account needs at least %s on 1 January."`,
+		`data-buffer-back="It is back above zero after %s."`, `data-prev-end="60000"`, `data-prev-text="2029 is planned to end with %s."`} {
+		if !strings.Contains(page, want) {
+			t.Errorf("budget page lacks %q", want)
+		}
+	}
+	if page := request(a, "GET", "/budget/2029", nil, "").Body.String(); strings.Contains(page, "data-prev-end") {
+		t.Error("the first year shows a year before it")
+	}
+}

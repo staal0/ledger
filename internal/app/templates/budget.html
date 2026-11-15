@@ -140,7 +140,7 @@
 </dialog>
 
 {{/* Filled in by app.js from the grid above, so it follows edits live. */}}
-<aside class="charts" data-other="{{$L.T "chart.other"}}" data-empty="{{$L.T "chart.empty"}}">
+<aside class="charts" data-other="{{$L.T "chart.other"}}" data-empty="{{$L.T "chart.empty"}}" data-buffer="{{$L.T "chart.buffer" .Year}}" data-buffer-back="{{$L.T "chart.buffer_back"}}" data-buffer-never="{{$L.T "chart.buffer_never"}}"{{with .PrevEnd}} data-prev-end="{{.}}" data-prev-text="{{$L.T "chart.prev_end" $.PrevYear}}"{{end}}>
   <h2>{{$L.T "chart.overview" .Year}}</h2>
   <div class="tiles">
     <div class="tile" data-tile="income"><span class="label">{{$L.T "section.income"}}</span><span class="value"></span></div>
@@ -157,6 +157,7 @@
       <span><i class="swatch unallocated"></i>{{$L.T "calc.difference"}}</span>
     </div>
     <div data-chart="monthly" data-income="{{$L.T "section.income"}}" data-expense="{{$L.T "section.expense"}}" data-net="{{$L.T "calc.net"}}" data-allocation="{{$L.T "section.allocation"}}" data-difference="{{$L.T "calc.difference"}}"></div>
+    <p class="hint buffer" hidden></p>
   </figure>
   <figure class="chart">
     <figcaption>{{$L.T "chart.expense"}}</figcaption>

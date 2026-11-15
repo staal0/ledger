@@ -522,6 +522,20 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   }
 
+  // The buffer the year needs on 1 January, when its running balance dips below zero.
+  function buffer(note, diffs) {
+    let sum = 0
+    const run = diffs.map(d => (sum += d))
+    const low = run.indexOf(Math.min(...run))
+    note.hidden = run[low] >= 0
+    if (note.hidden) return
+    const back = run.findIndex((v, i) => i > low && v >= 0)
+    let text = L.buffer.replace('%s', kr(-run[low])) + ' ' +
+      (back < 0 ? L.bufferNever : L.bufferBack.replace('%s', months[back]))
+    if (L.prevEnd !== undefined) text += ' ' + L.prevText.replace('%s', kr(+L.prevEnd))
+    note.textContent = text
+  }
+
   function drawCharts(t, lines, calc) {
     for (const tile of charts.querySelectorAll('[data-tile]')) {
       const v = calc[tile.dataset.tile](0)
@@ -533,6 +547,7 @@ document.addEventListener('DOMContentLoaded', () => {
     columns(monthly, months, months.map(m => m[0]), t.income.slice(1), t.expense.slice(1),
       { allocation: t.allocation.slice(1), difference: ms.map(calc.difference) })
     for (const box of document.querySelectorAll('.hbars')) hbars(box, lines[box.dataset.chart])
+    buffer(charts.querySelector('.buffer'), ms.map(calc.difference))
   }
 
   form.addEventListener('input', recalc)
