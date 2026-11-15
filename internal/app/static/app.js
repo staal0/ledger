@@ -147,16 +147,15 @@ document.addEventListener('DOMContentLoaded', () => {
   // skip labels. changes, when given, add a tooltip row each; "–" is left out.
   // parts, when given, split each bar into stacked lines in lighter tints of the
   // colour, the first at the bottom, with a legend above the chart. actual, when
-  // given, turns the bars grey as the budget and adds the actual next to each
-  // (null where a month has none); up is 1 when more than the budget is better.
+  // given, adds the actual next to each bar as the budget (null where a month has
+  // none), red for spending and green for income; up is 1 when more is better.
   function series(box, labels, axis, values, cls, changes, parts, actual, up) {
     const [plot, top] = grid(Math.max(...values, ...(actual || []).map(v => v ?? 0), 100))
-    const tint = i => actual
-      ? `color-mix(in srgb, var(--muted) ${45 - i * 30 / Math.max(1, parts.length - 1)}%, transparent)`
-      : `color-mix(in srgb, var(--c-${cls}) ${100 - i * 60 / Math.max(1, parts.length - 1)}%, var(--surface))`
+    const tint = i => `color-mix(in srgb, var(--c-${cls}) ${100 - i * 60 / Math.max(1, parts.length - 1)}%, var(--surface))`
+    const actualCls = cls === 'income' ? 'actual-in' : 'actual'
     labels.forEach((name, i) => {
       const m = el('div', 'month')
-      const bar = (v, color, c = actual ? 'planned' : cls) => {
+      const bar = (v, color, c = cls) => {
         const b = el('i', 'bar ' + c)
         b.style.height = Math.max(0, v) / top * 100 + '%'
         if (color) b.style.background = color
@@ -173,11 +172,11 @@ document.addEventListener('DOMContentLoaded', () => {
         rows.push(['', kr(values[i]), actual ? box.dataset.budget : box.dataset.total])
       } else {
         m.append(bar(values[i]))
-        rows.push([actual ? 'planned' : cls, kr(values[i]), actual ? box.dataset.budget : box.dataset.label])
+        rows.push([cls, kr(values[i]), actual ? box.dataset.budget : box.dataset.label])
       }
       if (actual && actual[i] !== null) {
-        m.append(bar(actual[i], null, cls))
-        rows.push([cls, kr(actual[i]), box.dataset.actual], ['', kr(up * (actual[i] - values[i])), box.dataset.difference])
+        m.append(bar(actual[i], null, actualCls))
+        rows.push([actualCls, kr(actual[i]), box.dataset.actual], ['', kr(up * (actual[i] - values[i])), box.dataset.difference])
       }
       if (changes && changes[i] !== '–') rows.push(['', changes[i], box.dataset.change])
       hover(m, name, rows)

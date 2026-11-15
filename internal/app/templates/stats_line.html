@@ -19,8 +19,8 @@
   <figure class="chart">
     <figcaption>{{$L.T "stats.per_month"}}</figcaption>
     {{if .Chart.Actual}}<div class="legend">
-      <span><i class="swatch planned"></i>{{$L.T "stats.budget"}}</span>
-      <span><i class="swatch {{.Section}}"></i>{{$L.T "stats.actual"}}</span>
+      <span><i class="swatch {{.Section}}"></i>{{$L.T "stats.budget"}}</span>
+      <span><i class="swatch {{if eq .Section "income"}}actual-in{{else}}actual{{end}}"></i>{{$L.T "stats.actual"}}</span>
     </div>{{end}}
     <div data-chart="line" data-section="{{.Section}}" data-label="{{.Name}}" data-total="{{$L.T "stats.total"}}" data-change="{{$L.T "stats.vs_year_before"}}"
       data-budget="{{$L.T "stats.budget"}}" data-actual="{{$L.T "stats.actual"}}" data-difference="{{$L.T "stats.difference"}}"></div>
