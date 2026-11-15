@@ -104,6 +104,17 @@ func (a *App) Render(w http.ResponseWriter, r *http.Request, page string, data m
 	buf.WriteTo(w)
 }
 
+// RenderPart is a page's "content" template alone, for a plugin's part of a core page.
+func (a *App) RenderPart(r *http.Request, page string, data map[string]any) (template.HTML, error) {
+	data["L"] = a.Locale(r)
+	data["User"] = CurrentUser(r)
+	var buf bytes.Buffer
+	if err := a.pages[page].ExecuteTemplate(&buf, "content", data); err != nil {
+		return "", err
+	}
+	return template.HTML(buf.String()), nil //nolint:gosec // our own template's output, already escaped
+}
+
 // nav is the menu for u: the core's entries and those of the plugins that are on.
 func (a *App) nav(ctx context.Context, u *User) []NavItem {
 	all := append([]NavItem{}, coreNav...)

@@ -10,5 +10,7 @@ CREATE TABLE IF NOT EXISTS bank_receipt_items (
   transaction_id BIGINT NOT NULL,
   name VARCHAR(255) NOT NULL,
   amount DECIMAL(12,2) NOT NULL,
-  FOREIGN KEY (transaction_id) REFERENCES bank_transactions(id) ON DELETE CASCADE
+  line_id BIGINT NULL, -- the item's line when its receipt is split by it
+  FOREIGN KEY (transaction_id) REFERENCES bank_transactions(id) ON DELETE CASCADE,
+  FOREIGN KEY (line_id) REFERENCES budget_lines(id) ON DELETE SET NULL
 );

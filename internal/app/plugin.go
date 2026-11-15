@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"errors"
+	"html/template"
 	"io/fs"
 	"net/http"
 )
@@ -20,6 +21,38 @@ type Plugin interface {
 	Locales() fs.FS                      // <code>.json texts, added to the core's languages, or nil
 	Routes(mux *http.ServeMux, app *App) // handlers, served behind login
 	Nav() []NavItem                      // menu entries
+}
+
+// LinePanels is a plugin that adds sections to a line's stats page, for the
+// lines named names in section and the years from to to. Empty adds nothing.
+type LinePanels interface {
+	LinePanel(a *App, r *http.Request, budget BudgetRef, section string, names []string, from, to int) (template.HTML, error)
+}
+
+// linePanels are the sections the plugins that are on add to a line's stats page.
+func (a *App) linePanels(r *http.Request, budget BudgetRef, section string, names []string, from, to int) ([]template.HTML, error) {
+	var out []template.HTML
+	for _, p := range plugins {
+		lp, ok := p.(LinePanels)
+		if !ok {
+			continue
+		}
+		on, err := a.pluginOn(r.Context(), p.ID())
+		if err != nil {
+			return nil, err
+		}
+		if !on {
+			continue
+		}
+		h, err := lp.LinePanel(a, r, budget, section, names, from, to)
+		if err != nil {
+			return nil, err
+		}
+		if h != "" {
+			out = append(out, h)
+		}
+	}
+	return out, nil
 }
 
 // NavItem is a menu entry. Label is a locale key.

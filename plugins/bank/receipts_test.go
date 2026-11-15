@@ -3,6 +3,7 @@ package bank
 import (
 	"archive/zip"
 	"bytes"
+	"html"
 	"net/url"
 	"strconv"
 	"strings"
@@ -79,6 +80,22 @@ func TestBankReceipts(t *testing.T) {
 	}
 	if n := count("SELECT COUNT(*) FROM bank_transactions WHERE text = 'Card Kiosk' AND NOT ignored"); n != 1 {
 		t.Error("a bank row two weeks after a receipt of the same amount was taken")
+	}
+
+	// A line's stats page shows the receipts on it: each item on the line its receipt was split to.
+	stats := func(section, name string) string {
+		w := app.TestRequest(a, "GET", "/stats/line?section="+section+"&name="+url.QueryEscape(name)+"&from=2031&to=2031", nil, "")
+		app.MustStatus(t, w, 200)
+		return html.UnescapeString(w.Body.String())
+	}
+	food, household := stats("allocation", "Food account"), stats("expense", "Household")
+	for _, want := range []string{"Actual, from bank and receipts", "Receipts by store", "Grocer", "BREAD", "MILK 1L"} {
+		if !strings.Contains(food, want) {
+			t.Errorf("the food line's stats lack %q", want)
+		}
+	}
+	if strings.Contains(food, "DISH SOAP") || !strings.Contains(household, "DISH SOAP") {
+		t.Error("the soap is not on the household line's stats alone")
 	}
 
 	// The export grows: imported again, nothing is added and the split stays.

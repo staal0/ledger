@@ -162,7 +162,13 @@ func (a *App) statsLinePage(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
+	panels, err := a.linePanels(r, current, section, names, from, to)
+	if err != nil {
+		a.Fail(w, err)
+		return
+	}
 	a.Render(w, r, "stats_line", map[string]any{
+		"Panels":   panels,
 		"Title":    name,
 		"Name":     name,
 		"Names":    names,

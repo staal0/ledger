@@ -151,5 +151,13 @@
   "bank.receipts_hint": "Receipts imported before, or twice in the file, are skipped. A bank row a new receipt covers is ignored, so the purchase is not counted twice.",
   "bank.store": "Store",
   "bank.items": "Items",
-  "bank.status_covers": "covers %s %s"
+  "bank.status_covers": "covers %s %s",
+  "bank.line_actual": "Actual, from bank and receipts",
+  "bank.on_receipts": "On receipts",
+  "bank.line_stores": "Receipts by store",
+  "bank.line_items": "Items, largest amount first",
+  "bank.receipts_count": "Receipts",
+  "bank.item": "Item",
+  "bank.times": "Times",
+  "bank.line_receipts_hint": "Items count on the line their receipt split them to. Receipts split by hand are left out."
 }

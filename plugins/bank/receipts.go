@@ -37,6 +37,7 @@ type receipt struct {
 func (rc receipt) Amount() app.Money { return -rc.Total }
 
 type receiptItem struct {
+	ID     int64 `json:"-"`
 	Name   string
 	Amount app.Money
 }
@@ -104,7 +105,7 @@ func parseReceipts(data []byte) ([]receipt, error) {
 			rc.Store = r.ReceiptID
 		}
 		for _, l := range r.Lines {
-			rc.Items = append(rc.Items, receiptItem{cut(l.Name, 255), money(l.Total.Amount)})
+			rc.Items = append(rc.Items, receiptItem{Name: cut(l.Name, 255), Amount: money(l.Total.Amount)})
 		}
 		out = append(out, rc)
 	}
@@ -300,7 +301,7 @@ func addReceipt(ctx context.Context, tx *sql.Tx, account, importID int64, rc rec
 
 // receiptItems are a transaction's receipt items, if it is a receipt.
 func receiptItems(ctx context.Context, q app.Querier, transaction int64) ([]receiptItem, error) {
-	rows, err := q.QueryContext(ctx, `SELECT name, amount FROM bank_receipt_items WHERE transaction_id = ? ORDER BY id`, transaction)
+	rows, err := q.QueryContext(ctx, `SELECT id, name, amount FROM bank_receipt_items WHERE transaction_id = ? ORDER BY id`, transaction)
 	if err != nil {
 		return nil, err
 	}
@@ -308,7 +309,7 @@ func receiptItems(ctx context.Context, q app.Querier, transaction int64) ([]rece
 	var out []receiptItem
 	for rows.Next() {
 		var it receiptItem
-		if err := rows.Scan(&it.Name, &it.Amount); err != nil {
+		if err := rows.Scan(&it.ID, &it.Name, &it.Amount); err != nil {
 			return nil, err
 		}
 		out = append(out, it)
@@ -337,6 +338,10 @@ func resetByReceipt(ctx context.Context, tx *sql.Tx, budget int64) (map[int64]bo
 	}
 	if _, err := tx.ExecContext(ctx, `DELETE s FROM bank_splits s JOIN bank_transactions t ON t.id = s.transaction_id
 		JOIN bank_accounts a ON a.id = t.account_id WHERE a.budget_id = ? AND t.by_receipt`, budget); err != nil {
+		return nil, err
+	}
+	if _, err := tx.ExecContext(ctx, `UPDATE bank_receipt_items i JOIN bank_transactions t ON t.id = i.transaction_id
+		JOIN bank_accounts a ON a.id = t.account_id SET i.line_id = NULL WHERE a.budget_id = ? AND t.by_receipt`, budget); err != nil {
 		return nil, err
 	}
 	_, err = tx.ExecContext(ctx, `UPDATE bank_transactions t JOIN bank_accounts a ON a.id = t.account_id
@@ -428,6 +433,7 @@ func applyReceipts(ctx context.Context, tx *sql.Tx, budget int64, rules []bankRu
 		line    int64
 		ignored bool
 		amount  app.Money
+		items   []any // their ids
 	}
 	for _, rc := range receipts {
 		if !rc.free {
@@ -440,7 +446,7 @@ func applyReceipts(ctx context.Context, tx *sql.Tx, budget int64, rules []bankRu
 		var parts []part
 		var sum app.Money
 		for _, it := range items {
-			p := part{line: rc.line, amount: -it.Amount}
+			p := part{line: rc.line, amount: -it.Amount, items: []any{it.ID}}
 			if r := matchRule(rules, it.Name); r != nil {
 				if r.Ignored {
 					p.line, p.ignored = 0, true
@@ -457,6 +463,7 @@ func applyReceipts(ctx context.Context, tx *sql.Tx, budget int64, rules []bankRu
 			for i := range parts {
 				if parts[i].line == p.line && parts[i].ignored == p.ignored {
 					parts[i].amount += p.amount
+					parts[i].items = append(parts[i].items, it.ID)
 					merged = true
 				}
 			}
@@ -486,6 +493,10 @@ func applyReceipts(ctx context.Context, tx *sql.Tx, budget int64, rules []bankRu
 			}
 			if _, err := tx.ExecContext(ctx, `INSERT INTO bank_splits (transaction_id, line_id, ignored, amount) VALUES (?, ?, ?, ?)`,
 				rc.id, line, p.ignored, p.amount); err != nil {
+				return err
+			}
+			if _, err := tx.ExecContext(ctx, `UPDATE bank_receipt_items SET line_id = ? WHERE id IN (?`+strings.Repeat(", ?", len(p.items)-1)+`)`,
+				append([]any{line}, p.items...)...); err != nil {
 				return err
 			}
 		}
