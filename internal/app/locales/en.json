@@ -202,8 +202,8 @@
   "pager.page": "Page %d of %d",
   "pager.size": "Per page",
 
-  "chart.balance": "Balance through the year",
-  "chart.balance_month": "Balance after the month",
-  "chart.balance_low": "The balance is lowest after %m: %s. Money set aside in advance, or spread bills, can cover it.",
-  "chart.balance_ok": "The balance never goes below zero."
+  "chart.buffer": "To get through %d, the account needs at least %%s on 1 January.",
+  "chart.buffer_back": "It is back above zero after %s.",
+  "chart.buffer_never": "It stays below zero all year.",
+  "chart.prev_end": "%d is planned to end with %%s."
 }
