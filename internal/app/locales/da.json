@@ -202,8 +202,8 @@
   "pager.page": "Side %d af %d",
   "pager.size": "Pr. side",
 
-  "chart.balance": "Saldo gennem året",
-  "chart.balance_month": "Saldo efter måneden",
-  "chart.balance_low": "Saldoen er lavest efter %m: %s. Penge sat til side på forhånd eller spredte regninger kan dække det.",
-  "chart.balance_ok": "Saldoen kommer aldrig under nul."
+  "chart.buffer": "For at klare %d skal der mindst stå %%s på kontoen 1. januar.",
+  "chart.buffer_back": "Saldoen er over nul igen efter %s.",
+  "chart.buffer_never": "Saldoen er under nul hele året.",
+  "chart.prev_end": "%d forventes at slutte med %%s."
 }

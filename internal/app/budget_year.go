@@ -235,6 +235,19 @@ func (a *App) budgetPage(w http.ResponseWriter, r *http.Request) {
 	}
 	data["Budget"] = b
 	data["Original"] = originalValues(b)
+	// What the year before is planned to end with, to compare with the buffer this year needs.
+	var prevEnd Money
+	var prevYears int
+	if err := a.db.QueryRowContext(ctx, `SELECT COALESCE(SUM(CASE l.section WHEN 'income' THEN am.amount ELSE -am.amount END), 0), COUNT(DISTINCT y.id)
+		FROM budget_years y LEFT JOIN budget_lines l ON l.year_id = y.id LEFT JOIN budget_amounts am ON am.line_id = l.id
+		WHERE y.budget_id = ? AND y.year = ?`, budget, year-1).Scan(&prevEnd, &prevYears); err != nil {
+		a.Fail(w, err)
+		return
+	}
+	if prevYears > 0 {
+		data["PrevEnd"] = int64(prevEnd)
+		data["PrevYear"] = year - 1
+	}
 	if data["Previous"], err = a.previousValues(ctx, b.ID, L); err != nil {
 		a.Fail(w, err)
 		return
