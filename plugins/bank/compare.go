@@ -18,10 +18,10 @@ type bankCompareRow struct {
 	URL                  string // the line's chart over the year
 }
 
-// bankMissing is a budgeted month of a line without a transaction.
+// bankMissing is a line with budgeted months that have no transaction.
 type bankMissing struct {
 	Section, Name string
-	Month         int
+	Months        []int
 	Budget        app.Money
 }
 
@@ -186,17 +186,24 @@ func (a handlers) bankComparePage(w http.ResponseWriter, r *http.Request) {
 
 	var list []bankCompareSection
 	var missing []bankMissing
+	var missingSum app.Money
 	var chart *bankLineChart
 	for _, s := range app.Sections {
 		sec := bankCompareSection{Key: s}
 		var budgetSum, actualSum app.Money
 		for _, l := range b.Lines[s] {
 			var budget app.Money
+			miss := bankMissing{Section: s, Name: l.Name}
 			for _, m := range in {
 				budget += l.Amounts[m]
 				if _, paid := sums[l.ID][m]; l.Amounts[m] != 0 && !paid && slices.Contains(imported, m) {
-					missing = append(missing, bankMissing{s, l.Name, m, l.Amounts[m]})
+					miss.Months = append(miss.Months, m)
+					miss.Budget += l.Amounts[m]
 				}
+			}
+			if len(miss.Months) > 0 {
+				missing = append(missing, miss)
+				missingSum += miss.Budget
 			}
 			act := actual[l.ID] * actualSign(s)
 			row := compareRow(s, l.Name, budget, act)
@@ -217,6 +224,7 @@ func (a handlers) bankComparePage(w http.ResponseWriter, r *http.Request) {
 	page["HasYear"] = true
 	page["Sections"] = list
 	page["Missing"] = missing
+	page["MissingSum"] = missingSum
 	page["Chart"] = chart
 	page["CloseURL"] = bankURL("/bank/compare", current, url.Values{"year": {strconv.Itoa(year)}, "period": {period}})
 	page["Unassigned"] = unassigned
