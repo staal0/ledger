@@ -117,19 +117,20 @@ func loadBankRules(ctx context.Context, q app.Querier, budget int64) ([]bankRule
 }
 
 // applyBankRules assigns the budget's unassigned transactions by its rules,
-// then by their account's default line, and returns how many it assigned.
+// then by their account's default line, then lets receipts take over, and
+// returns how many it assigned.
 // Lines are looked up by name in the transaction's year. Transactions the
 // default assigned are checked again, so they follow rule and default changes.
 func applyBankRules(ctx context.Context, tx *sql.Tx, budget int64) (int, error) {
+	redo, err := resetByReceipt(ctx, tx, budget)
+	if err != nil {
+		return 0, err
+	}
 	rules, err := loadBankRules(ctx, tx, budget)
 	if err != nil {
 		return 0, err
 	}
-	type key struct {
-		year          int
-		section, name string
-	}
-	lines := map[key]int64{}
+	lines := map[lineKey]int64{}
 	rows, err := tx.QueryContext(ctx, `SELECT y.year, l.section, l.name, MIN(l.id) FROM budget_lines l
 		JOIN budget_years y ON y.id = l.year_id WHERE y.budget_id = ? GROUP BY y.year, l.section, l.name`, budget)
 	if err != nil {
@@ -137,7 +138,7 @@ func applyBankRules(ctx context.Context, tx *sql.Tx, budget int64) (int, error) 
 	}
 	defer rows.Close()
 	for rows.Next() {
-		var k key
+		var k lineKey
 		var id int64
 		if err := rows.Scan(&k.year, &k.section, &k.name, &id); err != nil {
 			return 0, err
@@ -179,7 +180,7 @@ func applyBankRules(ctx context.Context, tx *sql.Tx, budget int64) (int, error) 
 		var line, rule any
 		ignored, byDefault := false, false
 		if r := matchRule(rules, o.text); r != nil {
-			if id, found := lines[key{o.year, r.Section, r.LineName}]; found || r.Ignored {
+			if id, found := lines[lineKey{o.year, r.Section, r.LineName}]; found || r.Ignored {
 				rule, ignored = r.ID, r.Ignored
 				if !r.Ignored {
 					line = id
@@ -187,7 +188,7 @@ func applyBankRules(ctx context.Context, tx *sql.Tx, budget int64) (int, error) 
 			}
 		}
 		if rule == nil {
-			if id, found := lines[key{o.year, o.section, o.name}]; found {
+			if id, found := lines[lineKey{o.year, o.section, o.name}]; found {
 				line, byDefault = id, true
 			}
 		}
@@ -198,11 +199,17 @@ func applyBankRules(ctx context.Context, tx *sql.Tx, budget int64) (int, error) 
 			line, ignored, rule, byDefault, o.id); err != nil {
 			return 0, err
 		}
-		if !o.byDefault && (line != nil || ignored) {
+		if !o.byDefault && !redo[o.id] && (line != nil || ignored) {
 			n++
 		}
 	}
-	return n, nil
+	return n, applyReceipts(ctx, tx, budget, rules, lines)
+}
+
+// lineKey finds a line by name in a year.
+type lineKey struct {
+	year          int
+	section, name string
 }
 
 // unassignByRules makes the transactions assigned by the given rules
@@ -426,14 +433,14 @@ func (a handlers) bankRulesSave(w http.ResponseWriter, r *http.Request) {
 // choice by hand or a more specific rule keeps it from the text.
 type bankRuleMatch struct {
 	bankTransaction
-	State string // "unassigned", "hand", "split", "default" or "rule"
+	State string // "unassigned", "hand", "split", "receipt", "default" or "rule"
 	Line  string // the line or rule that has it now
 	Takes bool
 }
 
 // ruleMatches lists the budget's newest transactions that test matches.
 func (a handlers) ruleMatches(r *http.Request, budget int64, rules []bankRule, test string) ([]bankRuleMatch, error) {
-	rows, err := a.DB().QueryContext(r.Context(), `SELECT t.id, t.booked, t.text, t.amount, t.ignored, t.split, t.by_default, COALESCE(l.name, ''), COALESCE(ru.pattern, '')
+	rows, err := a.DB().QueryContext(r.Context(), `SELECT t.id, t.booked, t.text, t.amount, t.ignored, t.split, t.by_default, t.by_receipt, COALESCE(l.name, ''), COALESCE(ru.pattern, '')
 		FROM bank_transactions t JOIN bank_accounts a ON a.id = t.account_id
 		LEFT JOIN budget_lines l ON l.id = t.line_id LEFT JOIN bank_rules ru ON ru.id = t.rule_id
 		WHERE a.budget_id = ? ORDER BY t.booked DESC, t.id DESC`, budget)
@@ -445,14 +452,16 @@ func (a handlers) ruleMatches(r *http.Request, budget int64, rules []bankRule, t
 	for rows.Next() && len(out) < 50 {
 		var m bankRuleMatch
 		var rule string
-		var split, byDefault bool
-		if err := rows.Scan(&m.ID, &m.Booked, &m.Text, &m.Amount, &m.Ignored, &split, &byDefault, &m.Line, &rule); err != nil {
+		var split, byDefault, byReceipt bool
+		if err := rows.Scan(&m.ID, &m.Booked, &m.Text, &m.Amount, &m.Ignored, &split, &byDefault, &byReceipt, &m.Line, &rule); err != nil {
 			return nil, err
 		}
 		if !patternMatches(m.Text, test) {
 			continue
 		}
 		switch {
+		case byReceipt:
+			m.State = "receipt"
 		case split:
 			m.State = "split"
 		case byDefault:
@@ -466,7 +475,7 @@ func (a handlers) ruleMatches(r *http.Request, budget int64, rules []bankRule, t
 		}
 		// The text takes what nothing assigned by hand, unless a more specific rule fits.
 		best := matchRule(rules, m.Text)
-		m.Takes = m.State != "hand" && m.State != "split" && (best == nil || specificity(test) >= specificity(best.Pattern))
+		m.Takes = (m.State == "unassigned" || m.State == "default" || m.State == "rule") && (best == nil || specificity(test) >= specificity(best.Pattern))
 		out = append(out, m)
 	}
 	return out, rows.Err()

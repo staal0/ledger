@@ -51,7 +51,7 @@
   <h2>{{$L.T "bank.import"}}</h2>
   <form method="post" action="/bank/preview" enctype="multipart/form-data" class="inline">
     <select name="account" aria-label="{{$L.T "bank.account"}}">{{range .Accounts}}<option value="{{.ID}}">{{.Name}}</option>{{end}}</select>
-    <input type="file" name="file" accept=".csv,text/csv" required aria-label="{{$L.T "bank.file"}}">
+    <input type="file" name="file" accept=".csv,text/csv,.zip,.json" required aria-label="{{$L.T "bank.file"}}">
     <button>{{$L.T "bank.read"}}</button>
   </form>
   <p class="hint">{{$L.T "bank.import_hint"}}</p>

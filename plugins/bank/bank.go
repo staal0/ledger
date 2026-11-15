@@ -365,7 +365,7 @@ func (a handlers) bankFileRows(ctx context.Context, q app.Querier, acc bankAccou
 // bankPreview reads an uploaded file and shows its rows before anything is imported.
 func (a handlers) bankPreview(w http.ResponseWriter, r *http.Request) {
 	L := a.Locale(r)
-	r.Body = http.MaxBytesReader(w, r.Body, maxBankFile+64<<10)
+	r.Body = http.MaxBytesReader(w, r.Body, maxReceiptFile+64<<10)
 	if err := r.ParseMultipartForm(maxBankFile); err != nil {
 		http.Error(w, L.T("bank.err_too_large"), http.StatusRequestEntityTooLarge)
 		return
@@ -385,12 +385,20 @@ func (a handlers) bankPreview(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	defer file.Close()
-	data, err := io.ReadAll(io.LimitReader(file, maxBankFile+1))
+	limit := maxBankFile
+	if f, _ := bankFormatByID(acc.Format); f.Receipts {
+		limit = maxReceiptFile
+	}
+	data, err := io.ReadAll(io.LimitReader(file, int64(limit)+1))
 	if err != nil {
 		a.Fail(w, err)
 		return
 	}
-	if len(data) > maxBankFile {
+	if limit == maxReceiptFile && len(data) <= limit {
+		a.receiptImport(w, r, acc, b, data) // no preview: receipts imported before are skipped by their id
+		return
+	}
+	if len(data) > limit {
 		http.Error(w, L.T("bank.err_too_large"), http.StatusRequestEntityTooLarge)
 		return
 	}

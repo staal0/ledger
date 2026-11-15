@@ -13,7 +13,7 @@
   "bank.import": "Importér",
   "bank.file": "CSV-fil",
   "bank.read": "Læs fil",
-  "bank.import_hint": "Filen læses og vises først, så du kan tjekke den, før noget importeres. Rækker, der er importeret før, springes over.",
+  "bank.import_hint": "Filen læses og vises først, så du kan tjekke den, før noget importeres. Rækker, der er importeret før, springes over. En kvitteringseksport (zip eller JSON) importeres med det samme; kvitteringer, der er importeret før, springes over.",
   "bank.imported": "Importerede %d nye posteringer; %s var importeret før.",
   "bank.imports": "Importer",
   "bank.imported_at": "Importeret",
@@ -145,5 +145,9 @@
   "bank.default_line": "Standardlinje",
   "bank.default_line_hint": "Kontoens posteringer tildeles denne linje, når ingen regel passer, fx alle køb på en madkonto.",
   "bank.by_default": "via standard",
-  "bank.by_default_hint": "Tildelt af kontoens standardlinje. Ændres den her, er den tildelt i hånden."
+  "bank.by_default_hint": "Tildelt af kontoens standardlinje. Ændres den her, er den tildelt i hånden.",
+  "bank.err_receipts": "Filen er ikke en kvitteringseksport.",
+  "bank.by_receipt": "via kvittering",
+  "bank.by_receipt_hint": "Opdelt efter kvitteringens varer, eller ignoreret fordi en kvittering dækker den. Ændres den her, er den sat i hånden.",
+  "bank.receipt_items": "Kvittering"
 }

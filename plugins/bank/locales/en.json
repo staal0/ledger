@@ -13,7 +13,7 @@
   "bank.import": "Import",
   "bank.file": "CSV file",
   "bank.read": "Read file",
-  "bank.import_hint": "The file is read first and shown, so you can check it before anything is imported. Rows imported before are skipped.",
+  "bank.import_hint": "The file is read first and shown, so you can check it before anything is imported. Rows imported before are skipped. A receipt export (zip or JSON) is imported right away; receipts imported before are skipped.",
   "bank.imported": "Imported %d new transactions; %s were imported before.",
   "bank.imports": "Imports",
   "bank.imported_at": "Imported",
@@ -145,5 +145,9 @@
   "bank.default_line": "Default line",
   "bank.default_line_hint": "The account's transactions go to this line when no rule fits, e.g. all purchases on a food account.",
   "bank.by_default": "by default",
-  "bank.by_default_hint": "Assigned by the account's default line. Changing it here assigns it by hand."
+  "bank.by_default_hint": "Assigned by the account's default line. Changing it here assigns it by hand.",
+  "bank.err_receipts": "The file is not a receipt export.",
+  "bank.by_receipt": "by receipt",
+  "bank.by_receipt_hint": "Split by the receipt's items, or ignored because a receipt covers it. Changing it here sets it by hand.",
+  "bank.receipt_items": "Receipt"
 }
